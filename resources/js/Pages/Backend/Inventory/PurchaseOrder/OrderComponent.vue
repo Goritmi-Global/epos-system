@@ -51,13 +51,33 @@ watch(
     { immediate: true }
 );
 
+watch(p_supplier, (newSupplier) => {
+    filteredItems.value.forEach(it => {
+        if (it.preferred_supplier_id !== newSupplier && it.supplier_id !== newSupplier) {
+            it.qty = 0;
+            it.unitPrice = 0;
+            it.expiry = null;
+            it.subtotal = 0;
+            it.selected_derived_unit_id = null;
+            it.selectedDerivedUnitInfo = null;
+        }
+    });
+});
+
 
 onMounted(() => {
     feather.replace();
     const addOrderModal = document.getElementById("addOrderModal");
     if (addOrderModal) {
         addOrderModal.addEventListener("show.bs.modal", () => {
-            activeTab.value = "single"; // Reset to single order tab
+            activeTab.value = "single";
+        });
+
+        addOrderModal.addEventListener('hidden.bs.modal', () => {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
         });
     }
 });
@@ -99,7 +119,46 @@ const filteredItems = computed(() => {
     });
 });
 
+const filteredOrderItems = computed(() => {
+    const term = o_search.value.trim().toLowerCase();
+    let items = props.items;
 
+    // Filter by search term first
+    if (term) {
+        items = items.filter((i) => {
+            if (!('qty' in i)) i.qty = 0;
+            if (!('unitPrice' in i)) i.unitPrice = 0;
+            if (!('expiry' in i)) i.expiry = null;
+            if (!('subtotal' in i)) i.subtotal = 0;
+            if (!('selected_derived_unit_id' in i)) i.selected_derived_unit_id = null;
+            if (!('selectedDerivedUnitInfo' in i)) i.selectedDerivedUnitInfo = null;
+            if (!('derived_units' in i)) i.derived_units = [];
+
+            return [
+                i.name,
+                i.category?.name ?? "",
+                i.unit_name ?? "",
+                String(i.stock ?? "")
+            ]
+                .join(" ")
+                .toLowerCase()
+                .includes(term);
+        });
+    }
+
+    // Filter by selected supplier
+    if (!p_supplier.value) {
+        return items;
+    }
+
+    return items.filter(item => {
+        const preferredSupplierId = item.preferred_supplier_id || item.preferredSupplierId;
+        const supplierIds = item.supplier_id || item.supplierId;
+
+        return preferredSupplierId === p_supplier.value ||
+            supplierIds === p_supplier.value;
+    });
+});
 
 function updateSubtotal(it) {
     let qty = Number(it.qty) || 0;
@@ -243,7 +302,7 @@ async function loadDerivedUnits(item) {
 }
 function onUnitChange(it) {
     if (!it.selected_derived_unit_id) {
-        it.selectedDerivedUnitInfo = null 
+        it.selectedDerivedUnitInfo = null
     } else {
         it.selectedDerivedUnitInfo = it.derived_units.find(
             du => du.id === it.selected_derived_unit_id
@@ -460,10 +519,20 @@ async function orderSubmit() {
             it.selectedDerivedUnitInfo = null;
         });
 
-        const m = bootstrap.Modal.getInstance(
-            document.getElementById("addOrderModal")
-        );
-        m?.hide();
+        // ✅ IMPROVED: More reliable modal closing
+        const modalEl = document.getElementById("addOrderModal");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        setTimeout(() => {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }, 100);
     } catch (err) {
         console.error(err);
         toast.error("Failed to save order");
@@ -560,10 +629,19 @@ async function multipleOrderSubmit() {
             it.selectedDerivedUnitInfo = null;
         });
 
-        const m = bootstrap.Modal.getInstance(
-            document.getElementById("addOrderModal")
-        );
-        m?.hide();
+        const modalEl = document.getElementById("addOrderModal");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        setTimeout(() => {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }, 300);
     } catch (err) {
         console.error(err);
         toast.error("Failed to save multiple orders");
@@ -643,14 +721,15 @@ const formatDate = (date) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="(it, idx) in filteredItems" :key="it.id">
+                                    <tr v-for="(it, idx) in filteredOrderItems" :key="it.id">
                                         <td>{{ it.name }}</td>
                                         <td>{{ it.category?.name || "-" }}</td>
                                         <td>{{ it.unit_name }}</td>
                                         <td>{{ it.stock }}</td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="handleQtyInput(it)" :class="{'is-invalid': formErrors[idx]?.qty}"/>
+                                                @input="handleQtyInput(it)"
+                                                :class="{ 'is-invalid': formErrors[idx]?.qty }" />
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
@@ -667,7 +746,8 @@ const formatDate = (date) => {
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="handlePriceInput(it)" :class="{'is-invalid': formErrors[idx]?.unitPrice}"/>
+                                                class="form-control" @input="handlePriceInput(it)"
+                                                :class="{ 'is-invalid': formErrors[idx]?.unitPrice }" />
                                             <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
                                                 {{ formErrors[idx].unitPrice }}
                                             </small>
@@ -741,7 +821,8 @@ const formatDate = (date) => {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="handleQtyInput(it)" :class="{'is-invalid': formErrors[idx]?.qty}"/>
+                                                @input="handleQtyInput(it)"
+                                                :class="{ 'is-invalid': formErrors[idx]?.qty }" />
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
@@ -758,7 +839,8 @@ const formatDate = (date) => {
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="handlePriceInput(it)" :class="{'is-invalid': formErrors[idx]?.unitPrice}"/>
+                                                class="form-control" @input="handlePriceInput(it)"
+                                                :class="{ 'is-invalid': formErrors[idx]?.unitPrice }" />
                                             <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
                                                 {{ formErrors[idx].unitPrice }}
                                             </small>
@@ -869,14 +951,17 @@ const formatDate = (date) => {
     background-color: white !important;
     color: black !important;
 }
+
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
 }
+
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;

@@ -81,7 +81,7 @@ watch(
 
 
 onMounted(() => {
-     console.log('Props items:', toRaw(props.items));
+    console.log('Props items:', toRaw(props.items));
     console.log('First item structure:', toRaw(props.items[0]));
     feather.replace();
     const bulkOrderModal = document.getElementById("bulkOrderModal");
@@ -92,6 +92,12 @@ onMounted(() => {
 
         bulkOrderModal.addEventListener("hide.bs.modal", () => {
             activeTab.value = "single";
+        });
+        bulkOrderModal.addEventListener('hidden.bs.modal', () => {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
         });
     }
 });
@@ -151,14 +157,14 @@ const filteredBulkItems = computed(() => {
     if (!b_supplier.value) {
         return bulkItems.value;
     }
-    
+
     return bulkItems.value.filter(item => {
         // Check multiple possible field names
         const preferredSupplierId = item.preferred_supplier_id || item.preferredSupplierId;
         const supplierIds = item.supplier_id || item.supplierId;
-        
-        return preferredSupplierId === b_supplier.value || 
-               supplierIds === b_supplier.value;
+
+        return preferredSupplierId === b_supplier.value ||
+            supplierIds === b_supplier.value;
     });
 });
 
@@ -323,9 +329,6 @@ async function bulkSubmit() {
         }
     });
 
-    // ✅ ADD THIS TO SEE FINAL PAYLOAD
-    console.log('Valid Items to submit:', validItems);
-
     if (!b_supplier.value) {
         toast.error("Please select a supplier");
         return;
@@ -346,8 +349,6 @@ async function bulkSubmit() {
         items: validItems,
     };
 
-    console.log('Final Payload:', payload);
-
     b_submitting.value = true;
     try {
         await axios.post("/purchase-orders", payload);
@@ -364,10 +365,21 @@ async function bulkSubmit() {
             it.selectedDerivedUnitInfo = null;
         });
 
-        const m = bootstrap.Modal.getInstance(
-            document.getElementById("bulkOrderModal")
-        );
-        m?.hide();
+        // ✅ IMPROVED: More reliable modal closing
+        const modalEl = document.getElementById("bulkOrderModal");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        setTimeout(() => {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }, 100);
+
     } catch (err) {
         console.error(err);
         toast.error("Failed to save bulk order");
@@ -473,17 +485,21 @@ async function multipleSubmit() {
             it.selected_derived_unit_id = null;
             it.selectedDerivedUnitInfo = null;
         });
+        const modalEl = document.getElementById("bulkOrderModal");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
 
-        const m = bootstrap.Modal.getInstance(
-            document.getElementById("bulkOrderModal")
-        );
-        m?.hide();
+        if (modalInstance) {
+            modalInstance.hide();
+        }
         setTimeout(() => {
-            document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
-            document.body.classList.remove("modal-open");
-            document.body.style.removeProperty("overflow");
-            document.body.style.removeProperty("padding-right");
-        }, 100);
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+
+            // Remove any lingering backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }, 300);
 
     } catch (err) {
         console.error(err);
@@ -613,15 +629,9 @@ async function multipleSubmit() {
                                             </small>
                                         </td>
                                         <td>
-                                        <VueDatePicker
-    v-model="it.expiry"
-    :format="dateFmt"
-    :min-date="new Date()"
-    :enableTimePicker="false"
-    teleport="body"
-    placeholder="Select date"
-    :class="{ 'is-invalid': formErrors[idx]?.expiry }"
-/>
+                                            <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
+                                                :enableTimePicker="false" teleport="body" placeholder="Select date"
+                                                :class="{ 'is-invalid': formErrors[idx]?.expiry }" />
 
 
                                             <small v-if="formErrors[idx]?.expiry" class="text-danger">
@@ -789,7 +799,7 @@ async function multipleSubmit() {
 }
 
 .dp__menu {
-  z-index: 999999 !important;
+    z-index: 999999 !important;
 }
 
 

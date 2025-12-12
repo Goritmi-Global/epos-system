@@ -172,7 +172,7 @@ const handleFilterClear = () => {
         dateFrom: null,
         dateTo: null
     };
-     appliedFilters.value = {
+    appliedFilters.value = {
         sortBy: "",
         stockStatus: "",
         category: "",
@@ -318,8 +318,24 @@ const submitDiscount = async () => {
             toast.success("Discount created successfully");
         }
 
-        const modal = bootstrap.Modal.getInstance(document.getElementById("discountModal"));
-        modal?.hide();
+        // ✅ IMPROVED: More reliable modal closing
+        const modalEl = document.getElementById("discountModal");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+
+        // ✅ Force cleanup of backdrop and body classes
+        setTimeout(() => {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+
+            // Remove any lingering backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }, 100);
 
         resetModal();
         await fetchDiscounts();
@@ -349,7 +365,7 @@ const submitDiscount = async () => {
 
 
 const sampleHeaders = [
-    "Discount Name", "Type", "Discount Amount", "Start Date",
+    "Discount Name", "Type", "Discount Percent", "Start Date",
     "End Date", "Min Purchase", "Max Discount", "Status", "Description"
 ];
 
@@ -480,13 +496,6 @@ const handleImport = (data) => {
         .catch((err) => {
             const msg = err.response?.data?.message || "Import failed";
             toast.error(msg);
-            setTimeout(() => {
-                const backdrops = document.querySelectorAll('.modal-backdrop');
-                backdrops.forEach(backdrop => backdrop.remove());
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-            }, 100);
         });
 };
 
@@ -604,10 +613,20 @@ onMounted(async () => {
             });
     }
 
+     const discountModal = document.getElementById("discountModal");
+    if (discountModal) {
+        discountModal.addEventListener('hidden.bs.modal', () => {
+            // Clean up any lingering backdrop
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        });
+    }
+
     const filterModal = document.getElementById('discountsFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
-            // Only clear if filters were NOT just applied
             if (!filtersJustApplied.value) {
                 handleFilterClear();
             }
@@ -658,7 +677,7 @@ const onDownload = (type) => {
 const downloadCSV = (data) => {
     try {
         const headers = [
-            "ID", "Discount Name", "Type", "Discount Amount",
+            "ID", "Discount Name", "Type", "Discount Percent",
             "Start Date", "End Date", "Min Purchase", "Max Discount",
             "Status", "Description"
         ];
@@ -796,7 +815,7 @@ const downloadExcel = (data) => {
                 "ID": discount.id || "",
                 "Discount Name": discount.name || "",
                 "Type": discount.type === "flat" ? "Flat" : "Percent",
-                "Discount Amount": discount.type === "flat"
+                "Discount Percent": discount.type === "flat"
                     ? discount.discount_amount
                     : discount.discount_amount + "%",
                 "Start Date": dateFmt(discount.start_date) || "",
@@ -905,7 +924,7 @@ const downloadExcel = (data) => {
                                                     // { value: 'date_desc', label: 'Start Date: Newest First' },
                                                 ]" :showStockStatus="false" categoryLabel="Discount Type"
                                                 statusLabel="Discount Status" :showPriceRange="true"
-                                                priceRangeLabel="Discount Amount Range" :showDateRange="true"
+                                                priceRangeLabel="Discount Percent Range" :showDateRange="true"
                                                 @apply="handleFilterApply" @clear="handleFilterClear" />
 
                                             <!-- Search Input -->
@@ -1222,9 +1241,9 @@ const downloadExcel = (data) => {
                                     </small>
                                 </div>
 
-                                <!-- Discount Amount -->
+                                <!-- Discount Percent -->
                                 <div class="col-12">
-                                    <label class="form-label">Discount Amount *</label>
+                                    <label class="form-label">Discount Percent *</label>
                                     <input v-model="discountForm.discount_amount" type="number" class="form-control"
                                         :class="{ 'is-invalid': discountFormErrors.discount_amount }"
                                         placeholder="Enter discount amount" />
@@ -1325,7 +1344,8 @@ const downloadExcel = (data) => {
 .list-group {
     color: #121212 !important;
 }
-:global(.dark .form-control:focus){
+
+:global(.dark .form-control:focus) {
     border-color: #fff !important;
 }
 

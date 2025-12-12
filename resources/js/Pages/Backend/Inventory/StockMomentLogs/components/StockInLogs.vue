@@ -280,7 +280,16 @@ onUpdated(() => window.feather?.replace());
                     </tr>
                 </thead>
                 <tbody>
-                    <template v-for="row in filtered" :key="row.id">
+                      <tr v-if="loading">
+                        <td colspan="10" class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted mt-2 mb-0">Loading logs...</p>
+                        </td>
+                    </tr>
+                    <template v-else>
+  <template v-for="row in filtered" :key="row.id">
                         <tr>
                             <td class="fw-semibold text-capitalize">
                                 {{ row.itemName }}
@@ -343,6 +352,8 @@ onUpdated(() => window.feather?.replace());
                             </td>
                         </tr>
                     </template>
+                    </template>
+                  
 
                     <tr v-if="filtered.length === 0">
                         <td colspan="10" class="text-center text-muted py-4">
@@ -352,7 +363,7 @@ onUpdated(() => window.feather?.replace());
                 </tbody>
             </table>
         </div>
-        <div v-if="!loading && pagination.last_page > 1" class="mt-4 d-flex justify-content-between align-items-center">
+       <div v-if="!loading && pagination.last_page > 1" class="mt-4 d-flex justify-content-between align-items-center">
             <div class="text-muted small">
                 Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
             </div>

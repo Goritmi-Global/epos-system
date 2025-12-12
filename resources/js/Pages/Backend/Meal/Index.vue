@@ -45,6 +45,16 @@ onMounted(async () => {
         }
     }, 100);
     fetchMeals();
+    const modalEl = document.getElementById("mealModal");
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            // Clean up any lingering backdrop
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        });
+    }
 });
 
 /* ---------------- KPI Cards ---------------- */
@@ -119,8 +129,24 @@ const submitMeal = async () => {
             toast.success("Meal created successfully");
         }
 
-        const modal = bootstrap.Modal.getInstance(document.getElementById("mealModal"));
-        modal?.hide();
+        // ✅ IMPROVED: More reliable modal closing
+        const modalEl = document.getElementById("mealModal");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+
+        // ✅ Force cleanup of backdrop and body classes
+        setTimeout(() => {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+
+            // Remove any lingering backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }, 100);
 
         resetModal();
         await fetchMeals();
@@ -143,8 +169,8 @@ const editRow = (row) => {
     editingMeal.value = row;
     mealForm.value = {
         name: row.name,
-        start_time: row.start_time, 
-        end_time: row.end_time,     
+        start_time: row.start_time,
+        end_time: row.end_time,
     };
 
     const modalEl = document.getElementById("mealModal");
@@ -200,15 +226,15 @@ const downloadCSV = (data) => {
         const headers = ["ID", "Meal Name", "Start Time", "End Time"];
         const rows = data.map((meal) => {
             return [
-                `${meal.id || ""}`,                                
-                `"${meal.name || ""}"`,                            
-                `"${meal.start_time || ""}"`,                      
-                `"${meal.end_time || ""}"`,                        
+                `${meal.id || ""}`,
+                `"${meal.name || ""}"`,
+                `"${meal.start_time || ""}"`,
+                `"${meal.end_time || ""}"`,
             ];
         });
         const csvContent = [
-            headers.join(","),                   
-            ...rows.map((r) => r.join(",")),     
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
         ].join("\n");
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
@@ -247,10 +273,10 @@ const downloadPDF = (data) => {
         const tableColumns = ["ID", "Meal Name", "Start Time", "End Time"];
         const tableRows = data.map((meal) => {
             return [
-                meal.id || "",                           
-                meal.name || "",                     
-                meal.start_time || "",               
-                meal.end_time || "",                 
+                meal.id || "",
+                meal.name || "",
+                meal.start_time || "",
+                meal.end_time || "",
             ];
         });
         autoTable(doc, {
@@ -265,12 +291,12 @@ const downloadPDF = (data) => {
                 lineWidth: 0.1,
             },
             headStyles: {
-                fillColor: [41, 128, 185],    
-                textColor: 255,              
+                fillColor: [41, 128, 185],
+                textColor: 255,
                 fontStyle: "bold",
             },
             alternateRowStyles: {
-                fillColor: [245, 245, 245]  
+                fillColor: [245, 245, 245]
             },
             margin: { left: 14, right: 14 },
             didDrawPage: (tableData) => {
@@ -310,9 +336,9 @@ const downloadExcel = (data) => {
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
         worksheet["!cols"] = [
-            { wch: 8 }, 
-            { wch: 25 }, 
-            { wch: 15 }, 
+            { wch: 8 },
+            { wch: 25 },
+            { wch: 15 },
             { wch: 15 },
         ];
         XLSX.utils.book_append_sheet(workbook, worksheet, "Meals");
@@ -349,9 +375,9 @@ const handleImport = (data) => {
 
     const mealsToImport = rows.map((row) => {
         return {
-            name: row[0] || "",           
-            start_time: row[1] || "",     
-            end_time: row[2] || "",     
+            name: row[0] || "",
+            start_time: row[1] || "",
+            end_time: row[2] || "",
         };
     }).filter(meal => meal.name.trim());
     if (mealsToImport.length === 0) {
@@ -482,7 +508,7 @@ const handleImport = (data) => {
                         <table class="table table-striped">
                             <thead class="border-top small text-muted">
                                 <tr>
-                                    <th>Id</th>
+                                    <th>S.#</th>
                                     <th>Name</th>
                                     <th>Start Time</th>
                                     <th>End Time</th>
@@ -490,8 +516,8 @@ const handleImport = (data) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="row in filtered" :key="row.id">
-                                    <td>{{ row.id }}</td>
+                                <tr v-for="(row, index) in filtered" :key="row.id">
+                                    <td>{{ index + 1 }}</td>
                                     <td class="fw-semibold">{{ row.name }}</td>
                                     <td>{{ row.start_time }}</td>
                                     <td>{{ row.end_time }}</td>
@@ -516,6 +542,7 @@ const handleImport = (data) => {
                                         </div>
                                     </td>
                                 </tr>
+
 
                                 <tr v-if="filtered.length === 0">
                                     <td colspan="5" class="text-center text-muted py-4">
@@ -634,7 +661,7 @@ const handleImport = (data) => {
     background: #f8f9fa;
 }
 
-:global(.dark .form-control:focus){
+:global(.dark .form-control:focus) {
     border-color: #fff !important;
 }
 
@@ -728,6 +755,7 @@ const handleImport = (data) => {
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
 }
+
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
@@ -739,6 +767,7 @@ const handleImport = (data) => {
     color: black !important;
     border-color: #9b9c9c
 }
+
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
@@ -748,6 +777,7 @@ const handleImport = (data) => {
     background-color: transparent !important;
     color: black !important;
 }
+
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -826,6 +856,7 @@ const handleImport = (data) => {
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
@@ -849,6 +880,7 @@ const handleImport = (data) => {
     background-color: transparent !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;
