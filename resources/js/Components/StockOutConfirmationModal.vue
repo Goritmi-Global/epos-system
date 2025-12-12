@@ -1,14 +1,17 @@
 <template>
-  <Transition name="fade-slide">
-    <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+  <Transition>
+    <div 
+      v-if="show" 
+      class="fixed inset-0 z-50 flex items-center justify-center custom-overlay"
+    >
       <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 animate-drop-in relative">
-        <!-- Close Button -->
+
+        <!-- Close -->
         <button
           class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
           @click="closeModal"
-          title="Close"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
           </svg>
@@ -43,6 +46,7 @@
           >
             Yes, I'm sure
           </button>
+
           <button
             @click="closeModal"
             class="btn btn-secondary d-flex align-items-center gap-1 px-3 py-2 rounded-pill text-white"
@@ -50,6 +54,7 @@
             Cancel
           </button>
         </div>
+
       </div>
     </div>
   </Transition>
@@ -68,6 +73,10 @@ const closeModal = () => emits('close')
 </script>
 
 <style scoped>
+.custom-overlay {
+  background-color: rgba(0, 0, 0, 0.1) !important; /* SAME AS RESTORE */
+}
+
 .fade-slide-enter-active {
   transition: all 0.3s ease;
 }
@@ -93,17 +102,5 @@ const closeModal = () => emits('close')
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* Dark Mode Support (optional if you use dark mode) */
-.dark .bg-white {
-  background-color: #212121 !important;
-  color: #fff !important;
-}
-.dark h3, .dark p {
-  color: #fff !important;
-}
-.dark .bg-gray-100 {
-  background-color: #121212 !important;
 }
 </style>

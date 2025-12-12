@@ -1,7 +1,7 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated, watch } from "vue";
-import { Percent, Calendar, AlertTriangle, XCircle, Pencil, Plus, CheckCircle } from "lucide-vue-next";
+import { Percent, Calendar, AlertTriangle, XCircle, Tag, DollarSign, Pencil, Plus, CheckCircle } from "lucide-vue-next";
 import { toast } from "vue3-toastify";
 import axios from "axios";
 import Select from "primevue/select";
@@ -290,28 +290,28 @@ const promoStats = computed(() => [
     {
         label: "Total Promos",
         value: promos.value.length,
-        icon: Percent,
+        icon: Tag,  // Changed from Percent to Tag
         iconBg: "bg-light-primary",
         iconColor: "text-primary",
     },
     {
         label: "Active Promos",
         value: promos.value.filter((p) => p.status === "active").length,
-        icon: Calendar,
+        icon: CheckCircle,  // Changed from Calendar to CheckCircle
         iconBg: "bg-light-success",
         iconColor: "text-success",
     },
     {
         label: "Flat Discount",
         value: promos.value.filter((p) => p.type === "flat").length,
-        icon: AlertTriangle,
+        icon: DollarSign,  // Changed from AlertTriangle to DollarSign
         iconBg: "bg-light-warning",
         iconColor: "text-warning",
     },
     {
         label: "Percentage",
         value: promos.value.filter((p) => p.type === "percent").length,
-        icon: XCircle,
+        icon: Percent,  // Keep Percent for percentage discounts
         iconBg: "bg-light-danger",
         iconColor: "text-danger",
     },
@@ -1082,9 +1082,6 @@ const downloadExcel = (data) => {
                                                             {{ promoFormErrors.discount_amount[0] }}
                                                         </small>
                                                     </div>
-                                                    <small v-if="promoFormErrors.name" class="text-danger">
-                                                        {{ promoFormErrors.name[0] }}
-                                                    </small>
                                                     <!-- Start Date -->
                                                     <div class="col-md-6">
                                                         <label class="form-label">Start Date</label>
