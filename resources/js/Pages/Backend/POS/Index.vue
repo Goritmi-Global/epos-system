@@ -1737,11 +1737,15 @@ const incCartWithWarning = async (i) => {
 
 async function printReceipt(order) {
     try {
-        const response = await axios.post("/api/customer/print-receipt", { order });
-        if (response.data.success) {
-        } else {
-            toast.error(response.data.message || "Print failed");
-        }
+        
+        const res = await axios.post(
+            'http://localhost:8085/print',
+            { order, type: 'customer' },
+            {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000,
+            },
+        );
     } catch (error) {
         console.error("Print failed:", error);
         toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
@@ -1754,11 +1758,14 @@ const changeAmount = ref(0);
 
 async function printKot(order) {
     try {
-        const response = await axios.post("/api/kot/print-receipt", { order });
-        if (response.data.success) {
-        } else {
-            toast.error(response.data.message || "KOT print failed");
-        }
+        const res = await axios.post(
+            'http://localhost:8085/print',
+            { order, type: 'KOT' },
+            {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000,
+            },
+        );
     } catch (error) {
         console.error("KOT print failed:", error);
         toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
@@ -5175,7 +5182,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -5221,7 +5228,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                            }}</b>
+                                                }}</b>
                                         </div>
                                     </div>
                                     <!-- Total After All Discounts -->
@@ -5546,7 +5553,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                            }}</strong>
+                                                }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -5584,7 +5591,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                }}</h6>
+                                                                    }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">
@@ -5638,75 +5645,84 @@ const decrementModalAddon = (groupId, addonId) => {
                                         </div>
 
                                         <!-- STEP 3 : ADD-ONS -->
-                                    <!-- STEP 3 : ADD-ONS -->
-<div v-show="currentStep === 3 && hasAddons" class="step-content">
-    <div class="d-flex align-items-start mb-2">
-        <i class="bi bi-plus-circle me-2 text-success" style="font-size: 1.1rem;"></i>
-        <div>
-            <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons</h6>
-            <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your meal</p>
-        </div>
-    </div>
+                                        <!-- STEP 3 : ADD-ONS -->
+                                        <div v-show="currentStep === 3 && hasAddons" class="step-content">
+                                            <div class="d-flex align-items-start mb-2">
+                                                <i class="bi bi-plus-circle me-2 text-success"
+                                                    style="font-size: 1.1rem;"></i>
+                                                <div>
+                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons</h6>
+                                                    <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your
+                                                        meal</p>
+                                                </div>
+                                            </div>
 
-    <div v-for="group in selectedItem?.addon_groups" :key="group.group_id" class="mb-3">
-        <label class="fw-semibold mb-2 d-flex justify-content-between" style="font-size: 0.85rem;">
-            <span>{{ group.group_name }}</span>
-            <span v-if="group.max_select > 0" class="badge rounded-pill bg-primary" style="font-size: 0.7rem;">
-                Max {{ group.max_select }}
-            </span>
-        </label>
+                                            <div v-for="group in selectedItem?.addon_groups" :key="group.group_id"
+                                                class="mb-3">
+                                                <label class="fw-semibold mb-2 d-flex justify-content-between"
+                                                    style="font-size: 0.85rem;">
+                                                    <span>{{ group.group_name }}</span>
+                                                    <span v-if="group.max_select > 0"
+                                                        class="badge rounded-pill bg-primary"
+                                                        style="font-size: 0.7rem;">
+                                                        Max {{ group.max_select }}
+                                                    </span>
+                                                </label>
 
-        <div class="row g-2">
-            <div v-for="addon in group.addons" :key="addon.id" class="col-12">
-                <div class="border rounded-2 p-2 shadow-sm d-flex align-items-center justify-content-between"
-                    :class="{ 'bg-light border-success': isModalAddonSelected(group.group_id, addon.id) }">
-                    
-                    <!-- Checkbox & Name -->
-                    <div class="d-flex align-items-center flex-grow-1">
-                        <input 
-                            type="checkbox" 
-                            class="form-check-input me-2" 
-                            style="width: 18px; height: 18px; cursor: pointer;"
-                            :id="'addon-' + addon.id"
-                            :checked="isModalAddonSelected(group.group_id, addon.id)"
-                            @change="toggleModalAddon(group.group_id, addon)">
-                        
-                        <label :for="'addon-' + addon.id" class="form-check-label mb-0" 
-                            style="font-size: 0.85rem; cursor: pointer;">
-                            {{ addon.name }}
-                            <span class="text-success fw-semibold ms-1">
-                                +{{ formatCurrencySymbol(addon.price) }}
-                            </span>
-                        </label>
-                    </div>
+                                                <div class="row g-2">
+                                                    <div v-for="addon in group.addons" :key="addon.id" class="col-12">
+                                                        <div class="border rounded-2 p-2 shadow-sm d-flex align-items-center justify-content-between"
+                                                            :class="{ 'bg-light border-success': isModalAddonSelected(group.group_id, addon.id) }">
 
-                    <!-- Quantity Controls -->
-                    <div v-if="isModalAddonSelected(group.group_id, addon.id)" 
-                        class="d-flex align-items-center gap-2">
-                        <button 
-                            class="btn btn-sm btn-outline-danger rounded-circle" 
-                            style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
-                            @click="decrementModalAddon(group.group_id, addon.id)"
-                            :disabled="getModalAddonQuantity(group.group_id, addon.id) <= 1">
-                            <i class="bi bi-dash" style="font-size: 0.9rem;"></i>
-                        </button>
-                        
-                        <span class="fw-bold" style="min-width: 25px; text-align: center; font-size: 0.9rem;">
-                            {{ getModalAddonQuantity(group.group_id, addon.id) }}
-                        </span>
-                        
-                        <button 
-                            class="btn btn-sm btn-outline-success rounded-circle" 
-                            style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
-                            @click="incrementModalAddon(group.group_id, addon.id)">
-                            <i class="bi bi-plus" style="font-size: 0.9rem;"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                                                            <!-- Checkbox & Name -->
+                                                            <div class="d-flex align-items-center flex-grow-1">
+                                                                <input type="checkbox" class="form-check-input me-2"
+                                                                    style="width: 18px; height: 18px; cursor: pointer;"
+                                                                    :id="'addon-' + addon.id"
+                                                                    :checked="isModalAddonSelected(group.group_id, addon.id)"
+                                                                    @change="toggleModalAddon(group.group_id, addon)">
+
+                                                                <label :for="'addon-' + addon.id"
+                                                                    class="form-check-label mb-0"
+                                                                    style="font-size: 0.85rem; cursor: pointer;">
+                                                                    {{ addon.name }}
+                                                                    <span class="text-success fw-semibold ms-1">
+                                                                        +{{ formatCurrencySymbol(addon.price) }}
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+
+                                                            <!-- Quantity Controls -->
+                                                            <div v-if="isModalAddonSelected(group.group_id, addon.id)"
+                                                                class="d-flex align-items-center gap-2">
+                                                                <button
+                                                                    class="btn btn-sm btn-outline-danger rounded-circle"
+                                                                    style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                                                                    @click="decrementModalAddon(group.group_id, addon.id)"
+                                                                    :disabled="getModalAddonQuantity(group.group_id, addon.id) <= 1">
+                                                                    <i class="bi bi-dash"
+                                                                        style="font-size: 0.9rem;"></i>
+                                                                </button>
+
+                                                                <span class="fw-bold"
+                                                                    style="min-width: 25px; text-align: center; font-size: 0.9rem;">
+                                                                    {{ getModalAddonQuantity(group.group_id, addon.id)
+                                                                    }}
+                                                                </span>
+
+                                                                <button
+                                                                    class="btn btn-sm btn-outline-success rounded-circle"
+                                                                    style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                                                                    @click="incrementModalAddon(group.group_id, addon.id)">
+                                                                    <i class="bi bi-plus"
+                                                                        style="font-size: 0.9rem;"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         <!-- STEP 4 : REVIEW -->
                                         <div v-show="currentStep === finalStep" class="step-content">
