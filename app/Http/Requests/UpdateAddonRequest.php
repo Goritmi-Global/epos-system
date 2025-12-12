@@ -5,30 +5,49 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreAddonRequest extends FormRequest
+class UpdateAddonRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return true; // Add your authorization logic here
     }
 
+    /**
+     * Get the validation rules that apply to the request.
+     */
     public function rules(): array
     {
+        // Get current addon ID from the route
+        $addonId = $this->route('id');
+
         return [
+
             'name' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('addons', 'name')->where('addon_group_id', $this->addon_group_id),
+                Rule::unique('addons', 'name')
+                    ->where('addon_group_id', $this->addon_group_id)
+                    ->ignore($addonId),
             ],
+
+            // Must belong to an existing addon group
             'addon_group_id' => 'required|exists:addon_groups,id',
+
+            // Price must be >= 0
             'price' => 'required|numeric|min:0',
+
             'description' => 'nullable|string',
+
             'status' => 'required|in:active,inactive',
+
             'sort_order' => 'nullable|integer|min:0',
         ];
     }
 
+    /**
+     * Custom error messages
+     */
     public function messages(): array
     {
         return [

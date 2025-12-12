@@ -418,7 +418,8 @@ const getSelectedAddonsText = () => {
     const allAddons = [];
     Object.values(modalSelectedAddons.value).forEach(addons => {
         addons.forEach(addon => {
-            allAddons.push(`${addon.name} (+${formatCurrencySymbol(addon.price)})`);
+            const qty = addon.quantity > 1 ? ` x${addon.quantity}` : '';
+            allAddons.push(`${addon.name}${qty} (+${formatCurrencySymbol(addon.price * (addon.quantity || 1))})`);
         });
     });
     return allAddons.join(', ');
@@ -565,7 +566,7 @@ const getModalAddonsPrice = () => {
     let total = 0;
     Object.values(modalSelectedAddons.value).forEach(addons => {
         addons.forEach(addon => {
-            total += parseFloat(addon.price || 0);
+            total += parseFloat(addon.price || 0) * (addon.quantity || 1);
         });
     });
     return total;
@@ -2215,7 +2216,7 @@ const confirmOrder = async ({
                 // ✅ Check if this is a deal FIRST
                 if (it.isDeal) {
                     return {
-                        product_id: it.dealId,  // Send the actual deal ID as product_id
+                        product_id: it.dealId,
                         title: it.title,
                         quantity: it.qty,
                         price: it.price,
@@ -2231,10 +2232,10 @@ const confirmOrder = async ({
                         sale_discount_per_item: 0,
                         removed_ingredients: [],
 
-                        // ✅ CRITICAL: These fields tell backend this is a deal
+                        // CRITICAL: These fields tell backend this is a deal
                         is_deal: true,
                         deal_id: it.dealId,
-                        menu_items: it.menu_items || []  // Include menu items with ingredients
+                        menu_items: it.menu_items || []
                     };
                 }
 
@@ -2248,6 +2249,17 @@ const confirmOrder = async ({
                 }
 
                 const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
+
+                const removedIngredientsWithNames = (it.removed_ingredients || []).map(removedId => {
+                    const ingredient = (it.ingredients || []).find(
+                        ing => (ing.id === removedId || ing.inventory_item_id === removedId)
+                    );
+
+                    return {
+                        id: removedId,
+                        name: ingredient ? (ingredient.product_name || ingredient.name) : 'Unknown Ingredient'
+                    };
+                });
 
                 return {
                     product_id: it.id,
@@ -2264,14 +2276,14 @@ const confirmOrder = async ({
                     variant_name: it.variant_name || null,
                     addons: it.addons || [],
                     sale_discount_per_item: resaleDiscount,
-                    removed_ingredients: it.removed_ingredients || [],
+                    removed_ingredients: removedIngredientsWithNames || [],
 
-                    // ✅ Explicitly set is_deal to false for regular items
+                    // Explicitly set is_deal to false for regular items
                     is_deal: false
                 };
             }),
 
-            // ✅ Since we check on increment, always confirm missing ingredients
+            // Since we check on increment, always confirm missing ingredients
             confirm_missing_ingredients: true
         };
 
@@ -2301,6 +2313,7 @@ const confirmOrder = async ({
             cash_amount: paymentMethod === 'Split' ? cashReceived : null,
             card_amount: paymentMethod === 'Split' ? cardAmount : null,
         };
+        console.log('🧾 Last order data prepared:', lastOrder.value);
 
         if (autoPrintKot) {
             kotData.value = await openPosOrdersModal();
@@ -2392,7 +2405,7 @@ const handleConfirmMissingIngredients = async () => {
             const dealItem = {
                 id: `deal-${deal.id}`,
                 title: deal.title,
-                price: totalDealPriceWithAddons.value, 
+                price: totalDealPriceWithAddons.value,
                 unit_price: parseFloat(deal.price),
                 img: deal.img,
                 qty: 1,
@@ -3386,6 +3399,7 @@ import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
 import { debounce } from 'lodash';
 import DiscountModal from "./DiscountModal.vue";
 import ConfirmMissingIngredientsModal from "@/Components/ConfirmMissingIngredientsModal.vue";
+import PendingOrdersModal from "./PendingOrdersModal.vue";
 import { Eye, Pencil } from "lucide-vue-next";
 
 const user = computed(() => page.props.current_user);
@@ -3934,6 +3948,7 @@ const decrementDealQty = (deal) => {
 
 onMounted(() => {
     fetchDeals();
+    fetchPendingOrders();
 });
 
 
@@ -4252,7 +4267,7 @@ const confirmDealAndAddToCart = async () => {
         const dealItem = {
             id: `deal-${selectedDeal.value.id}`,
             title: selectedDeal.value.title,
-            price: totalDealPriceWithAddons.value, 
+            price: totalDealPriceWithAddons.value,
             unit_price: parseFloat(selectedDeal.value.price),
             img: selectedDeal.value.img,
             qty: 1,
@@ -4369,6 +4384,243 @@ const resetDealCustomization = () => {
     dealSelectedAddons.value = {};
     dealItemKitchenNotes.value = {};
     completedDealItems.value = [];
+};
+
+
+// ====================================================
+//                  Pending Orders 
+// ====================================================
+const showPendingOrdersModal = ref(false);
+const pendingOrders = ref([]);
+const pendingOrdersLoading = ref(false);
+
+// Hold current order as pending
+const holdOrderAsPending = async () => {
+    if (orderItems.value.length === 0) {
+        toast.error("No items in cart to hold");
+        return;
+    }
+
+    try {
+        const payload = {
+            customer_name: customer.value,
+            phone_number: phoneNumber.value,
+            delivery_location: deliveryLocation.value,
+            order_type: orderType.value,
+            table_number: selectedTable.value?.name || null,
+            sub_total: subTotal.value,
+            tax: totalTax.value,
+            service_charges: serviceCharges.value,
+            delivery_charges: deliveryCharges.value,
+            sale_discount: totalResaleSavings.value,
+            promo_discount: promoDiscount.value,
+            approved_discounts: approvedDiscountTotal.value,
+            total_amount: grandTotal.value,
+            note: note.value,
+            kitchen_note: kitchenNote.value,
+            order_items: orderItems.value.map(item => ({
+                product_id: item.id,
+                title: item.title,
+                quantity: item.qty,
+                price: item.price,
+                unit_price: item.unit_price,
+                note: item.note || '',
+                item_kitchen_note: item.item_kitchen_note || '',
+                variant_id: item.variant_id || null,
+                variant_name: item.variant_name || null,
+                addons: item.addons || [],
+                ingredients: item.ingredients || [],
+                removed_ingredients: item.removed_ingredients || [],
+                sale_discount_per_item: item.resale_discount_per_item || 0,
+                total_resale_discount: item.total_resale_discount || 0,
+                isDeal: item.isDeal || false,
+                dealId: item.dealId || null,
+                menu_items: item.menu_items || []
+            })),
+            applied_promos: selectedPromos.value.map(promo => ({
+                promo_id: promo.id,
+                promo_name: promo.name,
+                promo_type: promo.type,
+                discount_amount: promo.applied_discount || 0,
+                applied_to_items: promo.applied_to_items || []
+            })),
+            approved_discount_details: selectedDiscounts.value.map(discount => ({
+                discount_id: discount.id,
+                discount_name: discount.name,
+                discount_percentage: discount.percentage,
+                discount_amount: getDiscountAmount(discount.percentage),
+                approval_id: discount.approval_id
+            })),
+            selected_discounts: selectedDiscounts.value,
+            terminal_id: terminalId.value
+        };
+
+        const response = await axios.post('/pending-orders', payload);
+
+        if (response.data.success) {
+            toast.success('Order held successfully!');
+            resetCart();
+            await fetchPendingOrders();
+        }
+
+    } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to hold order');
+    }
+};
+
+// Fetch pending orders
+const fetchPendingOrders = async () => {
+    pendingOrdersLoading.value = true;
+    try {
+        const response = await axios.get('/pending-orders');
+
+        if (response.data.success) {
+            pendingOrders.value = response.data.data;
+        } else {
+            pendingOrders.value = [];
+        }
+    } catch (error) {
+        toast.error('Failed to load pending orders');
+        pendingOrders.value = [];
+    } finally {
+        pendingOrdersLoading.value = false;
+    }
+};
+
+// Open pending orders modal
+const openPendingOrdersModal = async () => {
+    showPendingOrdersModal.value = true;
+    await fetchPendingOrders();
+};
+
+// Resume pending order
+const resumePendingOrder = async (pendingOrder) => {
+
+    try {
+        // Restore all cart data
+        customer.value = pendingOrder.customer_name || generateCustomerName();
+        phoneNumber.value = pendingOrder.phone_number || '';
+        deliveryLocation.value = pendingOrder.delivery_location || '';
+        orderType.value = pendingOrder.order_type;
+        note.value = pendingOrder.note || '';
+        kitchenNote.value = pendingOrder.kitchen_note || '';
+
+        // Restore table if exists
+        if (pendingOrder.table_number) {
+            const table = profileTables.value.table_details?.find(
+                t => t.name === pendingOrder.table_number
+            );
+            selectedTable.value = table || null;
+        }
+
+        // Restore order items
+        orderItems.value = pendingOrder.order_items.map(item => ({
+            id: item.product_id,
+            title: item.title,
+            qty: item.quantity,
+            price: item.price,
+            unit_price: item.unit_price,
+            note: item.note || '',
+            item_kitchen_note: item.item_kitchen_note || '',
+            img: item.img || '/assets/img/default.png',
+            variant_id: item.variant_id || null,
+            variant_name: item.variant_name || null,
+            addons: item.addons || [],
+            ingredients: item.ingredients || [],
+            removed_ingredients: item.removed_ingredients || [],
+            resale_discount_per_item: item.sale_discount_per_item || 0,
+            total_resale_discount: item.total_resale_discount || 0,
+            stock: item.stock || 999999,
+            isDeal: item.isDeal || false,
+            dealId: item.dealId || null,
+            menu_items: item.menu_items || []
+        }));
+
+        // Restore promos
+        selectedPromos.value = pendingOrder.applied_promos || [];
+
+        // Restore discounts
+        selectedDiscounts.value = pendingOrder.selected_discounts || [];
+
+        await axios.delete(`/pending-orders/${pendingOrder.id}`);
+
+        toast.success('Order resumed successfully!');
+        showPendingOrdersModal.value = false;
+        await fetchPendingOrders();
+
+    } catch (error) {
+        toast.error('Failed to resume order');
+    }
+};
+
+// Reject (delete) pending order
+const rejectPendingOrder = async (pendingOrder) => {
+    try {
+        await axios.delete(`/pending-orders/${pendingOrder.id}`);
+        toast.success('Pending order rejected');
+        await fetchPendingOrders();
+    } catch (error) {
+        toast.error('Failed to reject order');
+    }
+};
+
+// Check if addon is selected
+const isModalAddonSelected = (groupId, addonId) => {
+    return modalSelectedAddons.value[groupId]?.some(a => a.id === addonId);
+};
+
+// Get addon quantity
+const getModalAddonQuantity = (groupId, addonId) => {
+    const addon = modalSelectedAddons.value[groupId]?.find(a => a.id === addonId);
+    return addon?.quantity || 1;
+};
+
+// Toggle addon selection
+const toggleModalAddon = (groupId, addon) => {
+    if (!modalSelectedAddons.value[groupId]) {
+        modalSelectedAddons.value[groupId] = [];
+    }
+
+    const index = modalSelectedAddons.value[groupId].findIndex(a => a.id === addon.id);
+
+    if (index > -1) {
+        // Remove addon
+        modalSelectedAddons.value[groupId].splice(index, 1);
+    } else {
+        // Check max_select limit
+        const addonGroup = selectedItem.value.addon_groups.find(g => g.group_id === groupId);
+        if (addonGroup && addonGroup.max_select > 0) {
+            if (modalSelectedAddons.value[groupId].length >= addonGroup.max_select) {
+                toast.warning(`You can only select up to ${addonGroup.max_select} ${addonGroup.group_name}`);
+                return;
+            }
+        }
+
+        // Add addon with quantity 1
+        modalSelectedAddons.value[groupId].push({
+            id: addon.id,
+            name: addon.name,
+            price: parseFloat(addon.price),
+            group_id: groupId,
+            quantity: 1
+        });
+    }
+};
+
+// Increment addon quantity
+const incrementModalAddon = (groupId, addonId) => {
+    const addon = modalSelectedAddons.value[groupId]?.find(a => a.id === addonId);
+    if (addon) {
+        addon.quantity++;
+    }
+};
+
+// Decrement addon quantity
+const decrementModalAddon = (groupId, addonId) => {
+    const addon = modalSelectedAddons.value[groupId]?.find(a => a.id === addonId);
+    if (addon && addon.quantity > 1) {
+        addon.quantity--;
+    }
 };
 
 </script>
@@ -4492,7 +4744,7 @@ const resetDealCustomization = () => {
                                 </div>
                             </div>
 
-                              <div v-if="filteredProducts.length === 0" class="col-12">
+                            <div v-if="filteredProducts.length === 0" class="col-12">
                                 <div class="alert alert-warning border-0 rounded-4 text-center py-5">
                                     <i class="bi bi-search me-2" style="font-size: 2rem; opacity: 0.5;"></i>
                                     <h5 class="mt-2 mb-2 text-dark fw-semibold">No Menu Found</h5>
@@ -4830,6 +5082,13 @@ const resetDealCustomization = () => {
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
                             < </button> -->
+                            <button class="btn btn-info px-3 py-2" @click="openPendingOrdersModal">
+                                <i class="bi bi-clock-history me-1"></i>
+                                Pending
+                                <span v-if="pendingOrders.length > 0" class="badge bg-danger ms-1">
+                                    {{ pendingOrders.length }}
+                                </span>
+                            </button>
                             <button class="btn btn-warning px-3 py-2 promos-btn" @click="openPromoModal">
                                 Promos
                             </button>
@@ -5096,6 +5355,10 @@ const resetDealCustomization = () => {
                             <div class="cart-footer">
                                 <button class="btn btn-secondary btn-clear" @click="resetCart()">
                                     Clear
+                                </button>
+                                <button class="btn btn-warning" @click="holdOrderAsPending">
+                                    <i class="bi bi-clock-history me-1"></i>
+                                    Pending
                                 </button>
                                 <button class="btn btn-primary btn-place" @click="openConfirmModal">
                                     Place Order
@@ -5484,38 +5747,75 @@ const resetDealCustomization = () => {
                                         </div>
 
                                         <!-- STEP 3 : ADD-ONS -->
-                                        <div v-show="currentStep === 3 && hasAddons" class="step-content">
-                                            <div class="d-flex align-items-start mb-2">
-                                                <i class="bi bi-plus-circle me-2 text-success"
-                                                    style="font-size: 1.1rem;"></i>
-                                                <div>
-                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons
-                                                    </h6>
-                                                    <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your
-                                                        meal</p>
-                                                </div>
-                                            </div>
+                                    <!-- STEP 3 : ADD-ONS -->
+<div v-show="currentStep === 3 && hasAddons" class="step-content">
+    <div class="d-flex align-items-start mb-2">
+        <i class="bi bi-plus-circle me-2 text-success" style="font-size: 1.1rem;"></i>
+        <div>
+            <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons</h6>
+            <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your meal</p>
+        </div>
+    </div>
 
-                                            <div v-for="group in selectedItem?.addon_groups" :key="group.group_id"
-                                                class="mb-3">
-                                                <label class="fw-semibold mb-1 d-flex justify-content-between"
-                                                    style="font-size: 0.85rem;">
-                                                    <span>{{ group.group_name }}</span>
-                                                    <span v-if="group.max_select > 0"
-                                                        class="badge rounded-pill bg-primary"
-                                                        style="font-size: 0.7rem;">
-                                                        Max {{ group.max_select }}
-                                                    </span>
-                                                </label>
+    <div v-for="group in selectedItem?.addon_groups" :key="group.group_id" class="mb-3">
+        <label class="fw-semibold mb-2 d-flex justify-content-between" style="font-size: 0.85rem;">
+            <span>{{ group.group_name }}</span>
+            <span v-if="group.max_select > 0" class="badge rounded-pill bg-primary" style="font-size: 0.7rem;">
+                Max {{ group.max_select }}
+            </span>
+        </label>
 
-                                                <MultiSelect :modelValue="modalSelectedAddons[group.group_id] || []"
-                                                    @update:modelValue="(val) => handleModalAddonChange(group.group_id, val)"
-                                                    :options="group.addons" optionLabel="name" dataKey="id"
-                                                    placeholder="Select add-ons" :maxSelectedLabels="2" class="w-100"
-                                                    appendTo="self">
-                                                </MultiSelect>
-                                            </div>
-                                        </div>
+        <div class="row g-2">
+            <div v-for="addon in group.addons" :key="addon.id" class="col-12">
+                <div class="border rounded-2 p-2 shadow-sm d-flex align-items-center justify-content-between"
+                    :class="{ 'bg-light border-success': isModalAddonSelected(group.group_id, addon.id) }">
+                    
+                    <!-- Checkbox & Name -->
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <input 
+                            type="checkbox" 
+                            class="form-check-input me-2" 
+                            style="width: 18px; height: 18px; cursor: pointer;"
+                            :id="'addon-' + addon.id"
+                            :checked="isModalAddonSelected(group.group_id, addon.id)"
+                            @change="toggleModalAddon(group.group_id, addon)">
+                        
+                        <label :for="'addon-' + addon.id" class="form-check-label mb-0" 
+                            style="font-size: 0.85rem; cursor: pointer;">
+                            {{ addon.name }}
+                            <span class="text-success fw-semibold ms-1">
+                                +{{ formatCurrencySymbol(addon.price) }}
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Quantity Controls -->
+                    <div v-if="isModalAddonSelected(group.group_id, addon.id)" 
+                        class="d-flex align-items-center gap-2">
+                        <button 
+                            class="btn btn-sm btn-outline-danger rounded-circle" 
+                            style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                            @click="decrementModalAddon(group.group_id, addon.id)"
+                            :disabled="getModalAddonQuantity(group.group_id, addon.id) <= 1">
+                            <i class="bi bi-dash" style="font-size: 0.9rem;"></i>
+                        </button>
+                        
+                        <span class="fw-bold" style="min-width: 25px; text-align: center; font-size: 0.9rem;">
+                            {{ getModalAddonQuantity(group.group_id, addon.id) }}
+                        </span>
+                        
+                        <button 
+                            class="btn btn-sm btn-outline-success rounded-circle" 
+                            style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                            @click="incrementModalAddon(group.group_id, addon.id)">
+                            <i class="bi bi-plus" style="font-size: 0.9rem;"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
                                         <!-- STEP 4 : REVIEW -->
                                         <div v-show="currentStep === finalStep" class="step-content">
@@ -5608,7 +5908,6 @@ const resetDealCustomization = () => {
 
 
             <!-- Deals customization modal -->
-            <!-- Add this modal to your template after the existing chooseItem modal -->
             <div class="modal fade" id="customizeDealModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content rounded-3 shadow border-0" style="max-height: 90vh;">
@@ -5634,8 +5933,8 @@ const resetDealCustomization = () => {
                             </button>
                         </div>
 
-                
-                     
+
+
 
                         <!-- STEP INDICATOR for Current Item -->
                         <div class="px-3 pt-2 progress-bar">
@@ -5843,7 +6142,7 @@ const resetDealCustomization = () => {
                                                     <span class="summary-label">Base Price:</span>
                                                     <span class="summary-value">{{
                                                         formatCurrencySymbol(currentDealMenuItem?.price
-                                                        || 0) }}</span>
+                                                            || 0) }}</span>
                                                 </div>
 
                                                 <div class="summary-item" v-if="getDealRemovedIngredientsText()">
@@ -5902,7 +6201,7 @@ const resetDealCustomization = () => {
 
                         <!-- FOOTER -->
                         <div class="modal-footer border-0 px-3 py-2 d-flex justify-content-end">
-                          
+
                             <div class="d-flex gap-2">
                                 <button v-if="currentDealStep > 1" class="btn btn-secondary btn-sm px-4 py-2 shadow-sm"
                                     @click="previousDealStep">
@@ -6122,6 +6421,10 @@ const resetDealCustomization = () => {
                 @close="showMissingIngredientsModal = false; pendingOrderData = null"
                 @confirm="handleConfirmMissingIngredients" />
 
+            <PendingOrdersModal :show="showPendingOrdersModal" :pending-orders="pendingOrders"
+                :loading="pendingOrdersLoading" @close="showPendingOrdersModal = false" @resume="resumePendingOrder"
+                @reject="rejectPendingOrder" />
+
         </div>
     </Master>
 </template>
@@ -6136,7 +6439,7 @@ const resetDealCustomization = () => {
     background-color: #181818;
 }
 
-.dark .list-group-item{
+.dark .list-group-item {
     background-color: #181818 !important;
     color: #fff !important;
 }

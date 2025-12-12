@@ -58,4 +58,9 @@ class Addon extends Model
     {
         return '£' . number_format($this->price, 2);
     }
+
+    public function orderItemAddons()
+    {
+        return $this->hasMany(PosOrderItemAddon::class, 'addon_id');
+    }
 }

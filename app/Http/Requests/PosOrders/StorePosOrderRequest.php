@@ -16,7 +16,7 @@ class StorePosOrderRequest extends FormRequest
         return [
             'customer_name'    => 'nullable|string|max:255',
             'phone_number'            => 'nullable|string|max:20',
-            'delivery_location'=> 'nullable|string|max:255',
+            'delivery_location' => 'nullable|string|max:255',
             'sub_total'        => 'required|numeric|min:0',
             'total_amount'     => 'required|numeric|min:0',
             'tax'              => 'nullable|numeric|min:0',
@@ -53,10 +53,13 @@ class StorePosOrderRequest extends FormRequest
             'items.*.variant_name'               => 'nullable|string',
             'items.*.item_kitchen_note'          => 'nullable|string',
             'items.*.sale_discount_per_item'     => 'nullable|numeric',
-            
+
             // Validation for removed ingredients
+            // 'items.*.removed_ingredients'        => 'nullable|array',
+            // 'items.*.removed_ingredients.*'      => 'integer',
             'items.*.removed_ingredients'        => 'nullable|array',
-            'items.*.removed_ingredients.*'      => 'integer',
+            'items.*.removed_ingredients.*.id'   => 'required|integer',  
+            'items.*.removed_ingredients.*.name' => 'required|string',
 
             // Deal-specific validations
             'items.*.is_deal'                    => 'nullable|boolean',

@@ -423,9 +423,17 @@ const filteredItems = computed(() => {
     return menuItems.value;
 });
 
-// watch([filters, q], () => {
-//     fetchMenus(1);
-// }, { deep: true });
+watch(q, () => {
+    fetchMenus(1);
+});
+
+watch(
+    () => appliedFilters.value,
+    () => {
+        fetchMenus(1);
+    },
+    { deep: true }
+);
 
 const sortedItems = computed(() => {
     return filteredItems.value; // Backend handles sorting
@@ -449,10 +457,12 @@ const filterOptions = computed(() => ({
 const handleFilterClear = () => {
     filters.value = { ...defaultMenuFilters };
     appliedFilters.value = { ...defaultMenuFilters };
+    fetchMenus(1);
 };
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
+    fetchMenus(1);
 };
 
 /* ===================== KPIs ===================== */

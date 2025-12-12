@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAddonRequest;
+use App\Http\Requests\UpdateAddonRequest;
 use App\Models\Addon;
 use App\Models\AddonGroup;
 use App\Services\AddonGroupService;
@@ -152,7 +153,7 @@ class AddonController extends Controller
      *
      * @param  int  $id
      */
-    public function update(StoreAddonRequest $request, $id): JsonResponse
+    public function update(UpdateAddonRequest $request, $id): JsonResponse
     {
         try {
             $addon = $this->addonService->updateAddon($id, $request->validated());

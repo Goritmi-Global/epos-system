@@ -78,8 +78,8 @@ const filterOptions = computed(() => ({
     sortOptions: [
         { value: "name_asc", label: "Name: A to Z" },
         { value: "name_desc", label: "Name: Z to A" },
-        { value: "value_desc", label: "Value: High to Low" },
-        { value: "value_asc", label: "Value: Low to High" },
+        // { value: "value_desc", label: "Value: High to Low" },
+        // { value: "value_asc", label: "Value: Low to High" },
     ],
     statusOptions: [
         { value: "active", label: "Active" },
@@ -523,7 +523,7 @@ const submitCategory = async () => {
 
             toast.success("Category updated successfully");
             await fetchCategories();
-            await fetchAllCategories();
+            // await fetchAllCategories();
         } else {
             // ==================== CREATE MODE ====================
             const formData = new FormData();

@@ -375,22 +375,62 @@ const updateSearch = (value) => {
 
 
 
-const onDownload = (type) => {
-    switch (type) {
-        case "pdf":
-            downloadPDF(orderData.value);
-            break;
-        case "excel":
-            downloadExcel(orderData.value);
-            break;
-        case "csv":
-            downloadCSV(orderData.value);
-            break;
-        default:
-            toast.error("Invalid export type");
+const fetchAllDataForExport = async () => {
+    try {
+        loading.value = true;
+        const { data } = await axios.get("/api/purchase-orders/fetch-orders", {
+            params: {
+                q: q.value,
+                page: 1,
+                per_page: 10000, // Fetch up to 10,000 records at once
+            },
+        });
+
+        return data.data || [];
+    } catch (err) {
+        console.error("Failed to fetch data for export:", err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        loading.value = false;
     }
 };
 
+// ✅ UPDATED: Main download function
+const onDownload = async (type) => {
+    try {
+        loading.value = true;
+
+        // ✅ Fetch ALL data instead of using current page
+        const allData = await fetchAllDataForExport();
+
+        if (!allData || allData.length === 0) {
+            toast.error("No purchase orders found to download");
+            loading.value = false;
+            return;
+        }
+
+        console.log(`📥 Exporting ${allData.length} purchase orders as ${type.toUpperCase()}`);
+
+        // Export based on type
+        if (type === "pdf") {
+            downloadPDF(allData);
+        } else if (type === "excel") {
+            downloadExcel(allData);
+        } else if (type === "csv") {
+            downloadCSV(allData);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
+    }
+};
+
+// ✅ UPDATED: CSV Download - use data parameter instead of orderData.value
 const downloadCSV = (data) => {
     try {
         const headers = ["S.No", "Supplier Name", "Purchase Date", "Status", "Total Value"];
@@ -416,15 +456,16 @@ const downloadCSV = (data) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-        toast.success("CSV downloaded successfully", { autoClose: 2500 });
+        toast.success(`CSV downloaded successfully (${data.length} records)`, { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`);
     }
 };
 
-/* ========================= PDF Export ========================= */
+// ✅ UPDATED: PDF Download - use data parameter instead of orderData.value
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
@@ -486,14 +527,14 @@ const downloadPDF = (data) => {
         const fileName = `purchase_orders_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+        toast.success(`PDF downloaded successfully (${data.length} records)`, { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`);
     }
 };
 
-/* ========================= EXCEL Export ========================= */
+// ✅ UPDATED: EXCEL Download - use data parameter instead of orderData.value
 const downloadExcel = (data) => {
     try {
         const worksheetData = data.map((s, index) => ({
@@ -528,7 +569,7 @@ const downloadExcel = (data) => {
         const fileName = `purchase_orders_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+        toast.success(`Excel file downloaded successfully (${data.length} records)`, { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`);
@@ -689,40 +730,36 @@ const downloadInvoice = async (order) => {
                         <div class="d-flex align-items-center gap-2">
                             <h3 class="fw-semibold mb-0">Purchase Order</h3>
 
-                          <div class="position-relative">
-    <button class="btn btn-link p-0 ms-2" @click="showHelp = !showHelp" title="Help">
-        <i class="bi bi-question-circle fs-5"></i>
-    </button>
+                            <div class="position-relative">
+                                <button class="btn btn-link p-0 ms-2" @click="showHelp = !showHelp" title="Help">
+                                    <i class="bi bi-question-circle fs-5"></i>
+                                </button>
 
-    <div 
-        v-if="showHelp" 
-        class="help-popover shadow-lg rounded-3 p-3 bg-white border position-absolute"
-        style="width: 300px; right: 0; z-index: 999;"
-    >
-        <!-- Close Button -->
-        <button 
-            @click="showHelp = false"
-            class="btn btn-sm btn-light border-0 position-absolute top-0 end-0 mt-1 me-1 text-secondary"
-            title="Close"
-        >
-            <i class="bi bi-x-lg"></i>
-        </button>
+                                <div v-if="showHelp"
+                                    class="help-popover shadow-lg rounded-3 p-3 bg-white border position-absolute"
+                                    style="width: 300px; right: 0; z-index: 999;">
+                                    <!-- Close Button -->
+                                    <button @click="showHelp = false"
+                                        class="btn btn-sm btn-light border-0 position-absolute top-0 end-0 mt-1 me-1 text-secondary"
+                                        title="Close">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
 
-        <h6 class="fw-semibold mb-3">Purchase Order Help</h6>
+                                    <h6 class="fw-semibold mb-3">Purchase Order Help</h6>
 
-        <p class="mb-2 small text-muted">
-            This screen allows you to view, manage, and update all purchase orders.
-        </p>
+                                    <p class="mb-2 small text-muted">
+                                        This screen allows you to view, manage, and update all purchase orders.
+                                    </p>
 
-        <p class="mb-1 small">
-            <strong>Add Purchase:</strong> Create a purchase and stock-in immediately.
-        </p>
+                                    <p class="mb-1 small">
+                                        <strong>Add Purchase:</strong> Create a purchase and stock-in immediately.
+                                    </p>
 
-        <p class="small mb-0">
-            <strong>Add Order:</strong> Create a purchase order for later delivery.
-        </p>
-    </div>
-</div>
+                                    <p class="small mb-0">
+                                        <strong>Add Order:</strong> Create a purchase order for later delivery.
+                                    </p>
+                                </div>
+                            </div>
 
                         </div>
 
@@ -1122,7 +1159,7 @@ const downloadInvoice = async (order) => {
     color: #f9fafb !important;
 }
 
-.dark .bg-white{
+.dark .bg-white {
     border-bottom: 1px solid #fff !important;
 }
 
@@ -1131,14 +1168,22 @@ const downloadInvoice = async (order) => {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.dark .btn-light{
+.dark .btn-light {
     background: #212121 !important;
     color: #fff !important;
 }
+
 /* Search pill */
 .search-wrap {
     position: relative;
@@ -1240,7 +1285,8 @@ const downloadInvoice = async (order) => {
 .purchase-scroll::-webkit-scrollbar-track {
     background: transparent;
 }
-:global(.dark .form-control:focus){
+
+:global(.dark .form-control:focus) {
     border-color: #fff !important;
 }
 

@@ -1024,7 +1024,7 @@ const downloadExcel = (data) => {
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <h3 class="mb-0 fw-bold">{{ pendingOrders }}</h3>
-                                <p class="text-muted mb-0 small">Pending Orders</p>
+                                <p class="text-muted mb-0 small">Cancelled Orders</p>
                             </div>
                             <div class="rounded-circle p-3 d-flex align-items-center justify-content-center text-warning"
                                 style="width: 40px; height: 40px">

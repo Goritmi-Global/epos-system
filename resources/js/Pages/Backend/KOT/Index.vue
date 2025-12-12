@@ -21,6 +21,7 @@ const fetchOrders = async () => {
     loading.value = true;
     try {
         const response = await axios.get("/api/kots/all-orders");
+        console.log("Fetched KOT Orders:", response.data.data);
 
         orders.value = (response.data.data || []).map(ko => {
             const posOrder = ko.pos_order_type?.order;
@@ -39,7 +40,6 @@ const fetchOrders = async () => {
                 },
                 payment: posOrder?.payment,
                 items: (ko.items || []).map(kotItem => {
-                    // Find matching POS item to get price
                     const matchingPosItem = posOrderItems.find(posItem =>
                         posItem.title === kotItem.item_name ||
                         posItem.product_id === kotItem.product_id
@@ -51,6 +51,7 @@ const fetchOrders = async () => {
                         price: matchingPosItem?.price || 0,
                         quantity: kotItem.quantity || 1,
                         variant_name: kotItem.variant_name || '-',
+                        item_kitchen_note: kotItem.item_kitchen_note || '',
                         ingredients: kotItem.ingredients || []
                     };
                 }),
@@ -60,7 +61,7 @@ const fetchOrders = async () => {
     } catch (error) {
         console.error("Error fetching orders:", error);
         orders.value = [];
-    }finally{
+    } finally {
         loading.value = false;
     }
 };
@@ -311,14 +312,21 @@ const totalTables = computed(() => {
     return tables.size;
 });
 const totalItems = computed(() => allItems.value.length);
-const pendingOrders = computed(
-    () => orders.value.filter((o) => o.status === "Waiting").length
+// ✅ Count items by status
+const pendingItems = computed(
+    () => allItems.value.filter((item) => item.status === "Waiting").length
 );
-const cancelledOrders = computed(
-    () => orders.value.filter((o) => o.status === "Cancelled").length
+
+const inProgressItems = computed(
+    () => allItems.value.filter((item) => item.status === "In Progress").length
 );
-const inProgressOrders = computed(
-    () => orders.value.filter((o) => o.status === "In Progress").length
+
+const doneItems = computed(
+    () => allItems.value.filter((item) => item.status === "Done").length
+);
+
+const cancelledItems = computed(
+    () => allItems.value.filter((item) => item.status === "Cancelled").length
 );
 const getStatusBadge = (status) => {
     switch (status) {
@@ -338,10 +346,27 @@ const updateKotStatus = async (item, status) => {
     try {
         const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
         const order = orders.value.find(o => o.id === item.order.id);
+
         if (order && order.items) {
             const kotItem = order.items.find(i => i.id === item.id);
             if (kotItem) {
                 kotItem.status = response.data.status || status;
+
+                // ✅ Update order status based on all items
+                const allStatuses = order.items.map(i => i.status);
+                const uniqueStatuses = [...new Set(allStatuses)];
+
+                if (uniqueStatuses.length === 1) {
+                    // All items have the same status
+                    order.status = uniqueStatuses[0];
+                } else if (allStatuses.includes('In Progress')) {
+                    order.status = 'In Progress';
+                } else if (allStatuses.every(s => s === 'Done' || s === 'Cancelled')) {
+                    order.status = 'Done';
+                } else {
+                    order.status = 'Waiting';
+                }
+
                 order.items = [...order.items];
             }
         }
@@ -771,12 +796,13 @@ const downloadExcel = (data) => {
                         </div>
                     </div>
                 </div>
+                <!-- Pending Items -->
                 <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ pendingOrders }}</h3>
-                                <p class="text-muted mb-0 small">Pending Orders</p>
+                                <h3 class="mb-0 fw-bold">{{ pendingItems }}</h3>
+                                <p class="text-muted mb-0 small">Pending Items</p>
                             </div>
                             <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
                                 style="width: 56px; height: 56px">
@@ -786,26 +812,45 @@ const downloadExcel = (data) => {
                     </div>
                 </div>
 
+                <!-- In Progress Items -->
                 <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ inProgressOrders }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ inProgressItems }}</h3>
                                 <p class="text-muted mb-0 small">In Progress</p>
                             </div>
                             <div class="rounded-circle p-3 bg-info-subtle text-info d-flex align-items-center justify-content-center"
                                 style="width: 56px; height: 56px">
-                                <i class="bi bi-hourglass-split fs-4"></i>
+                                <i class="bi bi-gear fs-4"></i>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Done Items -->
                 <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ cancelledOrders }}</h3>
-                                <p class="text-muted mb-0 small">Cancelled Orders</p>
+                                <h3 class="mb-0 fw-bold">{{ doneItems }}</h3>
+                                <p class="text-muted mb-0 small">Completed Items</p>
+                            </div>
+                            <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                                style="width: 56px; height: 56px">
+                                <i class="bi bi-check-circle fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cancelled Items -->
+                <div class="col-md-6 col-xl-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ cancelledItems }}</h3>
+                                <p class="text-muted mb-0 small">Cancelled Items</p>
                             </div>
                             <div class="rounded-circle p-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center"
                                 style="width: 56px; height: 56px">
@@ -903,6 +948,7 @@ const downloadExcel = (data) => {
                                     <th>#</th>
                                     <th>Order ID</th>
                                     <th>Item Name</th>
+                                    <th>Kitchen Note</th>
                                     <th>Variant</th>
                                     <th>Order Type</th>
                                     <th>Ingredients</th>
@@ -927,6 +973,7 @@ const downloadExcel = (data) => {
                                         <td>{{ index + 1 }}</td>
                                         <td>{{ item.order?.id }}</td>
                                         <td>{{ item.item_name }}</td>
+                                        <td>{{ item?.item_kitchen_note || '-' }}</td>
                                         <td>{{ item.variant_name }}</td>
                                         <td>{{ item.order?.type?.order_type || '-' }}</td>
                                         <td>{{ item.ingredients?.join(', ') || '-' }}</td>

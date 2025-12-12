@@ -99,13 +99,10 @@ class PosOrderService
             ]);
 
             // 6. Process order items and inventory
-            // 6. Process order items and inventory
             foreach ($data['items'] as $item) {
 
                 // ✅ Check if this is a deal
                 $isDeal = $item['is_deal'] ?? false;
-
-                // In your create() method, replace the deal ingredient processing section:
 
                 if ($isDeal) {
                     // ✅ Handle Deal Order Item

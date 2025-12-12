@@ -93,6 +93,12 @@ onMounted(() => {
         bulkOrderModal.addEventListener("hide.bs.modal", () => {
             activeTab.value = "single";
         });
+        bulkOrderModal.addEventListener('hidden.bs.modal', () => {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        });
     }
 });
 
@@ -325,9 +331,6 @@ async function bulkSubmit() {
         }
     });
 
-    // ✅ ADD THIS TO SEE FINAL PAYLOAD
-    console.log('Valid Items to submit:', validItems);
-
     if (!b_supplier.value) {
         toast.error("Please select a supplier");
         return;
@@ -348,8 +351,6 @@ async function bulkSubmit() {
         items: validItems,
     };
 
-    console.log('Final Payload:', payload);
-
     b_submitting.value = true;
     try {
         await axios.post("/purchase-orders", payload);
@@ -366,10 +367,21 @@ async function bulkSubmit() {
             it.selectedDerivedUnitInfo = null;
         });
 
-        const m = bootstrap.Modal.getInstance(
-            document.getElementById("bulkOrderModal")
-        );
-        m?.hide();
+        // ✅ IMPROVED: More reliable modal closing
+        const modalEl = document.getElementById("bulkOrderModal");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        setTimeout(() => {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }, 100);
+
     } catch (err) {
         console.error(err);
         toast.error("Failed to save bulk order");
@@ -475,17 +487,21 @@ async function multipleSubmit() {
             it.selected_derived_unit_id = null;
             it.selectedDerivedUnitInfo = null;
         });
+        const modalEl = document.getElementById("bulkOrderModal");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
 
-        const m = bootstrap.Modal.getInstance(
-            document.getElementById("bulkOrderModal")
-        );
-        m?.hide();
+        if (modalInstance) {
+            modalInstance.hide();
+        }
         setTimeout(() => {
-            document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
-            document.body.classList.remove("modal-open");
-            document.body.style.removeProperty("overflow");
-            document.body.style.removeProperty("padding-right");
-        }, 100);
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+
+            // Remove any lingering backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }, 300);
 
     } catch (err) {
         console.error(err);
