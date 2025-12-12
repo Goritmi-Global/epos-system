@@ -3278,6 +3278,7 @@ import { debounce } from 'lodash';
 import DiscountModal from "./DiscountModal.vue";
 import ConfirmMissingIngredientsModal from "@/Components/ConfirmMissingIngredientsModal.vue";
 import PendingOrdersModal from "./PendingOrdersModal.vue";
+import { Eye, Pencil } from "lucide-vue-next";
 
 const user = computed(() => page.props.current_user);
 
@@ -4562,6 +4563,32 @@ const rejectPendingOrder = async (pendingOrder) => {
                                 </div>
                             </div>
 
+                              <div v-if="filteredProducts.length === 0" class="col-12">
+                                <div class="alert alert-warning border-0 rounded-4 text-center py-5">
+                                    <i class="bi bi-search me-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                                    <h5 class="mt-2 mb-2 text-dark fw-semibold">No Menu Found</h5>
+                                    <p class="text-muted mb-3">
+                                        <template
+                                            v-if="searchQuery && (filters.priceRange && filters.priceRange.length > 0)">
+                                            No items match your search and filter criteria.
+                                        </template>
+                                        <template v-else-if="searchQuery">
+                                            No items found matching "<strong>{{ searchQuery }}</strong>"
+                                        </template>
+                                        <template v-else-if="filters.priceRange && filters.priceRange.length > 0">
+                                            No items match the selected price range.
+                                        </template>
+                                        <template v-else>
+                                            No Menu available in this category.
+                                        </template>
+                                    </p>
+                                    <button class="btn btn-sm btn-outline-secondary rounded-pill"
+                                        @click="handleClearFilters">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- ✅ DEALS GRID (Show when showDeals is true) -->
                             <div v-if="showDeals" class="row g-3">
                                 <!-- Loading State -->
@@ -5688,21 +5715,8 @@ const rejectPendingOrder = async (pendingOrder) => {
                             </button>
                         </div>
 
-                        <!-- PROGRESS INDICATOR -->
-                        <div class="px-3 pt-2 pb-1 bg-light">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <small class="text-muted fw-semibold">Deal Items Progress</small>
-                                <span class="badge bg-primary">
-                                    {{ completedDealItems.length }} / {{ selectedDeal?.menu_items?.length || 0 }}
-                                    Completed
-                                </span>
-                            </div>
-                            <div class="progress" style="height: 6px;">
-                                <div class="progress-bar bg-success" role="progressbar"
-                                    :style="{ width: dealProgressPercentage + '%' }">
-                                </div>
-                            </div>
-                        </div>
+                
+                     
 
                         <!-- STEP INDICATOR for Current Item -->
                         <div class="px-3 pt-2 progress-bar">
@@ -5755,8 +5769,8 @@ const rejectPendingOrder = async (pendingOrder) => {
 
                                     <!-- Current Item Being Customized -->
                                     <div class="rounded-3 border shadow-sm p-3 bg-white mb-3">
-                                        <h6 class="fw-bold mb-2" style="font-size: 0.9rem;">
-                                            <i class="bi bi-pencil me-2 text-primary"></i>
+                                        <h6 class="fw-bold mb-2 d-flex align-content-center" style="font-size: 0.9rem;">
+                                            <Pencil class="me-2 text-primary w-4" />
                                             Currently Customizing
                                         </h6>
                                         <div class="d-flex align-items-center">
@@ -5790,8 +5804,8 @@ const rejectPendingOrder = async (pendingOrder) => {
                                                 <div class="d-flex align-items-center">
                                                     <i v-if="completedDealItems.includes(idx)"
                                                         class="bi bi-check-circle-fill text-success me-2"></i>
-                                                    <i v-else-if="idx === currentDealMenuItemIndex"
-                                                        class="bi bi-pencil-fill text-primary me-2"></i>
+                                                    <Pencil v-else-if="idx === currentDealMenuItemIndex"
+                                                        class="text-primary me-2 w-4" />
                                                     <i v-else class="bi bi-circle text-muted me-2"></i>
                                                     <small :class="{ 'fw-bold': idx === currentDealMenuItemIndex }">
                                                         {{ item.name }}
@@ -5885,7 +5899,7 @@ const rejectPendingOrder = async (pendingOrder) => {
                                         <!-- STEP 3 : REVIEW CURRENT ITEM -->
                                         <div v-show="currentDealStep === dealFinalStep" class="step-content">
                                             <div class="d-flex align-items-start mb-2">
-                                                <i class="bi bi-eye me-2 text-info" style="font-size: 1.1rem;"></i>
+                                                <Eye class="me-2 text-primary w-5" style="font-size: 1.1rem;" />
                                                 <div>
                                                     <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">
                                                         Review {{ currentDealMenuItem?.name }}
@@ -5968,16 +5982,10 @@ const rejectPendingOrder = async (pendingOrder) => {
                         </div>
 
                         <!-- FOOTER -->
-                        <div class="modal-footer border-0 px-3 py-2 d-flex justify-content-between">
-                            <div>
-                                <small class="text-muted">
-                                    Customizing item {{ currentDealMenuItemIndex + 1 }} of {{
-                                        selectedDeal?.menu_items?.length || 0
-                                    }}
-                                </small>
-                            </div>
+                        <div class="modal-footer border-0 px-3 py-2 d-flex justify-content-end">
+                          
                             <div class="d-flex gap-2">
-                                <button v-if="currentDealStep > 1" class="btn btn-light btn-sm px-4 py-2 shadow-sm"
+                                <button v-if="currentDealStep > 1" class="btn btn-secondary btn-sm px-4 py-2 shadow-sm"
                                     @click="previousDealStep">
                                     <i class="bi bi-arrow-left me-1"></i>Back
                                 </button>
@@ -5992,7 +6000,7 @@ const rejectPendingOrder = async (pendingOrder) => {
                                     <i class="bi bi-check2 me-1"></i>Next Item
                                 </button>
 
-                                <button v-else class="btn btn-success btn-sm px-4 py-2 shadow-sm"
+                                <button v-else class="btn btn-primary btn-sm px-4 py-2 shadow-sm"
                                     @click="confirmDealAndAddToCart">
                                     <i class="bi bi-cart-plus me-1"></i>Add Deal to Cart
                                 </button>
@@ -6213,6 +6221,11 @@ const rejectPendingOrder = async (pendingOrder) => {
     background-color: #181818;
 }
 
+.dark .list-group-item{
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
 .summary-item {
     padding: 6px 0;
     display: flex;
@@ -6307,8 +6320,15 @@ const rejectPendingOrder = async (pendingOrder) => {
 }
 
 .progress-bar {
-    background-color: #141414;
+    background-color: #fff !important;
 }
+
+.dark .progress-bar {
+    background-color: #141414 !important;
+}
+
+
+
 
 .variant-card {
     transition: all 0.2s;
