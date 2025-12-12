@@ -2106,7 +2106,7 @@ const confirmOrder = async ({
                 // ✅ Check if this is a deal FIRST
                 if (it.isDeal) {
                     return {
-                        product_id: it.dealId,  // Send the actual deal ID as product_id
+                        product_id: it.dealId,
                         title: it.title,
                         quantity: it.qty,
                         price: it.price,
@@ -2122,10 +2122,10 @@ const confirmOrder = async ({
                         sale_discount_per_item: 0,
                         removed_ingredients: [],
 
-                        // ✅ CRITICAL: These fields tell backend this is a deal
+                        // CRITICAL: These fields tell backend this is a deal
                         is_deal: true,
                         deal_id: it.dealId,
-                        menu_items: it.menu_items || []  // Include menu items with ingredients
+                        menu_items: it.menu_items || []
                     };
                 }
 
@@ -2139,6 +2139,17 @@ const confirmOrder = async ({
                 }
 
                 const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
+
+                const removedIngredientsWithNames = (it.removed_ingredients || []).map(removedId => {
+                    const ingredient = (it.ingredients || []).find(
+                        ing => (ing.id === removedId || ing.inventory_item_id === removedId)
+                    );
+
+                    return {
+                        id: removedId,
+                        name: ingredient ? (ingredient.product_name || ingredient.name) : 'Unknown Ingredient'
+                    };
+                });
 
                 return {
                     product_id: it.id,
@@ -2155,14 +2166,14 @@ const confirmOrder = async ({
                     variant_name: it.variant_name || null,
                     addons: it.addons || [],
                     sale_discount_per_item: resaleDiscount,
-                    removed_ingredients: it.removed_ingredients || [],
+                    removed_ingredients: removedIngredientsWithNames || [],
 
-                    // ✅ Explicitly set is_deal to false for regular items
+                    // Explicitly set is_deal to false for regular items
                     is_deal: false
                 };
             }),
 
-            // ✅ Since we check on increment, always confirm missing ingredients
+            // Since we check on increment, always confirm missing ingredients
             confirm_missing_ingredients: true
         };
 
@@ -2192,6 +2203,7 @@ const confirmOrder = async ({
             cash_amount: paymentMethod === 'Split' ? cashReceived : null,
             card_amount: paymentMethod === 'Split' ? cardAmount : null,
         };
+        console.log('🧾 Last order data prepared:', lastOrder.value);
 
         if (autoPrintKot) {
             kotData.value = await openPosOrdersModal();
@@ -4351,7 +4363,7 @@ const fetchPendingOrders = async () => {
     pendingOrdersLoading.value = true;
     try {
         const response = await axios.get('/pending-orders');
-        
+
         if (response.data.success) {
             pendingOrders.value = response.data.data;
         } else {
@@ -4373,7 +4385,7 @@ const openPendingOrdersModal = async () => {
 
 // Resume pending order
 const resumePendingOrder = async (pendingOrder) => {
-    
+
     try {
         // Restore all cart data
         customer.value = pendingOrder.customer_name || generateCustomerName();
@@ -4563,7 +4575,7 @@ const rejectPendingOrder = async (pendingOrder) => {
                                 </div>
                             </div>
 
-                              <div v-if="filteredProducts.length === 0" class="col-12">
+                            <div v-if="filteredProducts.length === 0" class="col-12">
                                 <div class="alert alert-warning border-0 rounded-4 text-center py-5">
                                     <i class="bi bi-search me-2" style="font-size: 2rem; opacity: 0.5;"></i>
                                     <h5 class="mt-2 mb-2 text-dark fw-semibold">No Menu Found</h5>
@@ -5103,7 +5115,7 @@ const rejectPendingOrder = async (pendingOrder) => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
+                                                    }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -5149,7 +5161,7 @@ const rejectPendingOrder = async (pendingOrder) => {
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
                                     </div>
                                     <!-- Total After All Discounts -->
@@ -5474,7 +5486,7 @@ const rejectPendingOrder = async (pendingOrder) => {
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                                }}</strong>
+                                            }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -5512,7 +5524,7 @@ const rejectPendingOrder = async (pendingOrder) => {
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                    }}</h6>
+                                                                }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">
@@ -5715,8 +5727,8 @@ const rejectPendingOrder = async (pendingOrder) => {
                             </button>
                         </div>
 
-                
-                     
+
+
 
                         <!-- STEP INDICATOR for Current Item -->
                         <div class="px-3 pt-2 progress-bar">
@@ -5983,7 +5995,7 @@ const rejectPendingOrder = async (pendingOrder) => {
 
                         <!-- FOOTER -->
                         <div class="modal-footer border-0 px-3 py-2 d-flex justify-content-end">
-                          
+
                             <div class="d-flex gap-2">
                                 <button v-if="currentDealStep > 1" class="btn btn-secondary btn-sm px-4 py-2 shadow-sm"
                                     @click="previousDealStep">
@@ -6202,7 +6214,7 @@ const rejectPendingOrder = async (pendingOrder) => {
                 :missing-ingredients="missingIngredients"
                 @close="showMissingIngredientsModal = false; pendingOrderData = null"
                 @confirm="handleConfirmMissingIngredients" />
-                
+
             <PendingOrdersModal :show="showPendingOrdersModal" :pending-orders="pendingOrders"
                 :loading="pendingOrdersLoading" @close="showPendingOrdersModal = false" @resume="resumePendingOrder"
                 @reject="rejectPendingOrder" />
@@ -6221,7 +6233,7 @@ const rejectPendingOrder = async (pendingOrder) => {
     background-color: #181818;
 }
 
-.dark .list-group-item{
+.dark .list-group-item {
     background-color: #181818 !important;
     color: #fff !important;
 }
