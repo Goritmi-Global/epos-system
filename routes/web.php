@@ -15,6 +15,7 @@ use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MealController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PendingOrderController;
 use App\Http\Controllers\POS\AnalyticsController;
 use App\Http\Controllers\POS\InventoryCategoryController;
 use App\Http\Controllers\POS\InventoryController;
@@ -248,6 +249,16 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::post('/order', [PosOrderController::class, 'store'])->name('pos-order.store');
         Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])->name('place-stripe-order');
         Route::post('/check-ingredients', [PosOrderController::class, 'checkIngredients']);
+    });
+
+
+
+    /* -------- Pending Orders -------- */
+    Route::prefix('pending-orders')->name('pending-orders.')->group(function () {
+        Route::post('/', [PendingOrderController::class, 'store']);
+        Route::get('/', [PendingOrderController::class, 'index']);
+        Route::get('/{id}', [PendingOrderController::class, 'show']);
+        Route::delete('/{id}', [PendingOrderController::class, 'destroy']);
     });
 
     Route::post('/stripe/pi/create', [PosOrderController::class, 'createIntent'])

@@ -2283,7 +2283,7 @@ const handleConfirmMissingIngredients = async () => {
             const dealItem = {
                 id: `deal-${deal.id}`,
                 title: deal.title,
-                price: totalDealPriceWithAddons.value, 
+                price: totalDealPriceWithAddons.value,
                 unit_price: parseFloat(deal.price),
                 img: deal.img,
                 qty: 1,
@@ -3277,6 +3277,7 @@ import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
 import { debounce } from 'lodash';
 import DiscountModal from "./DiscountModal.vue";
 import ConfirmMissingIngredientsModal from "@/Components/ConfirmMissingIngredientsModal.vue";
+import PendingOrdersModal from "./PendingOrdersModal.vue";
 import { Eye, Pencil } from "lucide-vue-next";
 
 const user = computed(() => page.props.current_user);
@@ -3825,6 +3826,7 @@ const decrementDealQty = (deal) => {
 
 onMounted(() => {
     fetchDeals();
+    fetchPendingOrders();
 });
 
 
@@ -4143,7 +4145,7 @@ const confirmDealAndAddToCart = async () => {
         const dealItem = {
             id: `deal-${selectedDeal.value.id}`,
             title: selectedDeal.value.title,
-            price: totalDealPriceWithAddons.value, 
+            price: totalDealPriceWithAddons.value,
             unit_price: parseFloat(selectedDeal.value.price),
             img: selectedDeal.value.img,
             qty: 1,
@@ -4260,6 +4262,184 @@ const resetDealCustomization = () => {
     dealSelectedAddons.value = {};
     dealItemKitchenNotes.value = {};
     completedDealItems.value = [];
+};
+
+
+// ====================================================
+//                  Pending Orders 
+// ====================================================
+const showPendingOrdersModal = ref(false);
+const pendingOrders = ref([]);
+const pendingOrdersLoading = ref(false);
+
+// Hold current order as pending
+const holdOrderAsPending = async () => {
+    if (orderItems.value.length === 0) {
+        toast.error("No items in cart to hold");
+        return;
+    }
+
+    try {
+        const payload = {
+            customer_name: customer.value,
+            phone_number: phoneNumber.value,
+            delivery_location: deliveryLocation.value,
+            order_type: orderType.value,
+            table_number: selectedTable.value?.name || null,
+            sub_total: subTotal.value,
+            tax: totalTax.value,
+            service_charges: serviceCharges.value,
+            delivery_charges: deliveryCharges.value,
+            sale_discount: totalResaleSavings.value,
+            promo_discount: promoDiscount.value,
+            approved_discounts: approvedDiscountTotal.value,
+            total_amount: grandTotal.value,
+            note: note.value,
+            kitchen_note: kitchenNote.value,
+            order_items: orderItems.value.map(item => ({
+                product_id: item.id,
+                title: item.title,
+                quantity: item.qty,
+                price: item.price,
+                unit_price: item.unit_price,
+                note: item.note || '',
+                item_kitchen_note: item.item_kitchen_note || '',
+                variant_id: item.variant_id || null,
+                variant_name: item.variant_name || null,
+                addons: item.addons || [],
+                ingredients: item.ingredients || [],
+                removed_ingredients: item.removed_ingredients || [],
+                sale_discount_per_item: item.resale_discount_per_item || 0,
+                total_resale_discount: item.total_resale_discount || 0,
+                isDeal: item.isDeal || false,
+                dealId: item.dealId || null,
+                menu_items: item.menu_items || []
+            })),
+            applied_promos: selectedPromos.value.map(promo => ({
+                promo_id: promo.id,
+                promo_name: promo.name,
+                promo_type: promo.type,
+                discount_amount: promo.applied_discount || 0,
+                applied_to_items: promo.applied_to_items || []
+            })),
+            approved_discount_details: selectedDiscounts.value.map(discount => ({
+                discount_id: discount.id,
+                discount_name: discount.name,
+                discount_percentage: discount.percentage,
+                discount_amount: getDiscountAmount(discount.percentage),
+                approval_id: discount.approval_id
+            })),
+            selected_discounts: selectedDiscounts.value,
+            terminal_id: terminalId.value
+        };
+
+        const response = await axios.post('/pending-orders', payload);
+
+        if (response.data.success) {
+            toast.success('Order held successfully!');
+            resetCart();
+            await fetchPendingOrders();
+        }
+
+    } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to hold order');
+    }
+};
+
+// Fetch pending orders
+const fetchPendingOrders = async () => {
+    pendingOrdersLoading.value = true;
+    try {
+        const response = await axios.get('/pending-orders');
+        
+        if (response.data.success) {
+            pendingOrders.value = response.data.data;
+        } else {
+            pendingOrders.value = [];
+        }
+    } catch (error) {
+        toast.error('Failed to load pending orders');
+        pendingOrders.value = [];
+    } finally {
+        pendingOrdersLoading.value = false;
+    }
+};
+
+// Open pending orders modal
+const openPendingOrdersModal = async () => {
+    showPendingOrdersModal.value = true;
+    await fetchPendingOrders();
+};
+
+// Resume pending order
+const resumePendingOrder = async (pendingOrder) => {
+    
+    try {
+        // Restore all cart data
+        customer.value = pendingOrder.customer_name || generateCustomerName();
+        phoneNumber.value = pendingOrder.phone_number || '';
+        deliveryLocation.value = pendingOrder.delivery_location || '';
+        orderType.value = pendingOrder.order_type;
+        note.value = pendingOrder.note || '';
+        kitchenNote.value = pendingOrder.kitchen_note || '';
+
+        // Restore table if exists
+        if (pendingOrder.table_number) {
+            const table = profileTables.value.table_details?.find(
+                t => t.name === pendingOrder.table_number
+            );
+            selectedTable.value = table || null;
+        }
+
+        // Restore order items
+        orderItems.value = pendingOrder.order_items.map(item => ({
+            id: item.product_id,
+            title: item.title,
+            qty: item.quantity,
+            price: item.price,
+            unit_price: item.unit_price,
+            note: item.note || '',
+            item_kitchen_note: item.item_kitchen_note || '',
+            img: item.img || '/assets/img/default.png',
+            variant_id: item.variant_id || null,
+            variant_name: item.variant_name || null,
+            addons: item.addons || [],
+            ingredients: item.ingredients || [],
+            removed_ingredients: item.removed_ingredients || [],
+            resale_discount_per_item: item.sale_discount_per_item || 0,
+            total_resale_discount: item.total_resale_discount || 0,
+            stock: item.stock || 999999,
+            isDeal: item.isDeal || false,
+            dealId: item.dealId || null,
+            menu_items: item.menu_items || []
+        }));
+
+        // Restore promos
+        selectedPromos.value = pendingOrder.applied_promos || [];
+
+        // Restore discounts
+        selectedDiscounts.value = pendingOrder.selected_discounts || [];
+
+        await axios.delete(`/pending-orders/${pendingOrder.id}`);
+
+        toast.success('Order resumed successfully!');
+        showPendingOrdersModal.value = false;
+        await fetchPendingOrders();
+
+    } catch (error) {
+        toast.error('Failed to resume order');
+    }
+};
+
+// Reject (delete) pending order
+const rejectPendingOrder = async (pendingOrder) => {
+    try {
+        await axios.delete(`/pending-orders/${pendingOrder.id}`);
+        toast.success('Pending order rejected');
+        await fetchPendingOrders();
+    } catch (error) {
+        toast.error('Failed to reject order');
+    }
 };
 
 </script>
@@ -4721,6 +4901,13 @@ const resetDealCustomization = () => {
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
                             < </button> -->
+                            <button class="btn btn-info px-3 py-2" @click="openPendingOrdersModal">
+                                <i class="bi bi-clock-history me-1"></i>
+                                Pending
+                                <span v-if="pendingOrders.length > 0" class="badge bg-danger ms-1">
+                                    {{ pendingOrders.length }}
+                                </span>
+                            </button>
                             <button class="btn btn-warning px-3 py-2 promos-btn" @click="openPromoModal">
                                 Promos
                             </button>
@@ -4916,7 +5103,7 @@ const resetDealCustomization = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -4962,7 +5149,7 @@ const resetDealCustomization = () => {
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                            }}</b>
+                                                }}</b>
                                         </div>
                                     </div>
                                     <!-- Total After All Discounts -->
@@ -4987,6 +5174,10 @@ const resetDealCustomization = () => {
                             <div class="cart-footer">
                                 <button class="btn btn-secondary btn-clear" @click="resetCart()">
                                     Clear
+                                </button>
+                                <button class="btn btn-warning" @click="holdOrderAsPending">
+                                    <i class="bi bi-clock-history me-1"></i>
+                                    Pending
                                 </button>
                                 <button class="btn btn-primary btn-place" @click="openConfirmModal">
                                     Place Order
@@ -5283,7 +5474,7 @@ const resetDealCustomization = () => {
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                            }}</strong>
+                                                }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -5321,7 +5512,7 @@ const resetDealCustomization = () => {
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                }}</h6>
+                                                                    }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">
@@ -5499,7 +5690,6 @@ const resetDealCustomization = () => {
 
 
             <!-- Deals customization modal -->
-            <!-- Add this modal to your template after the existing chooseItem modal -->
             <div class="modal fade" id="customizeDealModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content rounded-3 shadow border-0" style="max-height: 90vh;">
@@ -5734,7 +5924,7 @@ const resetDealCustomization = () => {
                                                     <span class="summary-label">Base Price:</span>
                                                     <span class="summary-value">{{
                                                         formatCurrencySymbol(currentDealMenuItem?.price
-                                                        || 0) }}</span>
+                                                            || 0) }}</span>
                                                 </div>
 
                                                 <div class="summary-item" v-if="getDealRemovedIngredientsText()">
@@ -6012,6 +6202,10 @@ const resetDealCustomization = () => {
                 :missing-ingredients="missingIngredients"
                 @close="showMissingIngredientsModal = false; pendingOrderData = null"
                 @confirm="handleConfirmMissingIngredients" />
+                
+            <PendingOrdersModal :show="showPendingOrdersModal" :pending-orders="pendingOrders"
+                :loading="pendingOrdersLoading" @close="showPendingOrdersModal = false" @resume="resumePendingOrder"
+                @reject="rejectPendingOrder" />
 
         </div>
     </Master>

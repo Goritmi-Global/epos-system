@@ -21,6 +21,7 @@ const fetchOrders = async () => {
     loading.value = true;
     try {
         const response = await axios.get("/api/kots/all-orders");
+        console.log("Fetched KOT Orders:", response.data.data);
 
         orders.value = (response.data.data || []).map(ko => {
             const posOrder = ko.pos_order_type?.order;
@@ -39,7 +40,6 @@ const fetchOrders = async () => {
                 },
                 payment: posOrder?.payment,
                 items: (ko.items || []).map(kotItem => {
-                    // Find matching POS item to get price
                     const matchingPosItem = posOrderItems.find(posItem =>
                         posItem.title === kotItem.item_name ||
                         posItem.product_id === kotItem.product_id
@@ -51,6 +51,7 @@ const fetchOrders = async () => {
                         price: matchingPosItem?.price || 0,
                         quantity: kotItem.quantity || 1,
                         variant_name: kotItem.variant_name || '-',
+                        item_kitchen_note: kotItem.item_kitchen_note || '',
                         ingredients: kotItem.ingredients || []
                     };
                 }),
@@ -903,6 +904,7 @@ const downloadExcel = (data) => {
                                     <th>#</th>
                                     <th>Order ID</th>
                                     <th>Item Name</th>
+                                    <th>Kitchen Note</th>
                                     <th>Variant</th>
                                     <th>Order Type</th>
                                     <th>Ingredients</th>
@@ -927,6 +929,7 @@ const downloadExcel = (data) => {
                                         <td>{{ index + 1 }}</td>
                                         <td>{{ item.order?.id }}</td>
                                         <td>{{ item.item_name }}</td>
+                                        <td>{{ item?.item_kitchen_note || '-' }}</td>
                                         <td>{{ item.variant_name }}</td>
                                         <td>{{ item.order?.type?.order_type || '-' }}</td>
                                         <td>{{ item.ingredients?.join(', ') || '-' }}</td>
