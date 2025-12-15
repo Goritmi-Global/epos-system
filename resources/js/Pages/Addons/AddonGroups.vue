@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { Layers, CheckCircle, XCircle, AlertCircle, Pencil, Plus } from "lucide-vue-next";
 import { toast } from "vue3-toastify";
 import axios from "axios";
@@ -12,22 +12,19 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
 import ImportFile from "@/Components/importFile.vue";
+import Pagination from "@/Components/Pagination.vue";
 
 /* ============================================
    DATA & STATE MANAGEMENT
 ============================================ */
 
-// Main data store for addon groups
 const addonGroups = ref([]);
-// Store the last applied filters
 const appliedFilters = ref({
     sortBy: "",
     stockStatus: "",
     priceMin: null,
     priceMax: null,
 });
-
-// Form state for create/edit modal
 const addonGroupForm = ref({
     name: "",
     min_select: 0,
@@ -38,22 +35,20 @@ const addonGroupForm = ref({
 
 const filters = ref({
     sortBy: "",
-    stockStatus: "", // This will be "Group Status"
+    stockStatus: "",
     priceMin: null,
     priceMax: null,
 });
-
-// Track if we're editing (null = create mode, object = edit mode)
 const editingGroup = ref(null);
-
-// Loading states
 const submitting = ref(false);
 const loading = ref(false);
 
 const confirmModalKey = ref(0);
-
-// Validation errors from backend
 const formErrors = ref({});
+const currentPage = ref(1);
+const perPage = ref(10);
+const totalItems = ref(0);
+const paginationLinks = ref([]);
 
 // Status options for dropdown
 const statusOptions = [
@@ -65,20 +60,45 @@ const statusOptions = [
    FETCH ADDON GROUPS FROM API
 ============================================ */
 
-/**
- * Fetch all addon groups from the backend
- * Called on component mount and after create/update/delete operations
- */
-const fetchAddonGroups = async () => {
+const fetchAddonGroups = async (page = 1) => {
     loading.value = true;
     try {
-        const res = await axios.get("/api/addon-groups/all");
-        addonGroups.value = res.data.data;
+        const res = await axios.get("/api/addon-groups/all", {
+            params: {
+                page: page,
+                per_page: perPage.value,
+                q: q.value.trim() || null,
+                status: appliedFilters.value.stockStatus || null,
+                sort_by: appliedFilters.value.sortBy || null,
+                addons_min: appliedFilters.value.priceMin || null,
+                addons_max: appliedFilters.value.priceMax || null,
+            }
+        });
+
+        addonGroups.value = res.data.data || [];
+        if (res.data.pagination) {
+            currentPage.value = res.data.pagination.current_page;
+            totalItems.value = res.data.pagination.total;
+            paginationLinks.value = res.data.pagination.links;
+        }
+
     } catch (err) {
         console.error("Failed to fetch addon groups:", err);
         toast.error("Failed to load addon groups");
     } finally {
         loading.value = false;
+    }
+};
+
+
+const handlePageChange = (url) => {
+    if (!url || loading.value) return;
+
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+
+    if (page) {
+        fetchAddonGroups(parseInt(page));
     }
 };
 
@@ -106,7 +126,7 @@ onMounted(async () => {
 
     // Fetch initial data
     fetchAddonGroups();
-     const filterModal = document.getElementById('addonGroupsFilterModal');
+    const filterModal = document.getElementById('addonGroupsFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
             // Only clear if filters were NOT just applied
@@ -170,67 +190,18 @@ const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 
-/**
- * Filter groups based on search query
- * Searches in: name
- */
+
 const filteredGroups = computed(() => {
-    let filtered = addonGroups.value;
-
-    // Filter by search query
-    const searchTerm = q.value.trim().toLowerCase();
-    if (searchTerm) {
-        filtered = filtered.filter((group) =>
-            group.name.toLowerCase().includes(searchTerm)
-        );
-    }
-
-    // Filter by status
-    if (filters.value.stockStatus) {
-        filtered = filtered.filter((group) => group.status === filters.value.stockStatus);
-    }
-
-    // Filter by addons count range (using priceMin/priceMax for count range)
-    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
-        filtered = filtered.filter((group) => (group.addons_count || 0) >= parseInt(filters.value.priceMin));
-    }
-    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
-        filtered = filtered.filter((group) => (group.addons_count || 0) <= parseInt(filters.value.priceMax));
-    }
-
-    // Apply sorting
-    if (filters.value.sortBy) {
-        switch (filters.value.sortBy) {
-            case "name_asc":
-                filtered.sort((a, b) => a.name.localeCompare(b.name));
-                break;
-            case "name_desc":
-                filtered.sort((a, b) => b.name.localeCompare(a.name));
-                break;
-            case "addons_asc":
-                filtered.sort((a, b) => (a.addons_count || 0) - (b.addons_count || 0));
-                break;
-            case "addons_desc":
-                filtered.sort((a, b) => (b.addons_count || 0) - (a.addons_count || 0));
-                break;
-            case "newest":
-                filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                break;
-            case "oldest":
-                filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                break;
-        }
-    }
-
-    return filtered;
+    return addonGroups.value;
 });
 
 const filtersJustApplied = ref(false);
-
-const handleFilterApply = (appliedFilters) => {
-    filters.value = { ...filters.value, ...appliedFilters };
+const handleFilterApply = (appliedFiltersData) => {
+    appliedFilters.value = { ...appliedFiltersData };
+    filters.value = { ...appliedFiltersData };
+    currentPage.value = 1;
     filtersJustApplied.value = true;
-    console.log("Filters applied:", filters.value);
+    fetchAddonGroups(1);
 };
 
 const handleFilterClear = () => {
@@ -246,7 +217,8 @@ const handleFilterClear = () => {
         priceMin: null,
         priceMax: null,
     };
-    console.log("Filters cleared");
+    currentPage.value = 1;
+    fetchAddonGroups(1);
 };
 
 /**
@@ -296,6 +268,16 @@ const editRow = (row) => {
     const bsModal = new bootstrap.Modal(modalEl);
     bsModal.show();
 };
+
+let searchTimeout = null;
+
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        currentPage.value = 1; // ✅ Reset to page 1 on search
+        fetchAddonGroups(1);
+    }, 500); // 500ms debounce
+});
 
 /* ============================================
    CREATE / UPDATE OPERATIONS
@@ -356,13 +338,13 @@ const submitAddonGroup = async () => {
     } finally {
         submitting.value = false;
     }
-     setTimeout(() => {
-                const backdrops = document.querySelectorAll('.modal-backdrop');
-                backdrops.forEach(backdrop => backdrop.remove());
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-            }, 100);
+    setTimeout(() => {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }, 100);
 };
 
 /* ============================================
@@ -419,38 +401,64 @@ const deleteGroup = async (row) => {
 };
 
 
-const onDownload = (type) => {
+const fetchAllGroupsForExport = async () => {
+    try {
+        loading.value = true;
 
+        const res = await axios.get("/api/addon-groups/all", {
+            params: {
+                export: 'all',
+                q: q.value.trim() || null,
+                status: appliedFilters.value.stockStatus || null,
+                sort_by: appliedFilters.value.sortBy || null,
+                addons_min: appliedFilters.value.priceMin || null,
+                addons_max: appliedFilters.value.priceMax || null,
+            }
+        });
+
+        return res.data.data || [];
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+const onDownload = async (type) => {
     if (!addonGroups.value || addonGroups.value.length === 0) {
         toast.error("No Addon Groups data to download");
         return;
     }
 
-
-    const dataToExport = q.value.trim()
-        ? filteredGroups.value
-        : addonGroups.value;
-
-
-    if (dataToExport.length === 0) {
-        toast.error("No Addon Groups found to download");
-        return;
-    }
-
     try {
+        loading.value = true;
 
+        // ✅ Fetch ALL data (not just current page)
+        const allData = await fetchAllGroupsForExport();
+
+        if (!allData.length) {
+            toast.error("No addon groups found to download");
+            loading.value = false;
+            return;
+        }
+
+        // Export with all data
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allData);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allData);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allData);
         } else {
             toast.error("Invalid download type");
         }
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -783,7 +791,7 @@ const handleImport = (data) => {
             const message = error.response?.data?.message || "Import failed";
             toast.error(message);
             console.error("Import error:", error);
-             setTimeout(() => {
+            setTimeout(() => {
                 const backdrops = document.querySelectorAll('.modal-backdrop');
                 backdrops.forEach(backdrop => backdrop.remove());
                 document.body.classList.remove('modal-open');
@@ -843,8 +851,8 @@ const handleImport = (data) => {
                                     { value: 'addons_desc', label: 'Addons Count: High to Low' },
                                     { value: 'newest', label: 'Newest First' },
                                     { value: 'oldest', label: 'Oldest First' },
-                                ]" :showPriceRange="false" :showStockStatus="false" :showDateRange="false" :showCategory="false"
-                                statusLabel="Group Status" priceLabel="Addons Count Range"
+                                ]" :showPriceRange="false" :showStockStatus="false" :showDateRange="false"
+                                :showCategory="false" statusLabel="Group Status" priceLabel="Addons Count Range"
                                 priceMinPlaceholder="Min Count" priceMaxPlaceholder="Max Count"
                                 @apply="handleFilterApply" @clear="handleFilterClear" />
                             <!-- Search Input -->
@@ -925,7 +933,7 @@ const handleImport = (data) => {
                                 <!-- Data Rows -->
                                 <tr v-else v-for="(row, i) in filteredGroups" :key="row.id">
                                     <!-- Serial Number -->
-                                    <td>{{ i + 1 }}</td>
+                                    <td>{{ (currentPage - 1) * perPage + i + 1 }}</td>
 
                                     <!-- Group Name -->
                                     <td class="fw-semibold">{{ row.name }}</td>
@@ -1005,6 +1013,18 @@ const handleImport = (data) => {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div v-if="paginationLinks.length > 0 && !loading"
+                        class="mt-4 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Showing {{ (currentPage - 1) * perPage + 1 }} to
+                            {{ Math.min(currentPage * perPage, totalItems) }} of
+                            {{ totalItems }} entries
+                        </div>
+
+                        <Pagination :pagination="paginationLinks" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
                     </div>
                 </div>
             </div>

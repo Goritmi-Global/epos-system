@@ -24,6 +24,7 @@ class InventoryController extends Controller
 
     public function index(Request $request)
     {
+       
         $inventories = $this->service->list($request->only('q'));
 
         return Inertia::render('Backend/Inventory/Index', [
@@ -45,7 +46,16 @@ class InventoryController extends Controller
 
     public function apiList(Request $request)
     {
-        $inventories = $this->service->list($request->only(['q', 'per_page']));
+        $inventories = $this->service->list($request->only([
+        'q',           // search query
+        'per_page',    // items per page
+        'category',    // NEW: category filter
+        'supplier',    // NEW: supplier filter
+        'stockStatus', // NEW: stock status filter
+        'priceMin',    // NEW: minimum price
+        'priceMax',    // NEW: maximum price
+        'sortBy',      // NEW: sort option
+    ]));
         return response()->json($inventories);
     }
     
