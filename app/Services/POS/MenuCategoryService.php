@@ -5,9 +5,9 @@ namespace App\Services\POS;
 use App\Helpers\UploadHelper;
 use App\Models\MenuCategory;
 use App\Models\MenuItem;
+use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 class MenuCategoryService
 {
@@ -19,12 +19,12 @@ class MenuCategoryService
             $createdCategories = [];
             $isSubCategory = $data['isSubCategory'] ?? false;
             $uploadId = null;
-            if (!empty($data['icon'])) {
+            if (! empty($data['icon'])) {
                 $upload = UploadHelper::store($data['icon'], 'menu-category-icons', 'public');
                 $uploadId = $upload->id;
             }
 
-            if (!empty($data['categories'])) {
+            if (! empty($data['categories'])) {
                 foreach ($data['categories'] as $cat) {
                     if ($isSubCategory) {
                         if (empty($cat['parent_id'])) {
@@ -35,11 +35,11 @@ class MenuCategoryService
                             ->whereNull('parent_id')
                             ->first();
 
-                        if (!$parent) {
+                        if (! $parent) {
                             throw new Exception('Invalid parent category');
                         }
                     } else {
-                        if (!empty($cat['parent_id'])) {
+                        if (! empty($cat['parent_id'])) {
                             throw new Exception('Parent category cannot have parent_id');
                         }
                     }
@@ -51,9 +51,9 @@ class MenuCategoryService
                         continue;
                     }
                     $category = $this->createSingleCategory([
-                        'name'      => $cat['name'],
+                        'name' => $cat['name'],
                         'upload_id' => $uploadId,
-                        'active'    => $cat['active'] ?? true,
+                        'active' => $cat['active'] ?? true,
                         'parent_id' => $cat['parent_id'] ?? null,
                     ]);
 
@@ -71,9 +71,10 @@ class MenuCategoryService
             ];
         } catch (Exception $e) {
             DB::rollback();
+
             return [
                 'success' => false,
-                'message' => 'Failed to create categories: ' . $e->getMessage(),
+                'message' => 'Failed to create categories: '.$e->getMessage(),
                 'data' => null,
             ];
         }
@@ -82,10 +83,10 @@ class MenuCategoryService
     private function createSingleCategory(array $categoryData): MenuCategory
     {
         return MenuCategory::create([
-            'name'       => $categoryData['name'],
-            'upload_id'  => $categoryData['upload_id'] ?? null,
-            'active'     => $categoryData['active'] ?? true,
-            'parent_id'  => $categoryData['parent_id'] ?? null,
+            'name' => $categoryData['name'],
+            'upload_id' => $categoryData['upload_id'] ?? null,
+            'active' => $categoryData['active'] ?? true,
+            'parent_id' => $categoryData['parent_id'] ?? null,
             'total_value' => 0,
             'total_items' => 0,
             'out_of_stock' => 0,
@@ -94,13 +95,11 @@ class MenuCategoryService
         ]);
     }
 
-
     /**
      * Get all categories with their subcategories
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
-  
     public function getAllCategories()
     {
         return MenuCategory::with(['subcategories'])
@@ -112,36 +111,150 @@ class MenuCategoryService
                         $sub->image_url = UploadHelper::url($sub->upload_id);
                     });
                 }
+
                 return $cat;
             });
     }
-
 
     /**
      * Get only parent categories (for dropdown)
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getParentCategories()
+    /**
+     * ✅ UPDATED: Get parent categories with filters and pagination
+     */
+    public function getParentCategories(array $filters = [])
     {
-        return MenuCategory::with(['subcategories', 'parent'])
+        $query = MenuCategory::with(['subcategories', 'parent'])
             ->withCount('menuItems')
-            ->whereNull('parent_id')
-           ->orderBy('id', 'DESC')
-            ->get()
-            ->map(function ($category) {
-                $category->total_menu_items = $category->menu_items_count;
-                $category->image_url = UploadHelper::url($category->upload_id);
-                return $category;
+            ->whereNull('parent_id');
+
+        // ✅ Search filter
+        if (! empty($filters['q'])) {
+            $query->where('name', 'like', "%{$filters['q']}%");
+        }
+
+        // ✅ Status filter
+        if (! empty($filters['status'])) {
+            if ($filters['status'] === 'active') {
+                $query->where('active', 1);
+            } elseif ($filters['status'] === 'inactive') {
+                $query->where('active', 0);
+            }
+        }
+
+        // ✅ Category filter (specific category ID)
+        if (! empty($filters['category'])) {
+            $query->where('id', $filters['category']);
+        }
+
+        // ✅ Has Subcategories filter
+        if (! empty($filters['has_subcategories'])) {
+            if ($filters['has_subcategories'] === 'yes') {
+                $query->whereHas('subcategories');
+            } elseif ($filters['has_subcategories'] === 'no') {
+                $query->doesntHave('subcategories');
+            }
+        }
+
+        // ✅ Sorting
+        if (! empty($filters['sort_by'])) {
+            switch ($filters['sort_by']) {
+                case 'name_asc':
+                    $query->orderBy('name', 'asc');
+                    break;
+                case 'name_desc':
+                    $query->orderBy('name', 'desc');
+                    break;
+                case 'items_desc':
+                    $query->orderByRaw('(SELECT COUNT(*) FROM menu_items WHERE menu_items.category_id = menu_categories.id) DESC');
+                    break;
+                case 'items_asc':
+                    $query->orderByRaw('(SELECT COUNT(*) FROM menu_items WHERE menu_items.category_id = menu_categories.id) ASC');
+                    break;
+                default:
+                    $query->orderBy('id', 'DESC');
+                    break;
+            }
+        } else {
+            $query->orderBy('id', 'DESC');
+        }
+
+        // ✅ Check if ANY filter is applied
+        $searchQuery = trim($filters['q'] ?? '');
+        $hasSearch = ! empty($searchQuery);
+        $hasStatus = ! empty($filters['status']);
+        $hasCategory = ! empty($filters['category']);
+        $hasSubcategoriesFilter = ! empty($filters['has_subcategories']);
+        $hasSorting = ! empty($filters['sort_by']);
+
+        $hasAnyFilter = $hasSearch || $hasStatus || $hasCategory
+                     || $hasSubcategoriesFilter || $hasSorting;
+
+        Log::info('Menu Category Filter Debug', [
+            'hasAnyFilter' => $hasAnyFilter,
+            'filters' => $filters,
+        ]);
+
+        if ($hasAnyFilter) {
+            // ✅ FILTER MODE: Get all matching records
+            $allCategories = $query->get();
+            $total = $allCategories->count();
+
+            Log::info('Filter Mode (Menu Categories)', ['total_found' => $total]);
+
+            // ✅ Transform data
+            $transformedCategories = $allCategories->map(function ($category) {
+                return $this->transformCategory($category);
             });
+
+            // ✅ Create single-page paginator
+            $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+                $transformedCategories,
+                $total,
+                $total > 0 ? $total : 1,
+                1,
+                [
+                    'path' => request()->url(),
+                    'query' => request()->query(),
+                ]
+            );
+
+        } else {
+            // ✅ NO FILTERS: Normal pagination
+            Log::info('Pagination Mode (Menu Categories)');
+
+            $perPage = $filters['per_page'] ?? 10;
+            $paginator = $query->paginate($perPage);
+
+            $paginator->getCollection()->transform(function ($category) {
+                return $this->transformCategory($category);
+            });
+        }
+
+        return $paginator;
     }
 
+    /**
+     * ✅ NEW: Transform category data (extracted for reusability)
+     */
+    private function transformCategory($category)
+    {
+        $category->total_menu_items = $category->menu_items_count;
+        $category->image_url = UploadHelper::url($category->upload_id);
+
+        if ($category->subcategories) {
+            $category->subcategories->each(function ($sub) {
+                $sub->image_url = UploadHelper::url($sub->upload_id);
+            });
+        }
+
+        return $category;
+    }
 
     /**
      * Get category by ID with relationships
-     *
-     * @param int $id
-     * @return MenuCategory|null
      */
     public function getCategoryById(int $id): ?MenuCategory
     {
@@ -150,10 +263,6 @@ class MenuCategoryService
 
     /**
      * Update category
-     *
-     * @param int $id
-     * @param array $data
-     * @return array
      */
 
     // public function updateCategory(int $id, array $data): array
@@ -252,7 +361,7 @@ class MenuCategoryService
             DB::beginTransaction();
 
             $category = MenuCategory::find($id);
-            if (!$category) {
+            if (! $category) {
                 return [
                     'success' => false,
                     'message' => 'Category not found',
@@ -262,7 +371,7 @@ class MenuCategoryService
 
             // Handle new image upload if provided
             $uploadId = $category->upload_id;
-            if (!empty($data['icon'])) {
+            if (! empty($data['icon'])) {
                 $upload = UploadHelper::store($data['icon'], 'menu-category-icons', 'public');
                 $uploadId = $upload->id;
 
@@ -290,6 +399,7 @@ class MenuCategoryService
             ];
         } catch (Exception $e) {
             DB::rollback();
+
             return [
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -300,9 +410,6 @@ class MenuCategoryService
 
     /**
      * Delete category
-     *
-     * @param int $id
-     * @return array
      */
     public function deleteCategory(int $id): array
     {
@@ -311,11 +418,11 @@ class MenuCategoryService
 
             $category = MenuCategory::find($id);
 
-            if (!$category) {
+            if (! $category) {
                 return [
                     'success' => false,
                     'message' => 'Category not found',
-                    'data' => null
+                    'data' => null,
                 ];
             }
 
@@ -324,7 +431,7 @@ class MenuCategoryService
                 return [
                     'success' => false,
                     'message' => 'Cannot delete. Category is already used in menu(s).',
-                    'data' => null
+                    'data' => null,
                 ];
             }
 
@@ -337,7 +444,7 @@ class MenuCategoryService
                 return [
                     'success' => false,
                     'message' => 'Cannot delete. One or more subcategories are used in menu items.',
-                    'data' => null
+                    'data' => null,
                 ];
             }
 
@@ -352,40 +459,35 @@ class MenuCategoryService
             return [
                 'success' => true,
                 'message' => 'Category and its subcategories deleted successfully',
-                'data' => null
+                'data' => null,
             ];
         } catch (Exception $e) {
             DB::rollback();
-            Log::error('Category deletion failed: ' . $e->getMessage());
+            Log::error('Category deletion failed: '.$e->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Failed to delete category: ' . $e->getMessage(),
-                'data' => null
+                'message' => 'Failed to delete category: '.$e->getMessage(),
+                'data' => null,
             ];
         }
     }
 
-
-
     /**
      * Search categories by name
      *
-     * @param string $query
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function searchCategories(string $query)
     {
         return MenuCategory::with(['subcategories', 'parent'])
-            ->where('name', 'like', '%' . $query . '%')
+            ->where('name', 'like', '%'.$query.'%')
             ->orderBy('name')
             ->get();
     }
 
     /**
      * Get category statistics
-     *
-     * @return array
      */
     public function getCategoryStatistics(): array
     {
@@ -406,55 +508,48 @@ class MenuCategoryService
 
     /**
      * Toggle category active status
-     *
-     * @param int $id
-     * @return array
      */
     public function toggleCategoryStatus(int $id): array
     {
         try {
             $category = MenuCategory::find($id);
 
-            if (!$category) {
+            if (! $category) {
                 return [
                     'success' => false,
                     'message' => 'Category not found',
-                    'data' => null
+                    'data' => null,
                 ];
             }
 
-            $category->active = !$category->active;
+            $category->active = ! $category->active;
             $category->save();
 
             return [
                 'success' => true,
                 'message' => 'Category status updated successfully',
-                'data' => $category
+                'data' => $category,
             ];
         } catch (Exception $e) {
-            Log::error('Category status toggle failed: ' . $e->getMessage());
+            Log::error('Category status toggle failed: '.$e->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Failed to update category status: ' . $e->getMessage(),
-                'data' => null
+                'message' => 'Failed to update category status: '.$e->getMessage(),
+                'data' => null,
             ];
         }
     }
 
     /**
      * Update only the subcategory name
-     *
-     * @param int $subcategoryId
-     * @param string $newName
-     * @return array
      */
     public function updateSubcategoryName(int $subcategoryId, string $newName): array
     {
         try {
             $subcategory = MenuCategory::find($subcategoryId);
 
-            if (!$subcategory || !$subcategory->parent_id) {
+            if (! $subcategory || ! $subcategory->parent_id) {
                 return [
                     'success' => false,
                     'message' => 'Subcategory not found or it is not a subcategory',

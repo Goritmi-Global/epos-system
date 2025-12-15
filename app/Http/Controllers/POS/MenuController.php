@@ -221,6 +221,7 @@ public function apiIndex(Request $request)
         ]);
     }
 
+    // ✅ FIXED: Use standard pagination (this already works correctly with filters!)
     // Normal paginated request
     $menus = $query->paginate($perPage)
         ->through(function ($item) {

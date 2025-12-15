@@ -348,16 +348,16 @@ const fetchMenus = async (page = 1) => {
     try {
         const res = await axios.get("/api/menu/items", {
             params: {
-                page: page,
+                page: page, 
                 per_page: perPage.value,
                 search: q.value.trim() || null,
-                category: filters.value.category || null,
-                status: filters.value.status !== "" ? filters.value.status : null,
-                sort_by: filters.value.sortBy || null,
-                price_min: filters.value.priceMin || null,
-                price_max: filters.value.priceMax || null,
-                date_from: filters.value.dateFrom || null,
-                date_to: filters.value.dateTo || null,
+                category: appliedFilters.value.category || null, 
+                status: appliedFilters.value.status !== "" ? appliedFilters.value.status : null,
+                sort_by: appliedFilters.value.sortBy || null,
+                price_min: appliedFilters.value.priceMin || null,
+                price_max: appliedFilters.value.priceMax || null,
+                date_from: appliedFilters.value.dateFrom || null,
+                date_to: appliedFilters.value.dateTo || null,
             }
         });
 
@@ -368,8 +368,6 @@ const fetchMenus = async (page = 1) => {
             totalItems.value = res.data.pagination.total;
             paginationLinks.value = res.data.pagination.links;
         }
-
-        // ✅ Load global counts from backend
         if (res.data.counts) {
             counts.value = res.data.counts;
         }
@@ -423,10 +421,15 @@ const filteredItems = computed(() => {
     return menuItems.value;
 });
 
-watch(q, () => {
-    fetchMenus(1);
-});
+let searchTimeout = null;
 
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        currentPage.value = 1; 
+        fetchMenus(1);
+    }, 500); 
+});
 watch(
     () => appliedFilters.value,
     () => {
@@ -454,15 +457,21 @@ const filterOptions = computed(() => ({
 }));
 
 
-const handleFilterClear = () => {
-    filters.value = { ...defaultMenuFilters };
-    appliedFilters.value = { ...defaultMenuFilters };
-    fetchMenus(1);
-};
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
+    currentPage.value = 1;
     fetchMenus(1);
+    const modal = bootstrap.Modal.getInstance(
+        document.getElementById("menuFilterModal")
+    );
+    modal?.hide();
+};
+const handleFilterClear = () => {
+    filters.value = { ...defaultMenuFilters };
+    appliedFilters.value = { ...defaultMenuFilters };
+    currentPage.value = 1;
+    fetchMenus(1); 
 };
 
 /* ===================== KPIs ===================== */

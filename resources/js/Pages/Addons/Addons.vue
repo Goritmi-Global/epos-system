@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { Package, CheckCircle, XCircle, DollarSign, Pencil, Plus, Filter } from "lucide-vue-next";
 import { toast } from "vue3-toastify";
 import axios from "axios";
@@ -13,6 +13,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
 import ImportFile from "@/Components/importFile.vue";
+import Pagination from "@/Components/Pagination.vue";
 
 const { formatCurrencySymbol } = useFormatters();
 
@@ -53,6 +54,10 @@ const loading = ref(false);
 const formErrors = ref({});
 
 const confirmModalKey = ref(0);
+const currentPage = ref(1);
+const perPage = ref(10);
+const totalItems = ref(0);
+const paginationLinks = ref([]);
 
 // Status options for dropdown
 const statusOptions = [
@@ -71,16 +76,48 @@ const selectedGroupFilter = ref("all");
  * Fetch all addons from the backend
  * Called on component mount and after create/update/delete operations
  */
-const fetchAddons = async () => {
+const fetchAddons = async (page = 1) => {
     loading.value = true;
     try {
-        const res = await axios.get("/api/addons/all");
-        addons.value = res.data.data;
+        const res = await axios.get("/api/addons/all", {
+            params: {
+                page: page,
+                per_page: perPage.value,
+                q: q.value.trim() || null,
+                status: appliedFilters.value.stockStatus || null,
+                category: appliedFilters.value.category || null,
+                sort_by: appliedFilters.value.sortBy || null,
+                price_min: appliedFilters.value.priceMin || null,
+                price_max: appliedFilters.value.priceMax || null,
+            }
+        });
+
+        addons.value = res.data.data || [];
+
+        // ✅ Update pagination state
+        if (res.data.pagination) {
+            currentPage.value = res.data.pagination.current_page;
+            totalItems.value = res.data.pagination.total;
+            paginationLinks.value = res.data.pagination.links;
+        }
+
     } catch (err) {
         console.error("Failed to fetch addons:", err);
         toast.error("Failed to load addons");
     } finally {
         loading.value = false;
+    }
+};
+
+
+const handlePageChange = (url) => {
+    if (!url || loading.value) return;
+
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+
+    if (page) {
+        fetchAddons(parseInt(page));
     }
 };
 
@@ -134,7 +171,7 @@ onMounted(async () => {
             filtersJustApplied.value = false;
         });
     }
-    
+
 });
 
 /* ============================================
@@ -213,109 +250,63 @@ const uniqueGroups = computed(() => {
     return [...groups, ...groupNames];
 });
 
-/**
- * Filter addons based on search query and selected group
- * Searches in: name, addon group name
- */
-const filteredAddons = computed(() => {
-    let filtered = addons.value;
 
-    if (selectedGroupFilter.value !== "all") {
-        filtered = filtered.filter(
-            (addon) => addon.addon_group?.name === selectedGroupFilter.value
-        );
-    }
-
-    // Filter by search query (name or addon group name)
-    const searchTerm = q.value.trim().toLowerCase();
-    if (searchTerm) {
-        filtered = filtered.filter(
-            (addon) =>
-                addon.name.toLowerCase().includes(searchTerm) ||
-                addon.addon_group?.name.toLowerCase().includes(searchTerm)
-        );
-    }
-
-    // Filter by addon group (category)
-    if (filters.value.category) {
-        filtered = filtered.filter(
-            (addon) => addon.addon_group_id === parseInt(filters.value.category)
-        );
-    }
-
-    // Filter by price range
-    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
-        filtered = filtered.filter((addon) => parseFloat(addon.price) >= parseFloat(filters.value.priceMin));
-    }
-    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
-        filtered = filtered.filter((addon) => parseFloat(addon.price) <= parseFloat(filters.value.priceMax));
-    }
-
-    // Filter by status
-    if (filters.value.stockStatus) {
-        filtered = filtered.filter((addon) => addon.status === filters.value.stockStatus);
-    }
-
-    // Remove date filtering section completely
-
-    // Apply sorting
-    if (filters.value.sortBy) {
-        switch (filters.value.sortBy) {
-            case "price_asc":
-                filtered.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-                break;
-            case "price_desc":
-                filtered.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-                break;
-            case "name_asc":
-                filtered.sort((a, b) => a.name.localeCompare(b.name));
-                break;
-            case "name_desc":
-                filtered.sort((a, b) => b.name.localeCompare(a.name));
-                break;
-            case "newest":
-                filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                break;
-            case "oldest":
-                filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                break;
-        }
-    }
-
-    return filtered;
-});
 const filtersJustApplied = ref(false);
 
-const handleFilterApply = (appliedFilters) => {
-    filters.value = { ...filters.value, ...appliedFilters };
+const handleFilterApply = (appliedFiltersData) => {
+    appliedFilters.value = { ...appliedFiltersData };
+    filters.value = { ...appliedFiltersData };
+    currentPage.value = 1;
+    selectedGroupFilter.value = "all";
     filtersJustApplied.value = true;
-    console.log("Filters applied:", filters.value);
+    fetchAddons(1);
 };
 
-/**
- * Handle filter clear event
- */
 const handleFilterClear = () => {
     filters.value = {
         sortBy: "",
         stockStatus: "",
         priceMin: null,
         priceMax: null,
-
+        category: "",
     };
-     appliedFilters.value = {
+    appliedFilters.value = {
         sortBy: "",
         stockStatus: "",
         priceMin: null,
         priceMax: null,
+        category: "",
     };
-    console.log("Filters cleared");
+    currentPage.value = 1;
+    selectedGroupFilter.value = "all";
+    fetchAddons(1);
 };
-/**
- * Set the group filter
- */
+
+let searchTimeout = null;
+
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        currentPage.value = 1;
+        fetchAddons(1);
+    }, 500);
+});
+
 const setGroupFilter = (group) => {
     selectedGroupFilter.value = group === "All" ? "all" : group;
+    if (group === "All") {
+        filters.value.category = "";
+        appliedFilters.value.category = "";
+    } else {
+        const selectedGroup = addonGroups.value.find(g => g.name === group);
+        if (selectedGroup) {
+            filters.value.category = selectedGroup.id;
+            appliedFilters.value.category = selectedGroup.id;
+        }
+    }
+
+    currentPage.value = 1; // ✅ Reset to page 1
+    fetchAddons(1); // ✅ Fetch with new group filter
 };
 
 /**
@@ -432,13 +423,13 @@ const submitAddon = async () => {
     } finally {
         submitting.value = false;
     }
-     setTimeout(() => {
-                const backdrops = document.querySelectorAll('.modal-backdrop');
-                backdrops.forEach(backdrop => backdrop.remove());
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-            }, 100);
+    setTimeout(() => {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }, 100);
 };
 
 /* ============================================
@@ -492,13 +483,7 @@ const deleteAddon = async (row) => {
     }
 };
 
-/* ============================================
-   COMPUTED PROPERTIES FOR DROPDOWN
-============================================ */
 
-/**
- * Format addon groups for PrimeVue Select dropdown
- */
 const addonGroupOptions = computed(() => {
     return addonGroups.value.map((group) => ({
         label: `${group.name} (Min: ${group.min_select}, Max: ${group.max_select})`,
@@ -513,81 +498,92 @@ const addonGroupsForFilter = computed(() => {
     }));
 });
 
+const fetchAllAddonsForExport = async () => {
+    try {
+        loading.value = true;
 
-const onDownload = (type) => {
+        const res = await axios.get("/api/addons/all", {
+            params: {
+                export: 'all',
+                q: q.value.trim() || null,
+                status: appliedFilters.value.stockStatus || null,
+                category: appliedFilters.value.category || null,
+                sort_by: appliedFilters.value.sortBy || null,
+                price_min: appliedFilters.value.priceMin || null,
+                price_max: appliedFilters.value.priceMax || null,
+            }
+        });
 
+        return res.data.data || [];
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+const onDownload = async (type) => {
     if (!addons.value || addons.value.length === 0) {
         toast.error("No Addons data to download");
         return;
     }
 
-    // Use filtered data if search query or group filter exists, otherwise use all addons
-    const dataToExport = (q.value.trim() || selectedGroupFilter.value !== "all")
-        ? filteredAddons.value
-        : addons.value;
-
-    // Validate that there's data to export after filtering
-    if (dataToExport.length === 0) {
-        toast.error("No Addons found to download");
-        return;
-    }
-
     try {
-        // Route to appropriate export function based on type
+        loading.value = true;
+        const allData = await fetchAllAddonsForExport();
+
+        if (!allData.length) {
+            toast.error("No addons found to download");
+            loading.value = false;
+            return;
+        }
+
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allData);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allData);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allData);
         } else {
             toast.error("Invalid download type");
         }
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
-
 
 const downloadCSV = (data) => {
     console.log("Data to export:", data);
     try {
-        // Define CSV column headers
         const headers = ["Addon Name", "Addon Group", "Price", "Status", "Description"];
-
-        // Map addons data to CSV rows
         const rows = data.map((addon) => {
             return [
-                `"${addon.name || ""}"`,                                    // Addon Name
-                `"${addon.addon_group?.name || "N/A"}"`,                    // Addon Group
-                `${addon.price || 0}`,                                      // Price
-                `"${addon.status || "active"}"`,                            // Status
-                `"${(addon.description || "").replace(/"/g, '""')}"`,       // Description (escape quotes)
+                `"${addon.name || ""}"`,
+                `"${addon.addon_group?.name || "N/A"}"`,
+                `${addon.price || 0}`,
+                `"${addon.status || "active"}"`,
+                `"${(addon.description || "").replace(/"/g, '""')}"`,
             ];
         });
-
-        // Build CSV content: headers + data rows
         const csvContent = [
-            headers.join(","),                    // Header row
-            ...rows.map((r) => r.join(",")),      // Data rows
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
         ].join("\n");
-
-        // Create blob from CSV content
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
-
-        // Create temporary download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
             "download",
             `Addons_${new Date().toISOString().split("T")[0]}.csv`
         );
-
-        // Trigger download
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -604,36 +600,27 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        // Initialize PDF document (Portrait, millimeters, A4 size)
         const doc = new jsPDF("p", "mm", "a4");
 
         // Add title
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text("Addons Report", 14, 20);
-
-        // Add metadata (generation date and total records)
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Addons: ${data.length}`, 14, 34);
-
-        // Define table columns
         const tableColumns = ["Addon Name", "Addon Group", "Price", "Status", "Description"];
-
-        // Map addons data to table rows
         const tableRows = data.map((addon) => {
             return [
-                addon.name || "",                           // Addon Name
-                addon.addon_group?.name || "N/A",           // Addon Group
-                addon.price || 0,                           // Price
-                (addon.status || "active").toUpperCase(),   // Status (formatted)
-                addon.description || "",                    // Description
+                addon.name || "",
+                addon.addon_group?.name || "N/A",
+                addon.price || 0,
+                (addon.status || "active").toUpperCase(),
+                addon.description || "",
             ];
         });
-
-        // Create styled table using autoTable plugin
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
@@ -646,16 +633,14 @@ const downloadPDF = (data) => {
                 lineWidth: 0.1,
             },
             headStyles: {
-                fillColor: [41, 128, 185],    // Blue header background
-                textColor: 255,                // White text
+                fillColor: [41, 128, 185],
+                textColor: 255,
                 fontStyle: "bold",
             },
             alternateRowStyles: {
-                fillColor: [245, 245, 245]    // Light gray alternate rows
+                fillColor: [245, 245, 245]
             },
             margin: { left: 14, right: 14 },
-
-            // Add page numbers at bottom
             didDrawPage: (tableData) => {
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageHeight = doc.internal.pageSize.height;
@@ -667,8 +652,6 @@ const downloadPDF = (data) => {
                 );
             },
         });
-
-        // Save PDF file with timestamp
         const fileName = `Addons_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
@@ -681,12 +664,9 @@ const downloadPDF = (data) => {
 
 const downloadExcel = (data) => {
     try {
-        // Validate XLSX library is available
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
-
-        // Prepare worksheet data matching CSV structure
         const worksheetData = data.map((addon) => {
             return {
                 "Addon Name": addon.name || "",
@@ -696,24 +676,16 @@ const downloadExcel = (data) => {
                 "Description": addon.description || "",
             };
         });
-
-        // Create workbook and first worksheet (Data sheet)
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-
-        // Set column widths for better readability
         worksheet["!cols"] = [
-            { wch: 20 }, // Addon Name
-            { wch: 18 }, // Addon Group
-            { wch: 12 }, // Price
-            { wch: 12 }, // Status
-            { wch: 30 }, // Description
+            { wch: 20 },
+            { wch: 18 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 30 },
         ];
-
-        // Add data sheet to workbook
         XLSX.utils.book_append_sheet(workbook, worksheet, "Addons");
-
-        // Create metadata sheet with report info
         const metaData = [
             { Info: "Report", Value: "Addons Export" },
             { Info: "Generated On", Value: new Date().toLocaleString() },
@@ -721,11 +693,7 @@ const downloadExcel = (data) => {
             { Info: "Exported By", Value: "Inventory Management System" },
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
-
-        // Add metadata sheet to workbook
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
-
-        // Save Excel file with timestamp
         const fileName = `Addons_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
@@ -750,17 +718,12 @@ const sampleData = [
 ============================================ */
 
 const handleImport = (data) => {
-    // Validate file is not empty
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
         return;
     }
-
-    // Extract headers and rows
     const headers = data[0];
     const rows = data.slice(1);
-
-    // Parse each row into addon object
     const addonsToImport = rows.map((row) => {
         return {
             name: (row[0] || "").trim(),
@@ -769,22 +732,18 @@ const handleImport = (data) => {
             status: (row[3] || "active").toLowerCase().trim(),
             description: (row[4] || "").trim(),
         };
-    }).filter(addon => addon.name.length > 0); // Remove empty rows
+    }).filter(addon => addon.name.length > 0);
 
     if (addonsToImport.length === 0) {
         toast.error("No valid addons found in the file.");
         return;
     }
-
-    // VALIDATION 1: Check price >= 0
     const invalidPrices = addonsToImport.filter(a => a.price < 0);
     if (invalidPrices.length > 0) {
         const names = invalidPrices.map(a => a.name).join(", ");
         toast.error(`Invalid price (must be >= 0) for: ${names}`);
         return;
     }
-
-    // VALIDATION 2: Check all addon groups exist
     const groupNames = addonsToImport.map(a => a.addon_group_name);
     const existingGroupNames = addonGroups.value.map(g => g.name.toLowerCase());
     const missingGroups = [...new Set(groupNames.filter(name =>
@@ -795,8 +754,6 @@ const handleImport = (data) => {
         toast.error(`Addon groups do not exist: ${missingGroups.join(", ")}`);
         return;
     }
-
-    // VALIDATION 3: Check for duplicates in CSV
     const addonKeys = addonsToImport.map(a => `${a.name.toLowerCase()}-${a.addon_group_name.toLowerCase()}`);
     const duplicatesInCSV = addonKeys.filter((key, index) => addonKeys.indexOf(key) !== index);
 
@@ -804,8 +761,6 @@ const handleImport = (data) => {
         toast.error("Duplicate addon names found in the same group within CSV");
         return;
     }
-
-    // VALIDATION 4: Check for duplicates in existing table
     const existingKeys = addons.value.map(a =>
         `${a.name.toLowerCase()}-${a.addon_group?.name.toLowerCase()}`
     );
@@ -818,8 +773,6 @@ const handleImport = (data) => {
         toast.error(`Already exist in table: ${names}`);
         return;
     }
-
-    // VALIDATION 5: Check status values
     const validStatuses = ["active", "inactive"];
     const invalidStatuses = addonsToImport.filter(a => !validStatuses.includes(a.status));
 
@@ -828,12 +781,9 @@ const handleImport = (data) => {
         return;
     }
 
-    // All validations passed - send to API
     axios.post("/api/addons/import", { addons: addonsToImport })
         .then((response) => {
             toast.success(response.data.message || "Import successful!");
-            
-            // Close the import modal properly
             const importModal = document.querySelector('.modal.show');
             if (importModal) {
                 const bsModal = bootstrap.Modal.getInstance(importModal);
@@ -841,8 +791,7 @@ const handleImport = (data) => {
                     bsModal.hide();
                 }
             }
-            
-            // Remove any lingering backdrops
+
             setTimeout(() => {
                 const backdrops = document.querySelectorAll('.modal-backdrop');
                 backdrops.forEach(backdrop => backdrop.remove());
@@ -850,16 +799,13 @@ const handleImport = (data) => {
                 document.body.style.overflow = '';
                 document.body.style.paddingRight = '';
             }, 300);
-            
-            // Refresh data
+
             fetchAddons();
         })
         .catch((error) => {
             const message = error.response?.data?.message || "Import failed";
             toast.error(message);
             console.error("Import error:", error);
-            
-            // Also clean up modal on error
             setTimeout(() => {
                 const backdrops = document.querySelectorAll('.modal-backdrop');
                 backdrops.forEach(backdrop => backdrop.remove());
@@ -1013,9 +959,9 @@ const handleImport = (data) => {
                                 </tr>
 
                                 <!-- Data Rows -->
-                                <tr v-else v-for="(row, i) in filteredAddons" :key="row.id">
+                                <tr v-else v-for="(row, i) in addons" :key="row.id">
                                     <!-- Serial Number -->
-                                    <td>{{ i + 1 }}</td>
+                                    <td>{{ (currentPage - 1) * perPage + i + 1 }}</td>
 
                                     <!-- Addon Name -->
                                     <td class="fw-semibold">{{ row.name }}</td>
@@ -1081,13 +1027,26 @@ const handleImport = (data) => {
                                 </tr>
 
                                 <!-- Empty State -->
-                                <tr v-if="!loading && filteredAddons.length === 0">
+                                <tr v-if="!loading && addons.length === 0">
                                     <td colspan="6" class="text-center text-muted py-4">
                                         No addons found.
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- ✅ Pagination Section (Safe version) -->
+                    <div v-if="paginationLinks && paginationLinks.length > 0 && !loading"
+                        class="mt-4 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Showing {{ (currentPage - 1) * perPage + 1 }} to
+                            {{ Math.min(currentPage * perPage, totalItems) }} of
+                            {{ totalItems }} entries
+                        </div>
+
+                        <Pagination :pagination="paginationLinks" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
                     </div>
                 </div>
             </div>

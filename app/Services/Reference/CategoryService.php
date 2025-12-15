@@ -531,115 +531,168 @@ class CategoryService
     }
 
     public function getAllCategoriesWithFilters(array $filters = [])
-    {
-        $query = InventoryCategory::with([
-            'subcategories' => function ($query) {
-                $query->withCount('primaryInventoryItems');
-            },
-        ])
-            ->withCount('primaryInventoryItems')
-            ->whereNull('parent_id');
+{
+    $query = InventoryCategory::with([
+        'subcategories' => function ($query) {
+            $query->withCount('primaryInventoryItems');
+        },
+    ])
+        ->withCount('primaryInventoryItems')
+        ->whereNull('parent_id');
 
-        // Search filter
-        if (! empty($filters['q'])) {
-            $query->where('name', 'like', "%{$filters['q']}%");
+    // ✅ Search filter
+    if (!empty($filters['q'])) {
+        $query->where('name', 'like', "%{$filters['q']}%");
+    }
+
+    // ✅ Status filter
+    if (!empty($filters['status'])) {
+        if ($filters['status'] === 'active') {
+            $query->where('active', 1);
+        } elseif ($filters['status'] === 'inactive') {
+            $query->where('active', 0);
         }
+    }
 
-        // Status filter (active/inactive)
-        if (! empty($filters['status'])) {
-            if ($filters['status'] === 'active') {
-                $query->where('active', 1);
-            } elseif ($filters['status'] === 'inactive') {
-                $query->where('active', 0);
-            }
+    // ✅ Has Subcategories filter
+    if (!empty($filters['has_subcategories'])) {
+        if ($filters['has_subcategories'] === 'yes') {
+            $query->whereHas('subcategories');
+        } elseif ($filters['has_subcategories'] === 'no') {
+            $query->doesntHave('subcategories');
         }
+    }
 
-        // Has Subcategories filter
-        if (! empty($filters['has_subcategories'])) {
-            if ($filters['has_subcategories'] === 'yes') {
-                $query->whereHas('subcategories');
-            } elseif ($filters['has_subcategories'] === 'no') {
-                $query->doesntHave('subcategories');
-            }
+    // ✅ Stock Status filter
+    if (!empty($filters['stock_status'])) {
+        switch ($filters['stock_status']) {
+            case 'in_stock':
+                $query->where('in_stock', '>', 0);
+                break;
+            case 'low_stock':
+                $query->where('low_stock', '>', 0);
+                break;
+            case 'out_of_stock':
+                $query->where('out_of_stock', '>', 0);
+                break;
+            case 'has_items':
+                $query->where('total_items', '>', 0);
+                break;
+            case 'no_items':
+                $query->where('total_items', 0);
+                break;
         }
+    }
 
-        // Stock Status filter
-        if (! empty($filters['stock_status'])) {
-            switch ($filters['stock_status']) {
-                case 'in_stock':
-                    $query->where('in_stock', '>', 0);
-                    break;
-                case 'low_stock':
-                    $query->where('low_stock', '>', 0);
-                    break;
-                case 'out_of_stock':
-                    $query->where('out_of_stock', '>', 0);
-                    break;
-                case 'has_items':
-                    $query->where('total_items', '>', 0);
-                    break;
-                case 'no_items':
-                    $query->where('total_items', 0);
-                    break;
-            }
+    // ✅ Value range filter
+    if (!empty($filters['value_min']) && $filters['value_min'] !== '') {
+        $query->where('total_value', '>=', $filters['value_min']);
+    }
+
+    if (!empty($filters['value_max']) && $filters['value_max'] !== '') {
+        $query->where('total_value', '<=', $filters['value_max']);
+    }
+
+    // ✅ Sorting
+    if (!empty($filters['sort_by'])) {
+        switch ($filters['sort_by']) {
+            case 'name_asc':
+                $query->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('name', 'desc');
+                break;
+            case 'value_desc':
+                $query->orderBy('total_value', 'desc');
+                break;
+            case 'value_asc':
+                $query->orderBy('total_value', 'asc');
+                break;
+            case 'items_desc':
+                $query->orderByRaw('primary_inventory_items_count DESC');
+                break;
+            case 'items_asc':
+                $query->orderByRaw('primary_inventory_items_count ASC');
+                break;
+            default:
+                $query->orderBy('name', 'asc');
+                break;
         }
+    } else {
+        $query->orderBy('name', 'asc');
+    }
 
-        // Value range filter
-        if (! empty($filters['value_min']) && $filters['value_min'] !== '') {
-            $query->where('total_value', '>=', $filters['value_min']);
-        }
+    // ✅ NEW: Check if ANY filter is applied
+    $searchQuery = trim($filters['q'] ?? '');
+    $hasSearch = !empty($searchQuery);
+    $hasStatus = !empty($filters['status']);
+    $hasSubcategoriesFilter = !empty($filters['has_subcategories']);
+    $hasStockStatus = !empty($filters['stock_status']);
+    $hasValueRange = (!empty($filters['value_min']) && $filters['value_min'] !== '') 
+                  || (!empty($filters['value_max']) && $filters['value_max'] !== '');
+    $hasSorting = !empty($filters['sort_by']);
 
-        if (! empty($filters['value_max']) && $filters['value_max'] !== '') {
-            $query->where('total_value', '<=', $filters['value_max']);
-        }
+    $hasAnyFilter = $hasSearch || $hasStatus || $hasSubcategoriesFilter 
+                 || $hasStockStatus || $hasValueRange || $hasSorting;
 
-        // Sorting
-        if (! empty($filters['sort_by'])) {
-            switch ($filters['sort_by']) {
-                case 'name_asc':
-                    $query->orderBy('name', 'asc');
-                    break;
-                case 'name_desc':
-                    $query->orderBy('name', 'desc');
-                    break;
-                case 'value_desc':
-                    $query->orderBy('total_value', 'desc');
-                    break;
-                case 'value_asc':
-                    $query->orderBy('total_value', 'asc');
-                    break;
-                case 'items_desc':
-                    $query->orderByRaw('primary_inventory_items_count DESC');
-                    break;
-                case 'items_asc':
-                    $query->orderByRaw('primary_inventory_items_count ASC');
-                    break;
-                default:
-                    $query->orderBy('name', 'asc');
-                    break;
-            }
-        } else {
-            $query->orderBy('name', 'asc');
-        }
+    Log::info('Category Filter Debug', [
+        'hasAnyFilter' => $hasAnyFilter,
+        'filters' => $filters,
+    ]);
 
-        // Pagination
-        $perPage = $filters['per_page'] ?? 15;
-        $paginatedResults = $query->paginate($perPage);
+    if ($hasAnyFilter) {
+        // ✅ FILTER MODE: Get all matching records
+        $allCategories = $query->get();
+        $total = $allCategories->count();
 
-        // Transform data
-        $paginatedResults->getCollection()->transform(function ($category) {
-            $category->total_inventory_items = $category->primary_inventory_items_count;
-            $category->image_url = UploadHelper::url($category->upload_id);
+        Log::info('Filter Mode (Categories)', ['total_found' => $total]);
 
-            if ($category->subcategories) {
-                $category->subcategories->each(function ($sub) {
-                    $sub->image_url = UploadHelper::url($sub->upload_id);
-                });
-            }
-
-            return $category;
+        // ✅ Transform the data
+        $transformedCategories = $allCategories->map(function ($category) {
+            return $this->transformCategory($category);
         });
 
-        return $paginatedResults;
+        // ✅ Create single-page paginator
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $transformedCategories,
+            $total,
+            $total > 0 ? $total : 1,
+            1,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
+
+    } else {
+        // ✅ NO FILTERS: Normal pagination
+        Log::info('Pagination Mode (Categories)');
+        
+        $perPage = $filters['per_page'] ?? 10;
+        $paginator = $query->paginate($perPage);
+
+        $paginator->getCollection()->transform(function ($category) {
+            return $this->transformCategory($category);
+        });
     }
+
+    return $paginator;
+}
+
+/**
+ * ✅ NEW: Transform category data (extracted for reusability)
+ */
+private function transformCategory($category)
+{
+    $category->total_inventory_items = $category->primary_inventory_items_count;
+    $category->image_url = UploadHelper::url($category->upload_id);
+
+    if ($category->subcategories) {
+        $category->subcategories->each(function ($sub) {
+            $sub->image_url = UploadHelper::url($sub->upload_id);
+        });
+    }
+
+    return $category;
+}
 }

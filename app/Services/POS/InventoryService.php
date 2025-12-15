@@ -2,10 +2,9 @@
 
 namespace App\Services\POS;
 
+use App\Helpers\UploadHelper;
 use App\Models\InventoryItem;
 use App\Models\InventoryItemNutrition;
-use App\Helpers\UploadHelper;
-use App\Models\StockEntry;
 use Illuminate\Support\Facades\DB;
 
 class InventoryService
@@ -13,11 +12,11 @@ class InventoryService
     /** ----------------------------------------------------------------
      *  Read / List
      *  ---------------------------------------------------------------- */
-    public function list(array $filters = [])
+   public function list(array $filters = [])
 {
-   $query = InventoryItem::query()
+    $query = InventoryItem::query()
         ->with([
-            'category', // ✅ Make sure category is loaded
+            'category',
             'user:id,name',
             'supplier:id,name',
             'unit:id,name',
@@ -25,114 +24,231 @@ class InventoryService
             'tags:id,name',
             'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
         ])
+        // ✅ SEARCH FILTER (existing)
         ->when($filters['q'] ?? null, function ($q, $v) {
             $q->where(function ($qq) use ($v) {
                 $qq->where('name', 'like', "%{$v}%")
                     ->orWhere('sku', 'like', "%{$v}%")
-                    // ✅ ADD CATEGORY SEARCH
                     ->orWhereHas('category', function ($query) use ($v) {
                         $query->where('name', 'like', "%{$v}%");
                     })
-                    // ✅ ADD UNIT SEARCH (optional)
                     ->orWhereHas('unit', function ($query) use ($v) {
                         $query->where('name', 'like', "%{$v}%");
                     })
-                    // ✅ ADD SUPPLIER SEARCH (optional)
                     ->orWhereHas('supplier', function ($query) use ($v) {
                         $query->where('name', 'like', "%{$v}%");
                     });
             });
         })
+        // ✅ NEW: CATEGORY FILTER
+        ->when($filters['category'] ?? null, function ($q, $categoryId) {
+            $q->where('category_id', $categoryId);
+        })
+        // ✅ NEW: SUPPLIER FILTER
+        ->when($filters['supplier'] ?? null, function ($q, $supplierId) {
+            $q->where('supplier_id', $supplierId);
+        })
         ->orderByDesc('id');
 
-    // ✅ Check if there's a search query
+    // ✅ Check if ANY filter is applied (not just search)
     $searchQuery = trim($filters['q'] ?? '');
     $hasSearch = !empty($searchQuery);
+    $hasCategory = !empty($filters['category']);
+    $hasSupplier = !empty($filters['supplier']);
+    $hasStockStatus = !empty($filters['stockStatus']);
+    $hasPriceRange = !empty($filters['priceMin']) || !empty($filters['priceMax']);
+    $hasSorting = !empty($filters['sortBy']);
     
+    // ✅ If ANY filter is active, fetch ALL matching records (no pagination)
+    $hasAnyFilter = $hasSearch || $hasCategory || $hasSupplier || $hasStockStatus || $hasPriceRange || $hasSorting;
+
     \Log::info('Inventory List Debug', [
-        'raw_q' => $filters['q'] ?? null,
-        'trimmed_q' => $searchQuery,
-        'hasSearch' => $hasSearch,
-        'per_page' => $filters['per_page'] ?? 200
+        'hasAnyFilter' => $hasAnyFilter,
+        'filters' => $filters,
     ]);
-    
-    if ($hasSearch) {
-        // ✅ When searching: Get ALL matching results (no pagination)
+
+    if ($hasAnyFilter) {
+        // ✅ FILTER MODE: Get all matching records
         $items = $query->get();
-        $total = $items->count();
         
-        \Log::info('Search Mode', [
-            'total_found' => $total
+        // Get all product IDs for stock calculation
+        $productIds = $items->pluck('id')->toArray();
+        
+        // Calculate stock for ALL products in ONE bulk operation
+        $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
+        
+        // ✅ Apply stock-based filters AFTER getting stock data
+        $filteredItems = $items->filter(function ($item) use ($stockData, $filters) {
+            $stock = $stockData[$item->id] ?? [
+                'available' => 0,
+                'stockValue' => '0.00',
+                'status' => null,
+            ];
+            
+            // ✅ Stock Status Filter
+            if (!empty($filters['stockStatus'])) {
+                $available = $stock['available'];
+                $minAlert = $item->minAlert ?? 5;
+                $status = $stock['status'];
+                
+                switch ($filters['stockStatus']) {
+                    case 'in_stock':
+                        if ($available < $minAlert) return false;
+                        break;
+                    case 'low_stock':
+                        if ($available <= 0 || $available >= $minAlert) return false;
+                        break;
+                    case 'out_of_stock':
+                        if ($available > 0) return false;
+                        break;
+                    case 'expired':
+                        if ($status !== 'expired') return false;
+                        break;
+                    case 'near_expiry':
+                        if ($status !== 'near_expiry') return false;
+                        break;
+                }
+            }
+            
+            // ✅ Price Range Filter
+            if (!empty($filters['priceMin']) || !empty($filters['priceMax'])) {
+                $price = (float) $stock['stockValue'];
+                $min = (float) ($filters['priceMin'] ?? 0);
+                $max = (float) ($filters['priceMax'] ?? PHP_FLOAT_MAX);
+                
+                if ($price < $min || $price > $max) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+        
+        // ✅ Apply Sorting
+        if (!empty($filters['sortBy'])) {
+            $filteredItems = $this->applySorting($filteredItems, $stockData, $filters['sortBy']);
+        }
+        
+        // ✅ Format the filtered items
+        $formattedItems = $filteredItems->map(function ($item) use ($stockData) {
+            return $this->formatItemWithStock($item, $stockData[$item->id] ?? []);
+        })->values();
+        
+        $total = $formattedItems->count();
+        
+        \Log::info('Filter Mode', [
+            'total_found' => $total,
         ]);
         
-        // Create a single-page paginator
+        // ✅ Create a single-page paginator (all results on page 1)
         $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
-            $items,
+            $formattedItems,
             $total,
-            $total > 0 ? $total : 1, // per_page = total
+            $total > 0 ? $total : 1, // per_page = total (show all)
             1, // always page 1
             [
                 'path' => request()->url(),
-                'query' => request()->query()
+                'query' => request()->query(),
             ]
         );
+        
     } else {
-        // ✅ No search: Normal pagination
+        // ✅ NO FILTERS: Normal pagination
         \Log::info('Pagination Mode');
-        $paginator = $query->paginate($filters['per_page'] ?? 200);
+        
+        $paginator = $query->paginate($filters['per_page'] ?? 10);
+        
+        // Get all product IDs from current page
+        $productIds = $paginator->pluck('id')->toArray();
+        
+        // Calculate stock for products on current page
+        $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
+        
+        // Format paginated items
+        $paginator->through(function (InventoryItem $item) use ($stockData) {
+            return $this->formatItemWithStock($item, $stockData[$item->id] ?? []);
+        });
     }
 
-    // Get all product IDs from current page/results
-    $productIds = $paginator->pluck('id')->toArray();
-
-    // Calculate stock for ALL products in ONE bulk operation
-    $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
-
-    return $paginator->through(function (InventoryItem $item) use ($stockData) {
-        $stock = $stockData[$item->id] ?? [
-            'available' => 0,
-            'stockValue' => '0.00',
-            'minAlert' => 0,
-            'expiry_date' => null,
-            'status' => null,
-        ];
-
-        return [
-            'id'            => $item->id,
-            'name'          => $item->name,
-            'sku'           => $item->sku,
-            'description'   => $item->description,
-            'category'      => $item->category ?? null,
-            'subcategory'   => $item->subcategory ?? null,
-            'minAlert'      => $stock['minAlert'],
-            'supplier_id'   => $item->supplier_id,
-            'supplier_name' => $item->supplier?->name,
-            'unit_id'       => $item->unit_id,
-            'unit_name'     => $item->unit?->name,
-            'stock'         => $item->stock,
-
-            // Stock data from bulk calculation
-            'availableStock' => $stock['available'],
-            'stockValue'     => $stock['stockValue'],
-            'expiry_date'    => $stock['expiry_date'],
-            'status'         => $stock['status'],
-
-            'allergies'     => $item->allergies->pluck('name')->values(),
-            'allergy_ids'   => $item->allergies->pluck('id')->values(),
-            'tags'          => $item->tags->pluck('name')->values(),
-            'tag_ids'       => $item->tags->pluck('id')->values(),
-            'nutrition'     => [
-                'calories' => (float) ($item->nutrition->calories ?? 0),
-                'protein'  => (float) ($item->nutrition->protein  ?? 0),
-                'fat'      => (float) ($item->nutrition->fat      ?? 0),
-                'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
-            ],
-            'user'          => $item->user?->name,
-            'image_url'     => UploadHelper::url($item->upload_id),
-            'created_at'    => optional($item->created_at)->format('Y-m-d H:i'),
-        ];
-    });
+    return $paginator;
 }
+
+/**
+ * ✅ NEW: Apply sorting to collection
+ */
+private function applySorting($items, $stockData, $sortBy)
+{
+    switch ($sortBy) {
+        case 'stock_desc':
+            return $items->sortByDesc(function ($item) use ($stockData) {
+                return $stockData[$item->id]['available'] ?? 0;
+            })->values();
+            
+        case 'stock_asc':
+            return $items->sortBy(function ($item) use ($stockData) {
+                return $stockData[$item->id]['available'] ?? 0;
+            })->values();
+            
+        case 'name_asc':
+            return $items->sortBy('name')->values();
+            
+        case 'name_desc':
+            return $items->sortByDesc('name')->values();
+            
+        default:
+            return $items;
+    }
+}
+
+/**
+ * ✅ NEW: Format item with stock data (extracted for reusability)
+ */
+private function formatItemWithStock(InventoryItem $item, array $stock): array
+{
+    $stock = array_merge([
+        'available' => 0,
+        'stockValue' => '0.00',
+        'minAlert' => 0,
+        'expiry_date' => null,
+        'status' => null,
+    ], $stock);
+    
+    return [
+        'id' => $item->id,
+        'name' => $item->name,
+        'sku' => $item->sku,
+        'description' => $item->description,
+        'category' => $item->category ?? null,
+        'subcategory' => $item->subcategory ?? null,
+        'minAlert' => $stock['minAlert'],
+        'supplier_id' => $item->supplier_id,
+        'supplier_name' => $item->supplier?->name,
+        'unit_id' => $item->unit_id,
+        'unit_name' => $item->unit?->name,
+        'stock' => $item->stock,
+        
+        // Stock data from bulk calculation
+        'availableStock' => $stock['available'],
+        'stockValue' => $stock['stockValue'],
+        'expiry_date' => $stock['expiry_date'],
+        'status' => $stock['status'],
+        
+        'allergies' => $item->allergies->pluck('name')->values(),
+        'allergy_ids' => $item->allergies->pluck('id')->values(),
+        'tags' => $item->tags->pluck('name')->values(),
+        'tag_ids' => $item->tags->pluck('id')->values(),
+        'nutrition' => [
+            'calories' => (float) ($item->nutrition->calories ?? 0),
+            'protein' => (float) ($item->nutrition->protein ?? 0),
+            'fat' => (float) ($item->nutrition->fat ?? 0),
+            'carbs' => (float) ($item->nutrition->carbs ?? 0),
+        ],
+        'user' => $item->user?->name,
+        'image_url' => UploadHelper::url($item->upload_id),
+        'created_at' => optional($item->created_at)->format('Y-m-d H:i'),
+    ];
+}
+
     /** ----------------------------------------------------------------
      *  Create
      *  ---------------------------------------------------------------- */
@@ -141,7 +257,7 @@ class InventoryService
         // dd($data);
         return DB::transaction(function () use ($data) {
             // Image -> uploads table
-            if (!empty($data['image'])) {
+            if (! empty($data['image'])) {
                 $upload = UploadHelper::store($data['image'], 'uploads', 'public');
                 $data['upload_id'] = $upload->id;
             }
@@ -152,14 +268,14 @@ class InventoryService
 
             // FKs
             $data['supplier_id'] = isset($data['supplier_id']) ? (int) $data['supplier_id'] : null;
-            $data['unit_id']     = isset($data['unit_id'])     ? (int) $data['unit_id']     : null;
+            $data['unit_id'] = isset($data['unit_id']) ? (int) $data['unit_id'] : null;
 
             // Resolve category_id from subcategory_id or category_id
             $data['category_id'] = $this->resolveCategoryId($data);
 
             // Extract pivots & nutrition BEFORE create (they’re removed from $data)
             [$allergyIds, $tagIds] = $this->extractPivots($data);
-            $nutritionPayload       = $this->extractNutrition($data);
+            $nutritionPayload = $this->extractNutrition($data);
 
             // Create base row
             $item = InventoryItem::create($data);
@@ -194,7 +310,7 @@ class InventoryService
     {
         return DB::transaction(function () use ($item, $data) {
             // replace/upload image if new one provided
-            if (!empty($data['image'])) {
+            if (! empty($data['image'])) {
                 $newUpload = UploadHelper::replace($item->upload_id, $data['image'], 'uploads', 'public');
                 $data['upload_id'] = $newUpload->id;
             }
@@ -217,9 +333,9 @@ class InventoryService
             }
 
             // detect pivots + nutrition...
-            $pivotsProvided        = $this->pivotsProvided($data);
+            $pivotsProvided = $this->pivotsProvided($data);
             [$allergyIds, $tagIds] = $this->extractPivots($data);
-            $nutritionPayload      = $this->extractNutrition($data);
+            $nutritionPayload = $this->extractNutrition($data);
 
             // update scalar columns
             $item->update($data);
@@ -275,22 +391,27 @@ class InventoryService
     private function extractPivots(array &$data): array
     {
         $allergyIds = $data['allergies'] ?? $data['allergy_ids'] ?? [];
-        $tagIds     = $data['tags']      ?? $data['tag_ids']      ?? [];
+        $tagIds = $data['tags'] ?? $data['tag_ids'] ?? [];
 
-        if (is_string($allergyIds)) $allergyIds = json_decode($allergyIds, true) ?: [];
-        if (is_string($tagIds))     $tagIds     = json_decode($tagIds, true)     ?: [];
+        if (is_string($allergyIds)) {
+            $allergyIds = json_decode($allergyIds, true) ?: [];
+        }
+        if (is_string($tagIds)) {
+            $tagIds = json_decode($tagIds, true) ?: [];
+        }
 
-        $allergyIds = collect($allergyIds)->map(fn($v) => (int) $v)->filter()->unique()->values()->all();
-        $tagIds     = collect($tagIds)->map(fn($v) => (int) $v)->filter()->unique()->values()->all();
+        $allergyIds = collect($allergyIds)->map(fn ($v) => (int) $v)->filter()->unique()->values()->all();
+        $tagIds = collect($tagIds)->map(fn ($v) => (int) $v)->filter()->unique()->values()->all();
 
         unset($data['allergies'], $data['allergy_ids'], $data['tags'], $data['tag_ids']);
 
         return [$allergyIds, $tagIds];
     }
+
     private function resolveCategoryId(array &$data): ?int
     {
         $sub = $data['subcategory_id'] ?? null;
-        $cat = $data['category_id']    ?? null;
+        $cat = $data['category_id'] ?? null;
 
         // choose subcategory first, else category
         $resolved = null;
@@ -307,7 +428,6 @@ class InventoryService
         return $resolved ?: null;
     }
 
-
     /**
      * For partial updates: did the request include pivot arrays?
      */
@@ -315,7 +435,7 @@ class InventoryService
     {
         return [
             'allergies' => array_key_exists('allergies', $data) || array_key_exists('allergy_ids', $data),
-            'tags'      => array_key_exists('tags', $data)      || array_key_exists('tag_ids', $data),
+            'tags' => array_key_exists('tags', $data) || array_key_exists('tag_ids', $data),
         ];
     }
 
@@ -336,9 +456,9 @@ class InventoryService
 
             $payload = [
                 'calories' => isset($n['calories']) ? (float) $n['calories'] : 0,
-                'protein'  => isset($n['protein'])  ? (float) $n['protein']  : 0,
-                'fat'      => isset($n['fat'])      ? (float) $n['fat']      : 0,
-                'carbs'    => isset($n['carbs'])    ? (float) $n['carbs']    : 0,
+                'protein' => isset($n['protein']) ? (float) $n['protein'] : 0,
+                'fat' => isset($n['fat']) ? (float) $n['fat'] : 0,
+                'carbs' => isset($n['carbs']) ? (float) $n['carbs'] : 0,
             ];
             unset($data['nutrition']);
         } else {
@@ -360,7 +480,6 @@ class InventoryService
         return $payload ?: [];
     }
 
-
     // Show data
     public function show(InventoryItem $item): array
     {
@@ -380,43 +499,42 @@ class InventoryService
     protected function formatItem(InventoryItem $item): array
     {
         return [
-            'id'            => $item->id,
-            'name'          => $item->name,
-            'sku'           => $item->sku,
-            'description'   => $item->description,
-            'minAlert'      => $item->minAlert,
+            'id' => $item->id,
+            'name' => $item->name,
+            'sku' => $item->sku,
+            'description' => $item->description,
+            'minAlert' => $item->minAlert,
 
             // FKs
-            'supplier_id'   => $item->supplier_id,
+            'supplier_id' => $item->supplier_id,
             'supplier_name' => $item->supplier?->name,
-            'unit_id'       => $item->unit_id,
-            'unit_name'     => $item->unit?->name,
-            'category_id'   => $item->category_id,
+            'unit_id' => $item->unit_id,
+            'unit_name' => $item->unit?->name,
+            'category_id' => $item->category_id,
             'category_name' => $item->category?->name,
 
             // Pivots
-            'allergies'     => $item->allergies->pluck('name')->values(),
-            'allergy_ids'   => $item->allergies->pluck('id')->values(),
-            'tags'          => $item->tags->pluck('name')->values(),
-            'tag_ids'       => $item->tags->pluck('id')->values(),
+            'allergies' => $item->allergies->pluck('name')->values(),
+            'allergy_ids' => $item->allergies->pluck('id')->values(),
+            'tags' => $item->tags->pluck('name')->values(),
+            'tag_ids' => $item->tags->pluck('id')->values(),
 
             // Nutrition (hasOne table)
-            'nutrition'     => [
+            'nutrition' => [
                 'calories' => (float) ($item->nutrition->calories ?? 0),
-                'protein'  => (float) ($item->nutrition->protein  ?? 0),
-                'fat'      => (float) ($item->nutrition->fat      ?? 0),
-                'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
+                'protein' => (float) ($item->nutrition->protein ?? 0),
+                'fat' => (float) ($item->nutrition->fat ?? 0),
+                'carbs' => (float) ($item->nutrition->carbs ?? 0),
             ],
 
             // Meta
-            'user'          => $item->user?->name,
-            'upload_id'     => $item->upload_id,
-            'image_url'     => UploadHelper::url($item->upload_id) ?? asset('assets/img/default.png'),
-            'created_at'    => optional($item->created_at)->format('Y-m-d H:i'),
-            'updated_at'    => optional($item->updated_at)->format('Y-m-d H:i'),
+            'user' => $item->user?->name,
+            'upload_id' => $item->upload_id,
+            'image_url' => UploadHelper::url($item->upload_id) ?? asset('assets/img/default.png'),
+            'created_at' => optional($item->created_at)->format('Y-m-d H:i'),
+            'updated_at' => optional($item->updated_at)->format('Y-m-d H:i'),
         ];
     }
-
 
     // Edit data
     public function editPayload(InventoryItem $item): array
@@ -436,49 +554,49 @@ class InventoryService
         $cat = $item->category; // may be null, a parent, or a subcategory
 
         // If $cat has a parent_id => $cat IS a subcategory.
-        $resolvedCategoryId   = $cat?->parent_id ? (int) $cat->parent_id : ($cat?->id ? (int) $cat->id : null);
+        $resolvedCategoryId = $cat?->parent_id ? (int) $cat->parent_id : ($cat?->id ? (int) $cat->id : null);
         $resolvedSubcategoryId = $cat?->parent_id ? (int) $cat->id : null;
 
-        $categoryName         = $cat?->parent_id ? ($cat->parent?->name) : ($cat?->name);
-        $subcategoryName      = $cat?->parent_id ? $cat->name : null;
+        $categoryName = $cat?->parent_id ? ($cat->parent?->name) : ($cat?->name);
+        $subcategoryName = $cat?->parent_id ? $cat->name : null;
 
         $imageUrl = UploadHelper::url($item->upload_id) ?? asset('assets/img/default.png');
 
         return [
-            'id'          => $item->id,
-            'name'        => $item->name,
-            'sku'         => $item->sku,
+            'id' => $item->id,
+            'name' => $item->name,
+            'sku' => $item->sku,
             'description' => $item->description,
-            'minAlert'    => $item->minAlert,
+            'minAlert' => $item->minAlert,
 
             // >>> send BOTH ids for the form <<<
-            'category_id'    => $resolvedCategoryId,
+            'category_id' => $resolvedCategoryId,
             'subcategory_id' => $resolvedSubcategoryId,
 
             // optional display names (useful if you show them)
-            'category_name'    => $categoryName,
+            'category_name' => $categoryName,
             'subcategory_name' => $subcategoryName,
 
-            'supplier_id'   => $item->supplier_id,
-            'unit_id'       => $item->unit_id,
+            'supplier_id' => $item->supplier_id,
+            'unit_id' => $item->unit_id,
             'supplier_name' => $item->supplier?->name,
-            'unit_name'     => $item->unit?->name,
+            'unit_name' => $item->unit?->name,
 
             'allergy_ids' => $item->allergies->pluck('id')->values(),
-            'tag_ids'     => $item->tags->pluck('id')->values(),
+            'tag_ids' => $item->tags->pluck('id')->values(),
 
             'nutrition' => [
                 'calories' => (float) ($item->nutrition->calories ?? 0),
-                'protein'  => (float) ($item->nutrition->protein  ?? 0),
-                'fat'      => (float) ($item->nutrition->fat      ?? 0),
-                'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
+                'protein' => (float) ($item->nutrition->protein ?? 0),
+                'fat' => (float) ($item->nutrition->fat ?? 0),
+                'carbs' => (float) ($item->nutrition->carbs ?? 0),
             ],
 
-            'upload_id'  => $item->upload_id,
-            'image_url'  => $imageUrl,
-            'image'      => $imageUrl, // if your form previews from `image`
+            'upload_id' => $item->upload_id,
+            'image_url' => $imageUrl,
+            'image' => $imageUrl, // if your form previews from `image`
 
-            'user'       => $item->user?->name,
+            'user' => $item->user?->name,
             'created_at' => optional($item->created_at)->toDateTimeString(),
             'updated_at' => optional($item->updated_at)->toDateTimeString(),
         ];

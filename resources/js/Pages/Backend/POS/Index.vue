@@ -415,6 +415,7 @@ const getSelectedAddonsText = () => {
     });
     return allAddons.join(', ');
 };
+
 const openDetailsModal = async (item) => {
     selectedItem.value = item;
     modalNote.value = "";
@@ -446,7 +447,6 @@ const openDetailsModal = async (item) => {
 
     modal.show();
 };
-
 
 const calculateAvailableStock = (product, variantId, variantIngredients) => {
     const activeIngredients = variantIngredients.filter(ing =>
