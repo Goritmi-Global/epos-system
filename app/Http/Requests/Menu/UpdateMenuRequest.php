@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Menu;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateMenuRequest extends FormRequest
 {
@@ -17,7 +18,12 @@ class UpdateMenuRequest extends FormRequest
         $isVariantMenu = is_array($this->variant_metadata) && count($this->variant_metadata) > 0;
 
         return [
-            'name' => 'required|string|max:255|unique:menu_items,name',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('menu_items', 'name')->ignore($this->route('menu')->id),
+            ],
 
             // Price is required only for simple menus
             'price' => $isVariantMenu ? 'nullable|numeric|min:0' : 'required|numeric|min:0',
