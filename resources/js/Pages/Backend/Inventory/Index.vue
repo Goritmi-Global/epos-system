@@ -68,16 +68,32 @@ const fetchInventories = async (page = null) => {
         console.log('🔍 Fetching with params:', {
             q: q.value,
             page: page || pagination.value.current_page,
-            per_page: pagination.value.per_page
+            per_page: pagination.value.per_page,
+            filters: appliedFilters.value // ✅ Log filters
         });
 
-        const res = await axios.get("inventory/api-inventories", {
-            params: {
-                q: q.value,
-                page: page || pagination.value.current_page,
-                per_page: pagination.value.per_page
+        // ✅ Build params object with ALL filters
+        const params = {
+            q: q.value,
+            page: page || pagination.value.current_page,
+            per_page: pagination.value.per_page,
+            // ✅ Add all applied filters
+            category: appliedFilters.value.category || undefined,
+            supplier: appliedFilters.value.supplier || undefined,
+            stockStatus: appliedFilters.value.stockStatus || undefined,
+            priceMin: appliedFilters.value.priceMin || undefined,
+            priceMax: appliedFilters.value.priceMax || undefined,
+            sortBy: appliedFilters.value.sortBy || undefined,
+        };
+
+        // ✅ Remove undefined values to keep URL clean
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
             }
         });
+
+        const res = await axios.get("inventory/api-inventories", { params });
 
         inventories.value = res.data.data || [];
 
@@ -185,88 +201,90 @@ const filters = ref({
     dateTo: "",
 });
 const appliedFilters = ref({ ...filters.value });
-const filteredItems = computed(() => {
-    let filtered = [...items.value];
-    const term = q.value.trim().toLowerCase();
+// const filteredItems = computed(() => {
+//     let filtered = [...items.value];
+//     const term = q.value.trim().toLowerCase();
 
-    // Text search
-    if (term) {
-        filtered = filtered.filter((i) => {
-            const name = (i?.name || "").toLowerCase();
-            const categoryName =
-                (i.category && typeof i.category === "object")
-                    ? (i.category.name || "").toLowerCase()
-                    : (i?.category || "").toString().toLowerCase();
-            const unitName =
-                (i.unit && typeof i.unit === "object")
-                    ? (i?.unit?.name || "").toLowerCase()
-                    : (i?.unit || "").toString().toLowerCase();
+//     // Text search
+//     if (term) {
+//         filtered = filtered.filter((i) => {
+//             const name = (i?.name || "").toLowerCase();
+//             const categoryName =
+//                 (i.category && typeof i.category === "object")
+//                     ? (i.category.name || "").toLowerCase()
+//                     : (i?.category || "").toString().toLowerCase();
+//             const unitName =
+//                 (i.unit && typeof i.unit === "object")
+//                     ? (i?.unit?.name || "").toLowerCase()
+//                     : (i?.unit || "").toString().toLowerCase();
 
-            return (
-                name.includes(term) ||
-                categoryName.includes(term) ||
-                unitName.includes(term)
-            );
-        });
-    }
+//             return (
+//                 name.includes(term) ||
+//                 categoryName.includes(term) ||
+//                 unitName.includes(term)
+//             );
+//         });
+//     }
 
-    // Category filter
-    if (appliedFilters.value.category) {
-        filtered = filtered.filter((item) => {
-            const categoryId =
-                (item?.category && typeof item.category === "object")
-                    ? item.category.id
-                    : item?.category_id;
-            return categoryId == appliedFilters.value.category;
-        });
-    }
+//     // Category filter
+//     if (appliedFilters.value.category) {
+//         filtered = filtered.filter((item) => {
+//             const categoryId =
+//                 (item?.category && typeof item.category === "object")
+//                     ? item.category.id
+//                     : item?.category_id;
+//             return categoryId == appliedFilters.value.category;
+//         });
+//     }
 
-    if (appliedFilters.value.supplier) {
-        filtered = filtered.filter((item) => {
-            const supplierId =
-                (item?.supplier && typeof item.supplier === "object")
-                    ? item.supplier.id
-                    : item?.supplier_id;
-            return supplierId == appliedFilters.value.supplier;
-        });
-    }
+//     if (appliedFilters.value.supplier) {
+//         filtered = filtered.filter((item) => {
+//             const supplierId =
+//                 (item?.supplier && typeof item.supplier === "object")
+//                     ? item.supplier.id
+//                     : item?.supplier_id;
+//             return supplierId == appliedFilters.value.supplier;
+//         });
+//     }
 
-    if (appliedFilters.value.stockStatus) {
-        filtered = filtered.filter((item) => {
-            const stock = item.availableStock || 0;
-            const minAlert = item.minAlert || 5;
+//     if (appliedFilters.value.stockStatus) {
+//         filtered = filtered.filter((item) => {
+//             const stock = item.availableStock || 0;
+//             const minAlert = item.minAlert || 5;
 
-            switch (appliedFilters.value.stockStatus) {
-                case "in_stock":
-                    return stock >= minAlert;
-                case "low_stock":
-                    return stock > 0 && stock < minAlert;
-                case "out_of_stock":
-                    return stock <= 0;
-                case "expired":
-                    return item.status === "expired";
-                case "near_expiry":
-                    return item.status === "near_expiry";
-                default:
-                    return true;
-            }
-        });
-    }
+//             switch (appliedFilters.value.stockStatus) {
+//                 case "in_stock":
+//                     return stock >= minAlert;
+//                 case "low_stock":
+//                     return stock > 0 && stock < minAlert;
+//                 case "out_of_stock":
+//                     return stock <= 0;
+//                 case "expired":
+//                     return item.status === "expired";
+//                 case "near_expiry":
+//                     return item.status === "near_expiry";
+//                 default:
+//                     return true;
+//             }
+//         });
+//     }
 
-    if (appliedFilters.value.priceMin !== null || appliedFilters.value.priceMax !== null) {
-        filtered = filtered.filter((item) => {
-            const price = item.price || item.stockValue || 0;
-            const min = appliedFilters.value.priceMin || 0;
-            const max = appliedFilters.value.priceMax || Infinity;
-            return price >= min && price <= max;
-        });
-    }
+//     if (appliedFilters.value.priceMin !== null || appliedFilters.value.priceMax !== null) {
+//         filtered = filtered.filter((item) => {
+//             const price = item.price || item.stockValue || 0;
+//             const min = appliedFilters.value.priceMin || 0;
+//             const max = appliedFilters.value.priceMax || Infinity;
+//             return price >= min && price <= max;
+//         });
+//     }
 
-    return filtered;
-});
+//     return filtered;
+// });
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
+    pagination.value.current_page = 1;
+    fetchInventories(1);
 };
 
 const handleFilterClear = () => {
@@ -281,33 +299,36 @@ const handleFilterClear = () => {
         dateTo: "",
     };
     appliedFilters.value = { ...filters.value };
+     pagination.value.current_page = 1;
+    pagination.value.per_page = 10;
+    fetchInventories(1);
 };
 
-const sortedItems = computed(() => {
-    const arr = [...filteredItems.value];
-    const sortBy = appliedFilters.value.sortBy;
+// const sortedItems = computed(() => {
+//     const arr = [...filteredItems.value];
+//     const sortBy = appliedFilters.value.sortBy;
 
-    switch (sortBy) {
-        case "stock_desc":
-            return arr.sort(
-                (a, b) => (b.availableStock || 0) - (a.availableStock || 0)
-            );
-        case "stock_asc":
-            return arr.sort(
-                (a, b) => (a.availableStock || 0) - (b.availableStock || 0)
-            );
-        case "name_asc":
-            return arr.sort((a, b) =>
-                (a.name || "").localeCompare(b.name || "")
-            );
-        case "name_desc":
-            return arr.sort((a, b) =>
-                (b.name || "").localeCompare(a.name || "")
-            );
-        default:
-            return arr;
-    }
-});
+//     switch (sortBy) {
+//         case "stock_desc":
+//             return arr.sort(
+//                 (a, b) => (b.availableStock || 0) - (a.availableStock || 0)
+//             );
+//         case "stock_asc":
+//             return arr.sort(
+//                 (a, b) => (a.availableStock || 0) - (b.availableStock || 0)
+//             );
+//         case "name_asc":
+//             return arr.sort((a, b) =>
+//                 (a.name || "").localeCompare(b.name || "")
+//             );
+//         case "name_desc":
+//             return arr.sort((a, b) =>
+//                 (b.name || "").localeCompare(a.name || "")
+//             );
+//         default:
+//             return arr;
+//     }
+// });
 
 // watch function for search
 let searchTimeout = null;
@@ -315,9 +336,7 @@ watch(q, (newVal, oldVal) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
         pagination.value.current_page = 1;
-        if (!newVal || newVal.trim() === '') {
-            pagination.value.per_page = 10;
-        }
+      
 
         fetchInventories(1);
     }, 500);
@@ -1622,7 +1641,7 @@ const handleImport = (data) => {
 
                             <!-- Your existing rows -->
                             <tbody v-else>
-                                <tr v-for="(item, idx) in sortedItems" :key="item.id">
+                                <tr v-for="(item, idx) in inventories" :key="item.id">
                                     <td>{{ pagination.from + idx }}</td>
                                     <td class="fw-semibold">
                                         {{ item.name }}
@@ -1691,7 +1710,7 @@ const handleImport = (data) => {
                                     </td>
                                 </tr>
 
-                                <tr v-if="sortedItems.length === 0">
+                                <tr v-if="inventories.length === 0">
                                     <td colspan="10" class="text-center text-muted py-4">
                                         No items found.
                                     </td>

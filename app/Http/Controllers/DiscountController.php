@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreDiscountRequest;
 use App\Http\Requests\UpdateDiscountRequest;
+use App\Models\Discount;
 use App\Services\DiscountService;
 use Carbon\Carbon;
 use Exception;
@@ -31,20 +32,93 @@ class DiscountController extends Controller
         return Inertia::render('Backend/Discount/Index');
     }
 
-    /**
-     * Fetch all discounts via API
-     * This is called by the Vue component to populate the table
-     */
-    public function fetchAllDiscounts()
+    public function fetchAllDiscounts(Request $request)
     {
         try {
-            // Get all discounts from the service
-            $discounts = $this->discountService->getAllDiscounts();
+            $filters = [
+                'q' => $request->query('q', ''),
+                'status' => $request->query('status', ''),
+                'category' => $request->query('category', ''),
+                'sort_by' => $request->query('sort_by', ''),
+                'price_min' => $request->query('price_min'),
+                'price_max' => $request->query('price_max'),
+                'date_from' => $request->query('date_from'),
+                'date_to' => $request->query('date_to'),
+                'per_page' => $request->query('per_page', 10),
+            ];
+
+            // ✅ Handle export request
+            if ($request->has('export') && $request->export === 'all') {
+                $query = Discount::query();
+
+                if (! empty($filters['q'])) {
+                    $query->where('name', 'like', "%{$filters['q']}%");
+                }
+                if (! empty($filters['status'])) {
+                    $query->where('status', $filters['status']);
+                }
+                if (! empty($filters['category'])) {
+                    $query->where('type', $filters['category']);
+                }
+                if (isset($filters['price_min']) && $filters['price_min'] !== null) {
+                    $query->where('discount_amount', '>=', (float) $filters['price_min']);
+                }
+                if (isset($filters['price_max']) && $filters['price_max'] !== null) {
+                    $query->where('discount_amount', '<=', (float) $filters['price_max']);
+                }
+                if (! empty($filters['date_from'])) {
+                    $query->whereDate('start_date', '>=', $filters['date_from']);
+                }
+                if (! empty($filters['date_to'])) {
+                    $query->whereDate('start_date', '<=', $filters['date_to']);
+                }
+                if (! empty($filters['sort_by'])) {
+                    switch ($filters['sort_by']) {
+                        case 'name_asc':
+                            $query->orderBy('name', 'asc');
+                            break;
+                        case 'name_desc':
+                            $query->orderBy('name', 'desc');
+                            break;
+                        case 'discount_asc':
+                            $query->orderBy('discount_amount', 'asc');
+                            break;
+                        case 'discount_desc':
+                            $query->orderBy('discount_amount', 'desc');
+                            break;
+                        case 'date_asc':
+                            $query->orderBy('start_date', 'asc');
+                            break;
+                        case 'date_desc':
+                            $query->orderBy('start_date', 'desc');
+                            break;
+                    }
+                }
+
+                $allDiscounts = $query->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $allDiscounts,
+                    'total' => $allDiscounts->count(),
+                ]);
+            }
+
+            $discounts = $this->discountService->getAllDiscounts($filters);
 
             return response()->json([
                 'success' => true,
-                'data' => $discounts,
-            ], 200);
+                'data' => $discounts->items(),
+                'pagination' => [
+                    'current_page' => $discounts->currentPage(),
+                    'last_page' => $discounts->lastPage(),
+                    'per_page' => $discounts->perPage(),
+                    'total' => $discounts->total(),
+                    'from' => $discounts->firstItem(),
+                    'to' => $discounts->lastItem(),
+                    'links' => $discounts->linkCollection()->toArray(),
+                ],
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -53,9 +127,6 @@ class DiscountController extends Controller
         }
     }
 
-    /**
-     * Get today's active discounts
-     */
     public function getTodayDiscounts()
     {
         try {

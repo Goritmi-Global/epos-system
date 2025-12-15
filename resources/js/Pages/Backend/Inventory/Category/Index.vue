@@ -52,27 +52,7 @@ const appliedFilters = ref({ ...defaultCategoryFilters });
 // SECTION 2: Add this AFTER the "filtered" computed property
 // ========================================
 
-const sortedCategories = computed(() => {
-    const arr = [...filtered.value];
-    const sortBy = filters.value.sortBy;
 
-    switch (sortBy) {
-        case "name_asc":
-            return arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        case "name_desc":
-            return arr.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
-        case "value_desc":
-            return arr.sort((a, b) => (b.total_value || 0) - (a.total_value || 0));
-        case "value_asc":
-            return arr.sort((a, b) => (a.total_value || 0) - (b.total_value || 0));
-        case "items_desc":
-            return arr.sort((a, b) => (b.primary_inventory_items_count || 0) - (a.primary_inventory_items_count || 0));
-        case "items_asc":
-            return arr.sort((a, b) => (a.primary_inventory_items_count || 0) - (b.primary_inventory_items_count || 0));
-        default:
-            return arr;
-    }
-});
 
 const filterOptions = computed(() => ({
     sortOptions: [
@@ -832,23 +812,16 @@ onBeforeUnmount(() => {
     }
 });
 
+
 let searchTimeout = null;
 watch(q, () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        pagination.value.current_page = 1;
+        pagination.value.current_page = 1; 
         fetchCategories(1);
     }, 500);
 });
 
-// watch(() => filters.value, () => {
-//     pagination.value.current_page = 1;
-//     fetchCategories(1);
-// }, { deep: true });
-
-// ===================== EXPORT FUNCTIONS (FIXED FOR CATEGORIES) =====================
-
-// ✅ NEW: Fetch ALL categories for export (no pagination)
 const fetchAllCategoriesForExport = async () => {
     try {
         loading.value = true;

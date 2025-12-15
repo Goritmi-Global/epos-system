@@ -31,16 +31,84 @@ class AddonGroupController extends Controller
     }
 
     /**
-     * Get all addon groups (API endpoint for Vue)
+     * ✅ UPDATED: Get all addon groups with pagination and filters
      */
-    public function all(): JsonResponse
+    public function all(Request $request): JsonResponse
     {
         try {
-            $groups = $this->addonGroupService->getAllGroups();
+            // ✅ Extract filter parameters
+            $filters = [
+                'q' => $request->query('q', ''),
+                'status' => $request->query('status', ''),
+                'sort_by' => $request->query('sort_by', ''),
+                'addons_min' => $request->query('addons_min'),
+                'addons_max' => $request->query('addons_max'),
+                'per_page' => $request->query('per_page', 10),
+            ];
+
+            // ✅ Check if this is an export request (return all records)
+            if ($request->has('export') && $request->export === 'all') {
+                // For export, get all records without pagination
+                $query = AddonGroup::withCount('addons')->with('addons');
+
+                // Apply search filter
+                if (! empty($filters['q'])) {
+                    $query->where('name', 'like', "%{$filters['q']}%");
+                }
+
+                // Apply status filter
+                if (! empty($filters['status'])) {
+                    $query->where('status', $filters['status']);
+                }
+
+                // Apply sorting
+                if (! empty($filters['sort_by'])) {
+                    switch ($filters['sort_by']) {
+                        case 'name_asc':
+                            $query->orderBy('name', 'asc');
+                            break;
+                        case 'name_desc':
+                            $query->orderBy('name', 'desc');
+                            break;
+                        case 'addons_asc':
+                            $query->orderBy('addons_count', 'asc');
+                            break;
+                        case 'addons_desc':
+                            $query->orderBy('addons_count', 'desc');
+                            break;
+                        case 'newest':
+                            $query->orderBy('created_at', 'desc');
+                            break;
+                        case 'oldest':
+                            $query->orderBy('created_at', 'asc');
+                            break;
+                    }
+                }
+
+                $allGroups = $query->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $allGroups,
+                    'total' => $allGroups->count(),
+                ]);
+            }
+
+            // ✅ Get paginated groups with filters (normal request)
+            $addonGroups = $this->addonGroupService->getAllGroups($filters);
 
             return response()->json([
                 'success' => true,
-                'data' => $groups,
+                'data' => $addonGroups->items(),
+                'pagination' => [
+                    'current_page' => $addonGroups->currentPage(),
+                    'last_page' => $addonGroups->lastPage(),
+                    'per_page' => $addonGroups->perPage(),
+                    'total' => $addonGroups->total(),
+                    'from' => $addonGroups->firstItem(),
+                    'to' => $addonGroups->lastItem(),
+                    'links' => $addonGroups->linkCollection()->toArray(),
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -214,10 +282,9 @@ class AddonGroupController extends Controller
 
     public function import(Request $request): JsonResponse
     {
-      
+
         try {
             $groups = $request->input('groups', []);
-        
 
             if (empty($groups)) {
                 return response()->json([

@@ -146,7 +146,7 @@ const filteredOrderItems = computed(() => {
         });
     }
 
-    // Filter by selected supplier
+ 
     if (!p_supplier.value) {
         return items;
     }
@@ -155,8 +155,11 @@ const filteredOrderItems = computed(() => {
         const preferredSupplierId = item.preferred_supplier_id || item.preferredSupplierId;
         const supplierIds = item.supplier_id || item.supplierId;
 
-        return preferredSupplierId === p_supplier.value ||
-            supplierIds === p_supplier.value;
+        console.log("Preferred Supplier Id: ", preferredSupplierId);
+        console.log("Suppliers Id: ", supplierIds);
+
+        return preferredSupplierId == p_supplier.value ||
+            supplierIds == p_supplier.value;
     });
 });
 

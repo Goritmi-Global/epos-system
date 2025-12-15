@@ -500,10 +500,15 @@ const filteredItems = computed(() => {
     return menuItems.value;
 });
 
-watch(q, () => {
-    fetchMenus(1);
-});
+let searchTimeout = null;
 
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        currentPage.value = 1; 
+        fetchMenus(1);
+    }, 500); 
+});
 watch(
     () => appliedFilters.value,
     () => {
@@ -531,15 +536,21 @@ const filterOptions = computed(() => ({
 }));
 
 
-const handleFilterClear = () => {
-    filters.value = { ...defaultMenuFilters };
-    appliedFilters.value = { ...defaultMenuFilters };
-    fetchMenus(1);
-};
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
+    currentPage.value = 1;
     fetchMenus(1);
+    const modal = bootstrap.Modal.getInstance(
+        document.getElementById("menuFilterModal")
+    );
+    modal?.hide();
+};
+const handleFilterClear = () => {
+    filters.value = { ...defaultMenuFilters };
+    appliedFilters.value = { ...defaultMenuFilters };
+    currentPage.value = 1;
+    fetchMenus(1); 
 };
 
 /* ===================== KPIs ===================== */

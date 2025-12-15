@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated } from "vue";
+import { ref, computed, watch, onMounted, onUpdated } from "vue";
 import MultiSelect from "primevue/multiselect";
 import Select from "primevue/select";
 import { useFormatters } from '@/composables/useFormatters'
@@ -29,6 +29,16 @@ const categories = ref([]);
 const editingCategory = ref(null);
 const manualSubcategories = ref([]);
 
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
+});
+
 const defaultCategoryFilters = {
     sortBy: "",
     category: "",
@@ -38,15 +48,62 @@ const defaultCategoryFilters = {
 const filters = ref({ ...defaultCategoryFilters });
 const appliedFilters = ref({ ...defaultCategoryFilters });
 
-const fetchCategories = async () => {
+const fetchCategories = async (page = null) => {
     try {
-        const res = await axios.get("/api/menu-categories/parents/list");
-        categories.value = res.data.data;
+        loading.value = true;
+        
+        // ✅ Build params with all filters
+        const params = {
+            q: q.value,
+            page: page || pagination.value.current_page,
+            per_page: pagination.value.per_page,
+            // ✅ Add filter parameters
+            sort_by: appliedFilters.value.sortBy || '',
+            status: appliedFilters.value.status || '',
+            category: appliedFilters.value.category || '',
+            has_subcategories: appliedFilters.value.hasSubcategories || '',
+        };
+
+        // ✅ Remove empty values
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
+            }
+        });
+
+        const res = await axios.get("/api/menu-categories/parents/list", { params });
+        
+        categories.value = res.data.data || [];
+        
+        // ✅ Update pagination
+        pagination.value = {
+            current_page: res.data.current_page,
+            last_page: res.data.last_page,
+            per_page: res.data.per_page,
+            total: res.data.total,
+            from: res.data.from,
+            to: res.data.to,
+            links: res.data.links
+        };
+        
+        loading.value = false;
     } catch (err) {
         console.error("Failed to fetch categories:", err);
+        toast.error("Failed to load categories");
+        loading.value = false;
     }
 };
 
+let searchTimeout = null;
+
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+    if (page) {
+        fetchCategories(parseInt(page));
+    }
+};
 onMounted(async () => {
     q.value = "";
     searchKey.value = Date.now();
@@ -107,69 +164,20 @@ const q = ref("");
 const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
+const loading = ref(false);
 
-const filtered = computed(() => {
-    const t = q.value.trim().toLowerCase();
-    let parents = categories.value.filter((c) => c.parent_id === null);
 
-    // Search filter
-    if (t) {
-        parents = parents.filter((c) => c.name.toLowerCase().includes(t));
-    }
-
-    // Category filter - filter by category ID
-    if (filters.value.category !== "") {
-        parents = parents.filter((cat) => cat.id === filters.value.category);
-    }
-
-    // Status filter
-    if (filters.value.status !== "") {
-        parents = parents.filter((cat) => {
-            const isActive = cat.active === 1 || cat.active === true || cat.active === "1";
-            return filters.value.status === "active" ? isActive : !isActive;
-        });
-    }
-
-    // Has Subcategories filter
-    if (filters.value.hasSubcategories !== "") {
-        parents = parents.filter((cat) => {
-            const hasSubcats = cat.subcategories && cat.subcategories.length > 0;
-            return filters.value.hasSubcategories === "yes" ? hasSubcats : !hasSubcats;
-        });
-    }
-
-    return parents;
-});
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
+    pagination.value.current_page = 1; // ✅ Reset to page 1
+    fetchCategories(1); // ✅ Fetch with new filters
+    
     const modal = bootstrap.Modal.getInstance(
         document.getElementById("categoryFilterModal")
     );
     modal?.hide();
 };
-
-const sortedCategories = computed(() => {
-    const arr = [...filtered.value];
-    const sortBy = filters.value.sortBy;
-
-    switch (sortBy) {
-        case "name_asc":
-            return arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        case "name_desc":
-            return arr.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
-        case "value_desc":
-            return arr.sort((a, b) => (b.total_value || 0) - (a.total_value || 0));
-        case "value_asc":
-            return arr.sort((a, b) => (a.total_value || 0) - (b.total_value || 0));
-        case "items_desc":
-            return arr.sort((a, b) => (b.total_items || 0) - (a.total_items || 0));
-        case "items_asc":
-            return arr.sort((a, b) => (a.total_items || 0) - (b.total_items || 0));
-        default:
-            return arr;
-    }
-});
 
 const filterOptions = computed(() => ({
     sortOptions: [
@@ -188,7 +196,10 @@ const filterOptions = computed(() => ({
 
 const handleFilterClear = () => {
     filters.value = { ...defaultCategoryFilters };
-    appliedFilters.value = { ...defaultCategoryFilters }; 
+    appliedFilters.value = { ...defaultCategoryFilters };
+    pagination.value.current_page = 1; // ✅ Reset to page 1
+    pagination.value.per_page = 10; // ✅ Reset per_page
+    fetchCategories(1); // ✅ Fetch without filters
 };
 
 /* ---------------- Helpers ---------------- */
@@ -344,6 +355,7 @@ const catFormErrors = ref({});
 import axios from "axios";
 import ImportFile from "@/Components/importFile.vue";
 import { Head } from "@inertiajs/vue3";
+import Pagination from "@/Components/Pagination.vue";
 
 const resetFields = () => {
     isSub.value = false;
@@ -895,6 +907,14 @@ const onDownload = (type) => {
     }
 };
 
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1; // ✅ Reset to page 1
+        fetchCategories(1);
+    }, 500);
+});
+
 const downloadCSV = (data) => {
     try {
         // Define headers
@@ -1322,7 +1342,7 @@ const handleImport = (data) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(row, i) in sortedCategories" :key="row.id">
+                                <tr v-for="(row, i) in categories" :key="row.id">
                                     <td>{{ i + 1 }}</td>
                                     <td class="fw-semibold">
                                         {{ row.name }}
@@ -1397,13 +1417,26 @@ const handleImport = (data) => {
                                     </td>
                                 </tr>
 
-                                <tr v-if="filtered.length === 0">
+                                <tr v-if="categories.length === 0">
                                     <td colspan="10" class="text-center text-muted py-4">
                                         No categories found.
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div v-if="!loading && pagination.last_page > 1" 
+                         class="mt-4 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
+                        </div>
+
+                        <Pagination 
+                            :pagination="pagination.links" 
+                            :isApiDriven="true"
+                            @page-changed="handlePageChange" 
+                        />
                     </div>
                 </div>
             </div>

@@ -14,20 +14,77 @@ class AddonService
      * 
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllAddons()
-    {
-        try {
-            // Fetch all addons with their parent group
-            return Addon::with('addonGroup')
-                ->orderBy('sort_order')
-                ->orderBy('created_at', 'desc')
-                ->get();
-        } catch (\Exception $e) {
-            Log::error('Error fetching addons: ' . $e->getMessage());
-            throw $e;
-        }
-    }
+ public function getAllAddons(array $filters = [])
+{
+    try {
+        $query = Addon::with('addonGroup');
 
+        // ✅ Search filter
+        if (!empty($filters['q'])) {
+            $query->where(function($q) use ($filters) {
+                $q->where('name', 'like', "%{$filters['q']}%")
+                  ->orWhereHas('addonGroup', function($subQ) use ($filters) {
+                      $subQ->where('name', 'like', "%{$filters['q']}%");
+                  });
+            });
+        }
+
+        // ✅ Status filter
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        // ✅ Category (Addon Group) filter
+        if (!empty($filters['category'])) {
+            $query->where('addon_group_id', $filters['category']);
+        }
+
+        // ✅ Price range filter
+        if (isset($filters['price_min']) && $filters['price_min'] !== null && $filters['price_min'] !== '') {
+            $query->where('price', '>=', (float)$filters['price_min']);
+        }
+        if (isset($filters['price_max']) && $filters['price_max'] !== null && $filters['price_max'] !== '') {
+            $query->where('price', '<=', (float)$filters['price_max']);
+        }
+
+        // ✅ Sorting
+        if (!empty($filters['sort_by'])) {
+            switch ($filters['sort_by']) {
+                case 'name_asc':
+                    $query->orderBy('name', 'asc');
+                    break;
+                case 'name_desc':
+                    $query->orderBy('name', 'desc');
+                    break;
+                case 'price_asc':
+                    $query->orderBy('price', 'asc');
+                    break;
+                case 'price_desc':
+                    $query->orderBy('price', 'desc');
+                    break;
+                case 'newest':
+                    $query->orderBy('created_at', 'desc');
+                    break;
+                case 'oldest':
+                    $query->orderBy('created_at', 'asc');
+                    break;
+                default:
+                    $query->orderBy('sort_order')->orderBy('created_at', 'desc');
+                    break;
+            }
+        } else {
+            $query->orderBy('sort_order')->orderBy('created_at', 'desc');
+        }
+
+        // ✅ Pagination
+        $perPage = $filters['per_page'] ?? 10;
+        return $query->paginate($perPage);
+
+    } catch (\Exception $e) {
+        Log::error('Error fetching addons: ' . $e->getMessage());
+        throw $e;
+    }
+}
     /**
      * Get addons by group ID
      * 
