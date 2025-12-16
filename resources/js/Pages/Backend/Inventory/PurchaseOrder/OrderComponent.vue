@@ -156,7 +156,7 @@ const filteredOrderItems = computed(() => {
 
         const preferredSupplierId = normalize(item.preferred_supplier_id ?? item.preferredSupplierId);
         const supplierIds = normalize(item.supplier_id ?? item.supplierId);
-        const selectedSupplierId = normalize(b_supplier.value);
+        const selectedSupplierId = normalize(p_supplier.value);
 
         console.log("Preferred Supplier Id: ", preferredSupplierId);
         console.log("Suppliers Id: ", supplierIds);
