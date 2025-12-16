@@ -3912,7 +3912,7 @@ const getDealQty = (deal) => {
 // Get total count of items (menu items + deals) in a category
 const getCategoryItemCount = (categoryId) => {
     const category = menuCategories.value.find(c => c.id === categoryId);
-    const menuCount = category?.menu_items_count || 0;
+    const menuCount = +(category?.menu_items_count || 0);
     const dealsCount = getCategoryDealsCount(categoryId);
     return menuCount + dealsCount;
 };
