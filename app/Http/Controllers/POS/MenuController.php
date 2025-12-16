@@ -53,7 +53,7 @@ class MenuController extends Controller
             'meals' => $meals,
             'variantGroups' => $variantGroups,
             'addonGroups' => $addonGroups,
-            'menuItems' => $menuItems
+            'menuItems' => $menuItems,
         ]);
     }
 
@@ -64,7 +64,6 @@ class MenuController extends Controller
 
     public function store(StoreMenuRequest $request)
     {
-
         try {
             $menu = $this->service->create($request->validated(), $request);
 
@@ -96,6 +95,7 @@ class MenuController extends Controller
             ], 500);
         }
     }
+
     public function apiIndex(Request $request)
     {
         $perPage = $request->get('per_page', 10);
@@ -193,7 +193,8 @@ class MenuController extends Controller
                     'allergies' => $item->allergies,
                     'tags' => $item->tags,
                     'image_url' => UploadHelper::url($item->upload_id),
-                    'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
+                    'addon_group_ids' => $item->addonGroupRelations->pluck('addon_group_id')->toArray(),
+                    'addon_group_relations' => $item->addonGroupRelations,
                     'is_saleable' => $item->is_saleable,
                     'resale_type' => $item->resale_type,
                     'resale_value' => $item->resale_value,
@@ -247,7 +248,8 @@ class MenuController extends Controller
                     'allergies' => $item->allergies,
                     'tags' => $item->tags,
                     'image_url' => UploadHelper::url($item->upload_id),
-                    'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
+                    'addon_group_ids' => $item->addonGroupRelations->pluck('addon_group_id')->toArray(),
+                    'addon_group_relations' => $item->addonGroupRelations,
                     'is_saleable' => $item->is_saleable,
                     'resale_type' => $item->resale_type,
                     'resale_value' => $item->resale_value,
@@ -300,6 +302,7 @@ class MenuController extends Controller
             ],
         ]);
     }
+
     private function calculateResalePrice($item)
     {
         if (! $item->is_saleable || ! $item->resale_type || ! $item->resale_value) {
@@ -479,7 +482,7 @@ class MenuController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
     }
 }

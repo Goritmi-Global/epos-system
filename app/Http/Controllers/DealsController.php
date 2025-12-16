@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\UploadHelper;
-use App\Models\Deal;
-use App\Models\MenuItem;
 use App\Http\Requests\Deals\StoreDealRequest;
 use App\Http\Requests\Deals\UpdateDealRequest;
+use App\Models\Deal;
+use App\Models\MenuItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -26,7 +26,6 @@ class DealsController extends Controller
             'menuItems' => $menuItems,
         ]);
     }
-
 
     public function apiIndex(Request $request)
     {
@@ -58,8 +57,12 @@ class DealsController extends Controller
         }
 
         // Price range filter
-        if ($request->filled('price_min')) $query->where('price', '>=', $request->price_min);
-        if ($request->filled('price_max')) $query->where('price', '<=', $request->price_max);
+        if ($request->filled('price_min')) {
+            $query->where('price', '>=', $request->price_min);
+        }
+        if ($request->filled('price_max')) {
+            $query->where('price', '<=', $request->price_max);
+        }
 
         // Sorting
         $sortBy = $request->get('sort_by', 'created_at');
@@ -93,13 +96,13 @@ class DealsController extends Controller
                         'name' => $deal->category->name,
                     ] : null,
 
-                    'menu_items' => $deal->menuItems->map(fn($item) => [
+                    'menu_items' => $deal->menuItems->map(fn ($item) => [
                         'id' => $item->id,
                         'name' => $item->name,
                         'price' => $item->price,
                         'qty' => $item->pivot->quantity,
                         'category' => $item->category,
-                        'ingredients' => $item->ingredients->map(fn($ing) => [
+                        'ingredients' => $item->ingredients->map(fn ($ing) => [
                             'id' => $ing->inventory_item_id,
                             'product_name' => $ing->inventoryItem->name ?? 'Unknown',
                             'quantity' => $ing->quantity,
@@ -107,24 +110,24 @@ class DealsController extends Controller
                         ]),
                         'variant_ingredients_grouped' => $item->getVariantIngredientsGroupedAttribute(),
                         'is_variant_menu' => $item->isVariantMenu(),
-                        'addon_groups' => $item->addonGroups->map(fn($group) => [
+                        'addon_groups' => $item->addonGroups->map(fn ($group) => [
                             'group_id' => $group->id,
                             'group_name' => $group->name,
                             'min_select' => $group->pivot->min_select ?? 0,
                             'max_select' => $group->pivot->max_select ?? 0,
-                            'addons' => $group->addons->map(fn($addon) => [
+                            'addons' => $group->addons->map(fn ($addon) => [
                                 'id' => $addon->id,
                                 'name' => $addon->name,
                                 'price' => $addon->price,
                             ]),
                         ]),
                     ]),
-                    'deal_addon_groups' => $deal->addonGroups->map(fn($group) => [
+                    'deal_addon_groups' => $deal->addonGroups->map(fn ($group) => [
                         'group_id' => $group->id,
                         'group_name' => $group->name,
                         'min_select' => $group->pivot->min_select ?? 0,
                         'max_select' => $group->pivot->max_select ?? 0,
-                        'addons' => $group->addons->map(fn($addon) => [
+                        'addons' => $group->addons->map(fn ($addon) => [
                             'id' => $addon->id,
                             'name' => $addon->name,
                             'price' => $addon->price,
@@ -153,7 +156,6 @@ class DealsController extends Controller
             ],
         ]);
     }
-
 
     private function getPaginationLinks($paginator)
     {
@@ -195,7 +197,7 @@ class DealsController extends Controller
             /* =========================
                 IMAGE UPLOAD
             ========================== */
-            if (!empty($data['image'])) {
+            if (! empty($data['image'])) {
                 $upload = UploadHelper::store($data['image'], 'deals', 'public');
                 $data['upload_id'] = $upload->id;
             }
@@ -206,26 +208,26 @@ class DealsController extends Controller
                 CREATE DEAL
             ========================== */
             $deal = Deal::create([
-                'name'         => $data['name'],
-                'price'        => $data['price'],
-                'description'  => $data['description'] ?? null,
-                'upload_id'    => $data['upload_id'] ?? null,
-                'status'       => $data['status'] ?? 1,
-                'is_taxable'   => $data['is_taxable'] ?? 0,
-                'label_color'  => $data['label_color'] ?? null,
-                'category_id'  => $data['category_id'] ?? null,
+                'name' => $data['name'],
+                'price' => $data['price'],
+                'description' => $data['description'] ?? null,
+                'upload_id' => $data['upload_id'] ?? null,
+                'status' => $data['status'] ?? 1,
+                'is_taxable' => $data['is_taxable'] ?? 0,
+                'label_color' => $data['label_color'] ?? null,
+                'category_id' => $data['category_id'] ?? null,
             ]);
 
             /* =========================
                 ATTACH MENUS WITH QTY
             ========================== */
-            if (!empty($data['menu_item_ids'])) {
+            if (! empty($data['menu_item_ids'])) {
                 $menuItems = [];
 
                 foreach ($data['menu_item_ids'] as $item) {
                     if (is_array($item) && isset($item['id'])) {
                         $menuItems[$item['id']] = [
-                            'quantity' => $item['qty'] ?? 1
+                            'quantity' => $item['qty'] ?? 1,
                         ];
                     } else {
                         $menuItems[$item] = ['quantity' => 1];
@@ -238,12 +240,12 @@ class DealsController extends Controller
             /* =========================
                 ALLERGIES (WITH TYPE)
             ========================== */
-            if (!empty($data['allergies'])) {
+            if (! empty($data['allergies'])) {
                 $syncData = [];
 
                 foreach ($data['allergies'] as $i => $allergyId) {
                     $syncData[$allergyId] = [
-                        'type' => $data['allergy_types'][$i] ?? 1
+                        'type' => $data['allergy_types'][$i] ?? 1,
                     ];
                 }
 
@@ -253,22 +255,22 @@ class DealsController extends Controller
             /* =========================
                 TAGS
             ========================== */
-            if (!empty($data['tags'])) {
+            if (! empty($data['tags'])) {
                 $deal->tags()->sync($data['tags']);
             }
 
             /* =========================
                 MEALS
             ========================== */
-            if (!empty($data['meals'])) {
+            if (! empty($data['meals'])) {
                 $deal->meals()->sync($data['meals']);
             }
 
             /* =========================
                 Addon Group
             ========================== */
-            if (!empty($data['addon_group_id'])) {
-                $deal->addonGroups()->sync((array) $data['addon_group_id']);
+            if (! empty($data['addon_group_ids'])) {
+                $deal->addonGroups()->sync($data['addon_group_ids']);
             }
 
             DB::commit();
@@ -292,7 +294,6 @@ class DealsController extends Controller
         }
     }
 
-
     public function update(UpdateDealRequest $request, Deal $deal)
     {
         DB::beginTransaction();
@@ -303,7 +304,7 @@ class DealsController extends Controller
             /* =========================
                 IMAGE UPLOAD
             ========================== */
-            if (!empty($data['image'])) {
+            if (! empty($data['image'])) {
                 // Delete old image if exists
                 if ($deal->upload_id) {
                     UploadHelper::delete($deal->upload_id);
@@ -319,20 +320,20 @@ class DealsController extends Controller
                 UPDATE DEAL
             ========================== */
             $deal->update([
-                'name'         => $data['name'] ?? $deal->name,
-                'price'        => $data['price'] ?? $deal->price,
-                'description'  => $data['description'] ?? $deal->description,
-                'upload_id'    => $data['upload_id'] ?? $deal->upload_id,
-                'status'       => $data['status'] ?? $deal->status,
-                'is_taxable'   => $data['is_taxable'] ?? $deal->is_taxable,
-                'label_color'  => $data['label_color'] ?? $deal->label_color,
-                'category_id'  => $data['category_id'] ?? $deal->category_id,
+                'name' => $data['name'] ?? $deal->name,
+                'price' => $data['price'] ?? $deal->price,
+                'description' => $data['description'] ?? $deal->description,
+                'upload_id' => $data['upload_id'] ?? $deal->upload_id,
+                'status' => $data['status'] ?? $deal->status,
+                'is_taxable' => $data['is_taxable'] ?? $deal->is_taxable,
+                'label_color' => $data['label_color'] ?? $deal->label_color,
+                'category_id' => $data['category_id'] ?? $deal->category_id,
             ]);
 
             /* =========================
                 MENU ITEMS WITH QUANTITIES
             ========================== */
-            if (!empty($data['menu_item_ids'])) {
+            if (! empty($data['menu_item_ids'])) {
                 $menuItems = [];
                 foreach ($data['menu_item_ids'] as $item) {
                     if (is_array($item) && isset($item['id'])) {
@@ -349,11 +350,11 @@ class DealsController extends Controller
             /* =========================
                 ALLERGIES WITH TYPE
             ========================== */
-            if (!empty($data['allergies'])) {
+            if (! empty($data['allergies'])) {
                 $syncData = [];
                 foreach ($data['allergies'] as $i => $allergyId) {
                     $syncData[$allergyId] = [
-                        'type' => $data['allergy_types'][$i] ?? 1
+                        'type' => $data['allergy_types'][$i] ?? 1,
                     ];
                 }
                 $deal->allergies()->sync($syncData);
@@ -364,7 +365,7 @@ class DealsController extends Controller
             /* =========================
                 TAGS
             ========================== */
-            if (!empty($data['tags'])) {
+            if (! empty($data['tags'])) {
                 $deal->tags()->sync($data['tags']);
             } else {
                 $deal->tags()->sync([]);
@@ -373,7 +374,7 @@ class DealsController extends Controller
             /* =========================
                 MEALS
             ========================== */
-            if (!empty($data['meals'])) {
+            if (! empty($data['meals'])) {
                 $deal->meals()->sync($data['meals']);
             } else {
                 $deal->meals()->sync([]);
@@ -383,8 +384,8 @@ class DealsController extends Controller
                 ADDON GROUP (No direct addons sync needed)
                 The addon_ids are just for UI display - they belong to the group
             ========================================================================== */
-            if (!empty($data['addon_group_id'])) {
-                $deal->addonGroups()->sync([(int) $data['addon_group_id']]);
+            if (! empty($data['addon_group_ids'])) {
+                $deal->addonGroups()->sync($data['addon_group_ids']);
             } else {
                 $deal->addonGroups()->sync([]);
             }
@@ -404,7 +405,6 @@ class DealsController extends Controller
             ], 500);
         }
     }
-
 
     public function updateStatus(Request $request, Deal $deal)
     {
