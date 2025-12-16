@@ -13,21 +13,17 @@ return new class extends Migration
             $table->string('name');
             $table->decimal('price', 10, 2);
             $table->text('description')->nullable();
-            $table->unsignedBigInteger('upload_id')->nullable(); 
+            $table->unsignedBigInteger('upload_id')->nullable();
             $table->boolean('status')->default(1);
+            $table->boolean('is_taxable')->default(0);
+            $table->string('label_color')->nullable();
+            $table->unsignedBigInteger('category_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
-            // Foreign key for upload
+            // Foreign keys
             $table->foreign('upload_id')->references('id')->on('uploads')->onDelete('set null');
-        });
-
-        // Pivot table for deals and menu items
-        Schema::create('deal_menu_item', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('deal_id')->constrained()->onDelete('cascade');
-            $table->foreignId('menu_item_id')->constrained('menu_items')->onDelete('cascade');
-            $table->timestamps();
+            $table->foreignId('subcategory_id')->nullable()->constrained('menu_categories')->onDelete('set null');
         });
     }
 
