@@ -12,242 +12,287 @@ class InventoryService
     /** ----------------------------------------------------------------
      *  Read / List
      *  ---------------------------------------------------------------- */
-   public function list(array $filters = [])
+    public function list(array $filters = [])
+    {
+        $query = InventoryItem::query()
+            ->with([
+                'category',
+                'user:id,name',
+                'supplier:id,name',
+                'unit:id,name',
+                'allergies:id,name',
+                'tags:id,name',
+                'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
+            ])
+            // ✅ SEARCH FILTER (existing)
+            ->when($filters['q'] ?? null, function ($q, $v) {
+                $q->where(function ($qq) use ($v) {
+                    $qq->where('name', 'like', "%{$v}%")
+                        ->orWhere('sku', 'like', "%{$v}%")
+                        ->orWhereHas('category', function ($query) use ($v) {
+                            $query->where('name', 'like', "%{$v}%");
+                        })
+                        ->orWhereHas('unit', function ($query) use ($v) {
+                            $query->where('name', 'like', "%{$v}%");
+                        })
+                        ->orWhereHas('supplier', function ($query) use ($v) {
+                            $query->where('name', 'like', "%{$v}%");
+                        });
+                });
+            })
+            // ✅ NEW: CATEGORY FILTER
+            ->when($filters['category'] ?? null, function ($q, $categoryId) {
+                $q->where('category_id', $categoryId);
+            })
+            // ✅ NEW: SUPPLIER FILTER
+            ->when($filters['supplier'] ?? null, function ($q, $supplierId) {
+                $q->where('supplier_id', $supplierId);
+            })
+            ->orderByDesc('id');
+
+        // ✅ Check if ANY filter is applied (not just search)
+        $searchQuery = trim($filters['q'] ?? '');
+        $hasSearch = ! empty($searchQuery);
+        $hasCategory = ! empty($filters['category']);
+        $hasSupplier = ! empty($filters['supplier']);
+        $hasStockStatus = ! empty($filters['stockStatus']);
+        $hasPriceRange = ! empty($filters['priceMin']) || ! empty($filters['priceMax']);
+        $hasSorting = ! empty($filters['sortBy']);
+
+        // ✅ If ANY filter is active, fetch ALL matching records (no pagination)
+        $hasAnyFilter = $hasSearch || $hasCategory || $hasSupplier || $hasStockStatus || $hasPriceRange || $hasSorting;
+
+        \Log::info('Inventory List Debug', [
+            'hasAnyFilter' => $hasAnyFilter,
+            'filters' => $filters,
+        ]);
+
+        if ($hasAnyFilter) {
+            // ✅ FILTER MODE: Get all matching records
+            $items = $query->get();
+
+            // Get all product IDs for stock calculation
+            $productIds = $items->pluck('id')->toArray();
+
+            // Calculate stock for ALL products in ONE bulk operation
+            $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
+
+            // ✅ Apply stock-based filters AFTER getting stock data
+            $filteredItems = $items->filter(function ($item) use ($stockData, $filters) {
+                $stock = $stockData[$item->id] ?? [
+                    'available' => 0,
+                    'stockValue' => '0.00',
+                    'status' => null,
+                ];
+
+                // ✅ Stock Status Filter
+                if (! empty($filters['stockStatus'])) {
+                    $available = $stock['available'];
+                    $minAlert = $item->minAlert ?? 5;
+                    $status = $stock['status'];
+
+                    switch ($filters['stockStatus']) {
+                        case 'in_stock':
+                            if ($available < $minAlert) {
+                                return false;
+                            }
+                            break;
+                        case 'low_stock':
+                            if ($available <= 0 || $available >= $minAlert) {
+                                return false;
+                            }
+                            break;
+                        case 'out_of_stock':
+                            if ($available > 0) {
+                                return false;
+                            }
+                            break;
+                        case 'expired':
+                            if ($status !== 'expired') {
+                                return false;
+                            }
+                            break;
+                        case 'near_expiry':
+                            if ($status !== 'near_expiry') {
+                                return false;
+                            }
+                            break;
+                    }
+                }
+
+                // ✅ Price Range Filter
+                if (! empty($filters['priceMin']) || ! empty($filters['priceMax'])) {
+                    $price = (float) $stock['stockValue'];
+                    $min = (float) ($filters['priceMin'] ?? 0);
+                    $max = (float) ($filters['priceMax'] ?? PHP_FLOAT_MAX);
+
+                    if ($price < $min || $price > $max) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            // ✅ Apply Sorting
+            if (! empty($filters['sortBy'])) {
+                $filteredItems = $this->applySorting($filteredItems, $stockData, $filters['sortBy']);
+            }
+
+            // ✅ Format the filtered items
+            $formattedItems = $filteredItems->map(function ($item) use ($stockData) {
+                return $this->formatItemWithStock($item, $stockData[$item->id] ?? []);
+            })->values();
+
+            $total = $formattedItems->count();
+
+            \Log::info('Filter Mode', [
+                'total_found' => $total,
+            ]);
+
+            // ✅ Create a single-page paginator (all results on page 1)
+            $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+                $formattedItems,
+                $total,
+                $total > 0 ? $total : 1, // per_page = total (show all)
+                1, // always page 1
+                [
+                    'path' => request()->url(),
+                    'query' => request()->query(),
+                ]
+            );
+
+        } else {
+            // ✅ NO FILTERS: Normal pagination
+            \Log::info('Pagination Mode');
+
+            $paginator = $query->paginate($filters['per_page'] ?? 10);
+
+            // Get all product IDs from current page
+            $productIds = $paginator->pluck('id')->toArray();
+
+            // Calculate stock for products on current page
+            $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
+
+            // Format paginated items
+            $paginator->through(function (InventoryItem $item) use ($stockData) {
+                return $this->formatItemWithStock($item, $stockData[$item->id] ?? []);
+            });
+        }
+
+        return $paginator;
+    }
+
+
+    public function listAll(array $filters = [])
 {
     $query = InventoryItem::query()
         ->with([
             'category',
-            'user:id,name',
-            'supplier:id,name',
-            'unit:id,name',
-            'allergies:id,name',
-            'tags:id,name',
             'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
         ])
-        // ✅ SEARCH FILTER (existing)
         ->when($filters['q'] ?? null, function ($q, $v) {
             $q->where(function ($qq) use ($v) {
                 $qq->where('name', 'like', "%{$v}%")
                     ->orWhere('sku', 'like', "%{$v}%")
                     ->orWhereHas('category', function ($query) use ($v) {
                         $query->where('name', 'like', "%{$v}%");
-                    })
-                    ->orWhereHas('unit', function ($query) use ($v) {
-                        $query->where('name', 'like', "%{$v}%");
-                    })
-                    ->orWhereHas('supplier', function ($query) use ($v) {
-                        $query->where('name', 'like', "%{$v}%");
                     });
             });
         })
-        // ✅ NEW: CATEGORY FILTER
         ->when($filters['category'] ?? null, function ($q, $categoryId) {
             $q->where('category_id', $categoryId);
         })
-        // ✅ NEW: SUPPLIER FILTER
         ->when($filters['supplier'] ?? null, function ($q, $supplierId) {
             $q->where('supplier_id', $supplierId);
         })
-        ->orderByDesc('id');
+        ->orderBy('name')
+        ->get();
 
-    // ✅ Check if ANY filter is applied (not just search)
-    $searchQuery = trim($filters['q'] ?? '');
-    $hasSearch = !empty($searchQuery);
-    $hasCategory = !empty($filters['category']);
-    $hasSupplier = !empty($filters['supplier']);
-    $hasStockStatus = !empty($filters['stockStatus']);
-    $hasPriceRange = !empty($filters['priceMin']) || !empty($filters['priceMax']);
-    $hasSorting = !empty($filters['sortBy']);
-    
-    // ✅ If ANY filter is active, fetch ALL matching records (no pagination)
-    $hasAnyFilter = $hasSearch || $hasCategory || $hasSupplier || $hasStockStatus || $hasPriceRange || $hasSorting;
+    // Get stock data for all items
+    $productIds = $query->pluck('id')->toArray();
+    $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
 
-    \Log::info('Inventory List Debug', [
-        'hasAnyFilter' => $hasAnyFilter,
-        'filters' => $filters,
-    ]);
+    return $query->map(function ($item) use ($stockData) {
+        return $this->formatItemWithStock($item, $stockData[$item->id] ?? []);
+    });
+}
 
-    if ($hasAnyFilter) {
-        // ✅ FILTER MODE: Get all matching records
-        $items = $query->get();
-        
-        // Get all product IDs for stock calculation
-        $productIds = $items->pluck('id')->toArray();
-        
-        // Calculate stock for ALL products in ONE bulk operation
-        $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
-        
-        // ✅ Apply stock-based filters AFTER getting stock data
-        $filteredItems = $items->filter(function ($item) use ($stockData, $filters) {
-            $stock = $stockData[$item->id] ?? [
-                'available' => 0,
-                'stockValue' => '0.00',
-                'status' => null,
-            ];
-            
-            // ✅ Stock Status Filter
-            if (!empty($filters['stockStatus'])) {
-                $available = $stock['available'];
-                $minAlert = $item->minAlert ?? 5;
-                $status = $stock['status'];
-                
-                switch ($filters['stockStatus']) {
-                    case 'in_stock':
-                        if ($available < $minAlert) return false;
-                        break;
-                    case 'low_stock':
-                        if ($available <= 0 || $available >= $minAlert) return false;
-                        break;
-                    case 'out_of_stock':
-                        if ($available > 0) return false;
-                        break;
-                    case 'expired':
-                        if ($status !== 'expired') return false;
-                        break;
-                    case 'near_expiry':
-                        if ($status !== 'near_expiry') return false;
-                        break;
-                }
-            }
-            
-            // ✅ Price Range Filter
-            if (!empty($filters['priceMin']) || !empty($filters['priceMax'])) {
-                $price = (float) $stock['stockValue'];
-                $min = (float) ($filters['priceMin'] ?? 0);
-                $max = (float) ($filters['priceMax'] ?? PHP_FLOAT_MAX);
-                
-                if ($price < $min || $price > $max) {
-                    return false;
-                }
-            }
-            
-            return true;
-        });
-        
-        // ✅ Apply Sorting
-        if (!empty($filters['sortBy'])) {
-            $filteredItems = $this->applySorting($filteredItems, $stockData, $filters['sortBy']);
+    /**
+     * ✅ NEW: Apply sorting to collection
+     */
+    private function applySorting($items, $stockData, $sortBy)
+    {
+        switch ($sortBy) {
+            case 'stock_desc':
+                return $items->sortByDesc(function ($item) use ($stockData) {
+                    return $stockData[$item->id]['available'] ?? 0;
+                })->values();
+
+            case 'stock_asc':
+                return $items->sortBy(function ($item) use ($stockData) {
+                    return $stockData[$item->id]['available'] ?? 0;
+                })->values();
+
+            case 'name_asc':
+                return $items->sortBy('name')->values();
+
+            case 'name_desc':
+                return $items->sortByDesc('name')->values();
+
+            default:
+                return $items;
         }
-        
-        // ✅ Format the filtered items
-        $formattedItems = $filteredItems->map(function ($item) use ($stockData) {
-            return $this->formatItemWithStock($item, $stockData[$item->id] ?? []);
-        })->values();
-        
-        $total = $formattedItems->count();
-        
-        \Log::info('Filter Mode', [
-            'total_found' => $total,
-        ]);
-        
-        // ✅ Create a single-page paginator (all results on page 1)
-        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
-            $formattedItems,
-            $total,
-            $total > 0 ? $total : 1, // per_page = total (show all)
-            1, // always page 1
-            [
-                'path' => request()->url(),
-                'query' => request()->query(),
-            ]
-        );
-        
-    } else {
-        // ✅ NO FILTERS: Normal pagination
-        \Log::info('Pagination Mode');
-        
-        $paginator = $query->paginate($filters['per_page'] ?? 10);
-        
-        // Get all product IDs from current page
-        $productIds = $paginator->pluck('id')->toArray();
-        
-        // Calculate stock for products on current page
-        $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
-        
-        // Format paginated items
-        $paginator->through(function (InventoryItem $item) use ($stockData) {
-            return $this->formatItemWithStock($item, $stockData[$item->id] ?? []);
-        });
     }
 
-    return $paginator;
-}
+    /**
+     * ✅ NEW: Format item with stock data (extracted for reusability)
+     */
+    private function formatItemWithStock(InventoryItem $item, array $stock): array
+    {
+        $stock = array_merge([
+            'available' => 0,
+            'stockValue' => '0.00',
+            'minAlert' => 0,
+            'expiry_date' => null,
+            'status' => null,
+        ], $stock);
 
-/**
- * ✅ NEW: Apply sorting to collection
- */
-private function applySorting($items, $stockData, $sortBy)
-{
-    switch ($sortBy) {
-        case 'stock_desc':
-            return $items->sortByDesc(function ($item) use ($stockData) {
-                return $stockData[$item->id]['available'] ?? 0;
-            })->values();
-            
-        case 'stock_asc':
-            return $items->sortBy(function ($item) use ($stockData) {
-                return $stockData[$item->id]['available'] ?? 0;
-            })->values();
-            
-        case 'name_asc':
-            return $items->sortBy('name')->values();
-            
-        case 'name_desc':
-            return $items->sortByDesc('name')->values();
-            
-        default:
-            return $items;
+        return [
+            'id' => $item->id,
+            'name' => $item->name,
+            'sku' => $item->sku,
+            'description' => $item->description,
+            'category' => $item->category ?? null,
+            'subcategory' => $item->subcategory ?? null,
+            'minAlert' => $stock['minAlert'],
+            'supplier_id' => $item->supplier_id,
+            'supplier_name' => $item->supplier?->name,
+            'unit_id' => $item->unit_id,
+            'unit_name' => $item->unit?->name,
+            'stock' => $item->stock,
+
+            // Stock data from bulk calculation
+            'availableStock' => $stock['available'],
+            'stockValue' => $stock['stockValue'],
+            'expiry_date' => $stock['expiry_date'],
+            'status' => $stock['status'],
+
+            'allergies' => $item->allergies->pluck('name')->values(),
+            'allergy_ids' => $item->allergies->pluck('id')->values(),
+            'tags' => $item->tags->pluck('name')->values(),
+            'tag_ids' => $item->tags->pluck('id')->values(),
+            'nutrition' => [
+                'calories' => (float) ($item->nutrition->calories ?? 0),
+                'protein' => (float) ($item->nutrition->protein ?? 0),
+                'fat' => (float) ($item->nutrition->fat ?? 0),
+                'carbs' => (float) ($item->nutrition->carbs ?? 0),
+            ],
+            'user' => $item->user?->name,
+            'image_url' => UploadHelper::url($item->upload_id),
+            'created_at' => optional($item->created_at)->format('Y-m-d H:i'),
+        ];
     }
-}
-
-/**
- * ✅ NEW: Format item with stock data (extracted for reusability)
- */
-private function formatItemWithStock(InventoryItem $item, array $stock): array
-{
-    $stock = array_merge([
-        'available' => 0,
-        'stockValue' => '0.00',
-        'minAlert' => 0,
-        'expiry_date' => null,
-        'status' => null,
-    ], $stock);
-    
-    return [
-        'id' => $item->id,
-        'name' => $item->name,
-        'sku' => $item->sku,
-        'description' => $item->description,
-        'category' => $item->category ?? null,
-        'subcategory' => $item->subcategory ?? null,
-        'minAlert' => $stock['minAlert'],
-        'supplier_id' => $item->supplier_id,
-        'supplier_name' => $item->supplier?->name,
-        'unit_id' => $item->unit_id,
-        'unit_name' => $item->unit?->name,
-        'stock' => $item->stock,
-        
-        // Stock data from bulk calculation
-        'availableStock' => $stock['available'],
-        'stockValue' => $stock['stockValue'],
-        'expiry_date' => $stock['expiry_date'],
-        'status' => $stock['status'],
-        
-        'allergies' => $item->allergies->pluck('name')->values(),
-        'allergy_ids' => $item->allergies->pluck('id')->values(),
-        'tags' => $item->tags->pluck('name')->values(),
-        'tag_ids' => $item->tags->pluck('id')->values(),
-        'nutrition' => [
-            'calories' => (float) ($item->nutrition->calories ?? 0),
-            'protein' => (float) ($item->nutrition->protein ?? 0),
-            'fat' => (float) ($item->nutrition->fat ?? 0),
-            'carbs' => (float) ($item->nutrition->carbs ?? 0),
-        ],
-        'user' => $item->user?->name,
-        'image_url' => UploadHelper::url($item->upload_id),
-        'created_at' => optional($item->created_at)->format('Y-m-d H:i'),
-    ];
-}
 
     /** ----------------------------------------------------------------
      *  Create

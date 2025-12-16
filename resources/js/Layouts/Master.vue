@@ -1995,7 +1995,7 @@ html.dark .side-link {
     background-color: #181818 !important;
 }
 
-.dark .p-select-header {
+:global(.dark .p-select-header) {
     background-color: #121212 !important;
 }
 

@@ -11,6 +11,7 @@ import { nextTick } from "vue";
 import StockInLogs from "./components/StockInLogs.vue";
 import StockOutLogs from "./components/StockOutLogs.vue";
 import { Head } from "@inertiajs/vue3";
+import Dropdown from 'primevue/dropdown'
 
 const logs = ref([]);
 const q = ref("");
@@ -19,6 +20,22 @@ const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 
 const activeTab = ref("stockin"); // 'stockin' | 'stockout'
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+// 🔁 Keep function call same
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null // reset after click
+    }
+}
 
 const fetchLogs = async () => {
     try {
@@ -271,7 +288,8 @@ const downloadExcel = (data) => {
 
 <template>
     <Master>
-          <Head title="Stock Logs" />
+
+        <Head title="Stock Logs" />
         <div class="page-wrapper">
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body p-4">
@@ -290,33 +308,14 @@ const downloadExcel = (data) => {
                                     class="form-control search-input" placeholder="Search" type="search"
                                     autocomplete="new-password" :name="inputId" role="presentation"
                                     @focus="handleFocus" />
-                                <input v-else class="form-control search-input" placeholder="Search"
-                                    disabled type="text"/>
+                                <input v-else class="form-control search-input" placeholder="Search" disabled
+                                    type="text" />
                             </div>
 
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown">
-                                    Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
-                                            Export as PDF
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
-                                            Export as Excel
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Export as CSV
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
+
                         </div>
                     </div>
 
