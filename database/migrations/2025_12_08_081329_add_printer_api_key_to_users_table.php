@@ -9,14 +9,18 @@ return new class extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('printer_api_key', 500)->nullable()->after('pin');
+            if (!Schema::hasColumn('users', 'printer_api_key')) {
+                $table->string('printer_api_key', 500)->nullable()->after('pin');
+            }
         });
     }
 
     public function down()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('printer_api_key');
+            if (Schema::hasColumn('users', 'printer_api_key')) {
+                $table->dropColumn('printer_api_key');
+            }
         });
     }
 };

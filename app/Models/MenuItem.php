@@ -162,9 +162,16 @@ class MenuItem extends Model
     /**
      * Get the deals that include this menu item
      */
+    // public function deals()
+    // {
+    //     return $this->belongsToMany(Deal::class, 'deal_menu_item')
+    //         ->withTimestamps();
+    // }
+
     public function deals()
     {
         return $this->belongsToMany(Deal::class, 'deal_menu_item')
+            ->withPivot('quantity')
             ->withTimestamps();
     }
 }

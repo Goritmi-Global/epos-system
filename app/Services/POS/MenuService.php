@@ -35,7 +35,7 @@ class MenuService
 
         unset($data['image']);
 
-        // ✅ FIX: Check for variant_metadata instead of variant_ingredients
+        // Check for variant_metadata instead of variant_ingredients
         $isVariantMenu = ! empty($data['variant_metadata']) && is_array($data['variant_metadata']);
 
         $resaleData = [

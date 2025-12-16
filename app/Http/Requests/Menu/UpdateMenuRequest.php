@@ -5,7 +5,6 @@ namespace App\Http\Requests\Menu;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-
 class UpdateMenuRequest extends FormRequest
 {
     public function authorize(): bool
@@ -20,11 +19,11 @@ class UpdateMenuRequest extends FormRequest
 
         return [
             'name' => [
-            'required',
-            'string',
-            'max:255',
-            Rule::unique('menu_items', 'name')->ignore($this->route('menu')),
-        ],
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('menu_items', 'name')->ignore($this->route('menu')->id),
+            ],
 
             // Price is required only for simple menus
             'price' => $isVariantMenu ? 'nullable|numeric|min:0' : 'required|numeric|min:0',
