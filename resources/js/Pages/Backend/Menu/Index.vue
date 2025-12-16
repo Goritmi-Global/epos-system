@@ -505,9 +505,9 @@ let searchTimeout = null;
 watch(q, () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        currentPage.value = 1; 
+        currentPage.value = 1;
         fetchMenus(1);
-    }, 500); 
+    }, 500);
 });
 watch(
     () => appliedFilters.value,
@@ -550,7 +550,7 @@ const handleFilterClear = () => {
     filters.value = { ...defaultMenuFilters };
     appliedFilters.value = { ...defaultMenuFilters };
     currentPage.value = 1;
-    fetchMenus(1); 
+    fetchMenus(1);
 };
 
 /* ===================== KPIs ===================== */
@@ -939,6 +939,7 @@ const submitEditDeal = async () => {
 // ==================== TOGGLE DEAL STATUS ====================
 const toggleDealStatus = async (deal) => {
     try {
+        console.log('Toggling status for deal:', deal);
         const newStatus = deal.status === 1 ? 0 : 1;
         await axios.patch(`/deals/${deal.id}/status`, { status: newStatus });
 
