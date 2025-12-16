@@ -12,7 +12,6 @@ use App\Models\Supplier;
 use App\Models\Tag;
 use App\Models\Unit;
 use App\Services\POS\InventoryService;
-use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +23,7 @@ class InventoryController extends Controller
 
     public function index(Request $request)
     {
+
         $inventories = $this->service->list($request->only('q'));
 
         return Inertia::render('Backend/Inventory/Index', [
@@ -39,19 +39,44 @@ class InventoryController extends Controller
             'suppliers' => Supplier::select('id', 'name')->orderBy('name')->get(),
 
             // if you have parent/child categories, keep parent_id; otherwise just id/name
-            'categories' => InventoryCategory::select('id', 'name', 'parent_id')->where('active',1)->orderBy('name')->get(),
+            'categories' => InventoryCategory::select('id', 'name', 'parent_id')->where('active', 1)->orderBy('name')->get(),
         ]);
     }
 
     public function apiList(Request $request)
-    {
-        $inventories = $this->service->list($request->only(['q', 'per_page']));
-        return response()->json($inventories);
+{
+    // Check if we need all items (for dropdowns/modals)
+    if ($request->boolean('all')) {
+        $inventories = $this->service->listAll($request->only([
+            'q',
+            'category',
+            'supplier',
+        ]));
+        
+        return response()->json([
+            'data' => $inventories
+        ]);
     }
     
+    // Regular paginated response
+    $inventories = $this->service->list($request->only([
+        'q',
+        'per_page',
+        'category',
+        'supplier',
+        'stockStatus',
+        'priceMin',
+        'priceMax',
+        'sortBy',
+    ]));
+
+    return response()->json($inventories);
+}
+
     public function kpiStats()
     {
         $stats = $this->service->getKpiStats();
+
         return response()->json($stats);
     }
 
@@ -146,7 +171,7 @@ class InventoryController extends Controller
                 'sale_price' => $row['sale_price'] ?? null,
                 'stock' => $row['available_stock'] ?? 0,
                 'active' => $row['active'] ?? 1,
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
 
             ]);
 

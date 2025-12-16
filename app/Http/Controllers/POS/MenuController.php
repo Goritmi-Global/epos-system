@@ -39,6 +39,13 @@ class MenuController extends Controller
             ->where('status', 'active')
             ->get();
 
+        $menuItems = MenuItem::select('id', 'name', 'price')
+            ->where('status', 1)
+            ->whereDoesntHave('variantPrices')
+            ->whereDoesntHave('variantIngredients')
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Backend/Menu/Index', [
             'categories' => $categories,
             'allergies' => $allergies,
@@ -46,6 +53,7 @@ class MenuController extends Controller
             'meals' => $meals,
             'variantGroups' => $variantGroups,
             'addonGroups' => $addonGroups,
+            'menuItems' => $menuItems,
         ]);
     }
 
@@ -56,7 +64,6 @@ class MenuController extends Controller
 
     public function store(StoreMenuRequest $request)
     {
-
         try {
             $menu = $this->service->create($request->validated(), $request);
 
@@ -88,210 +95,214 @@ class MenuController extends Controller
             ], 500);
         }
     }
-public function apiIndex(Request $request)
-{
-    $perPage = $request->get('per_page', 10); 
 
-    // Start building the query
-    $query = MenuItem::with([
-        'category',
-        'ingredients',
-        'variants.ingredients',
-        'allergies',
-        'tags',
-        'nutrition',
-        'addonGroupRelations.addonGroup',
-        'meals',
-    ]);
+    public function apiIndex(Request $request)
+    {
+        $perPage = $request->get('per_page', 10);
 
-    // ✅ Search functionality
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->where(function ($q) use ($search) {
-            $q->where('name', 'LIKE', "%{$search}%")
-                ->orWhere('description', 'LIKE', "%{$search}%")
-                ->orWhereHas('category', function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%");
-                })
-                ->orWhereHas('tags', function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%");
-                });
-        });
-    }
+        // Start building the query
+        $query = MenuItem::with([
+            'category',
+            'ingredients',
+            'variants.ingredients',
+            'allergies',
+            'tags',
+            'nutrition',
+            'addonGroupRelations.addonGroup',
+            'meals',
+        ]);
 
-    // ✅ Category filter
-    if ($request->filled('category')) {
-        $query->where('category_id', $request->category);
-    }
-
-    // ✅ Status filter
-    if ($request->has('status') && $request->status !== null && $request->status !== '') {
-        $query->where('status', $request->status);
-    }
-
-    // ✅ Price range filters
-    if ($request->filled('price_min')) {
-        $query->where('price', '>=', $request->price_min);
-    }
-    if ($request->filled('price_max')) {
-        $query->where('price', '<=', $request->price_max);
-    }
-
-    // ✅ Date range filters
-    if ($request->filled('date_from')) {
-        $query->whereDate('created_at', '>=', $request->date_from);
-    }
-    if ($request->filled('date_to')) {
-        $query->whereDate('created_at', '<=', $request->date_to);
-    }
-
-    // ✅ Sorting
-    if ($request->filled('sort_by')) {
-        switch ($request->sort_by) {
-            case 'price_desc':
-                $query->orderBy('price', 'desc');
-                break;
-            case 'price_asc':
-                $query->orderBy('price', 'asc');
-                break;
-            case 'name_asc':
-                $query->orderBy('name', 'asc');
-                break;
-            case 'name_desc':
-                $query->orderBy('name', 'desc');
-                break;
-            default:
-                $query->latest();
+        // ✅ Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('description', 'LIKE', "%{$search}%")
+                    ->orWhereHas('category', function ($q) use ($search) {
+                        $q->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->orWhereHas('tags', function ($q) use ($search) {
+                        $q->where('name', 'LIKE', "%{$search}%");
+                    });
+            });
         }
-    } else {
-        $query->latest();
-    }
 
-    // ✅ NEW: Check if this is an export request (return all records without pagination)
-    if ($request->has('export') && $request->export === 'all') {
-        $allItems = $query->get()->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'price' => $item->price,
-                'description' => $item->description,
-                'is_taxable' => $item->is_taxable,
-                'label_color' => $item->label_color,
-                'status' => $item->status,
-                'category' => $item->category,
-                'meals' => $item->meals,
-                'ingredients' => $item->ingredients,
-                'nutrition' => $item->nutrition,
-                'allergies' => $item->allergies,
-                'tags' => $item->tags,
-                'image_url' => UploadHelper::url($item->upload_id),
-                'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
-                'is_saleable' => $item->is_saleable,
-                'resale_type' => $item->resale_type,
-                'resale_value' => $item->resale_value,
-                'resale_price' => $item->resale_price,
-                'created_at' => $item->created_at,
-                'variants' => $item->variants->map(function ($variant) {
-                    return [
-                        'id' => $variant->id,
-                        'name' => $variant->name,
-                        'price' => $variant->price,
-                        'is_saleable' => $variant->is_saleable,
-                        'resale_type' => $variant->resale_type,
-                        'resale_value' => $variant->resale_value,
-                        'resale_price' => $variant->resale_price,
-                        'display_name' => $variant->display_name,
-                        'ingredients' => $variant->ingredients->map(function ($ing) {
-                            return [
-                                'inventory_item_id' => $ing->inventory_item_id,
-                                'product_name' => $ing->product_name,
-                                'quantity' => $ing->quantity,
-                                'cost' => $ing->cost,
-                            ];
-                        }),
-                    ];
-                }),
-            ];
-        });
+        // ✅ Category filter
+        if ($request->filled('category')) {
+            $query->where('category_id', $request->category);
+        }
+
+        // ✅ Status filter
+        if ($request->has('status') && $request->status !== null && $request->status !== '') {
+            $query->where('status', $request->status);
+        }
+
+        // ✅ Price range filters
+        if ($request->filled('price_min')) {
+            $query->where('price', '>=', $request->price_min);
+        }
+        if ($request->filled('price_max')) {
+            $query->where('price', '<=', $request->price_max);
+        }
+
+        // ✅ Date range filters
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // ✅ Sorting
+        if ($request->filled('sort_by')) {
+            switch ($request->sort_by) {
+                case 'price_desc':
+                    $query->orderBy('price', 'desc');
+                    break;
+                case 'price_asc':
+                    $query->orderBy('price', 'asc');
+                    break;
+                case 'name_asc':
+                    $query->orderBy('name', 'asc');
+                    break;
+                case 'name_desc':
+                    $query->orderBy('name', 'desc');
+                    break;
+                default:
+                    $query->latest();
+            }
+        } else {
+            $query->latest();
+        }
+
+        // ✅ NEW: Check if this is an export request (return all records without pagination)
+        if ($request->has('export') && $request->export === 'all') {
+            $allItems = $query->get()->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'price' => $item->price,
+                    'description' => $item->description,
+                    'is_taxable' => $item->is_taxable,
+                    'label_color' => $item->label_color,
+                    'status' => $item->status,
+                    'category' => $item->category,
+                    'meals' => $item->meals,
+                    'ingredients' => $item->ingredients,
+                    'nutrition' => $item->nutrition,
+                    'allergies' => $item->allergies,
+                    'tags' => $item->tags,
+                    'image_url' => UploadHelper::url($item->upload_id),
+                    'addon_group_ids' => $item->addonGroupRelations->pluck('addon_group_id')->toArray(),
+                    'addon_group_relations' => $item->addonGroupRelations,
+                    'is_saleable' => $item->is_saleable,
+                    'resale_type' => $item->resale_type,
+                    'resale_value' => $item->resale_value,
+                    'resale_price' => $item->resale_price,
+                    'created_at' => $item->created_at,
+                    'variants' => $item->variants->map(function ($variant) {
+                        return [
+                            'id' => $variant->id,
+                            'name' => $variant->name,
+                            'price' => $variant->price,
+                            'is_saleable' => $variant->is_saleable,
+                            'resale_type' => $variant->resale_type,
+                            'resale_value' => $variant->resale_value,
+                            'resale_price' => $variant->resale_price,
+                            'display_name' => $variant->display_name,
+                            'ingredients' => $variant->ingredients->map(function ($ing) {
+                                return [
+                                    'inventory_item_id' => $ing->inventory_item_id,
+                                    'product_name' => $ing->product_name,
+                                    'quantity' => $ing->quantity,
+                                    'cost' => $ing->cost,
+                                ];
+                            }),
+                        ];
+                    }),
+                ];
+            });
+
+            return response()->json([
+                'message' => 'All menu items fetched for export',
+                'data' => $allItems,
+                'total' => $allItems->count(),
+            ]);
+        }
+
+        // Normal paginated request
+        $menus = $query->paginate($perPage)
+            ->through(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'price' => $item->price,
+                    'description' => $item->description,
+                    'is_taxable' => $item->is_taxable,
+                    'label_color' => $item->label_color,
+                    'status' => $item->status,
+                    'category' => $item->category,
+                    'meals' => $item->meals,
+                    'ingredients' => $item->ingredients,
+                    'nutrition' => $item->nutrition,
+                    'allergies' => $item->allergies,
+                    'tags' => $item->tags,
+                    'image_url' => UploadHelper::url($item->upload_id),
+                    'addon_group_ids' => $item->addonGroupRelations->pluck('addon_group_id')->toArray(),
+                    'addon_group_relations' => $item->addonGroupRelations,
+                    'is_saleable' => $item->is_saleable,
+                    'resale_type' => $item->resale_type,
+                    'resale_value' => $item->resale_value,
+                    'resale_price' => $item->resale_price,
+                    'created_at' => $item->created_at,
+                    'variants' => $item->variants->map(function ($variant) {
+                        return [
+                            'id' => $variant->id,
+                            'name' => $variant->name,
+                            'price' => $variant->price,
+                            'is_saleable' => $variant->is_saleable,
+                            'resale_type' => $variant->resale_type,
+                            'resale_value' => $variant->resale_value,
+                            'resale_price' => $variant->resale_price,
+                            'display_name' => $variant->display_name,
+                            'ingredients' => $variant->ingredients->map(function ($ing) {
+                                return [
+                                    'inventory_item_id' => $ing->inventory_item_id,
+                                    'product_name' => $ing->product_name,
+                                    'quantity' => $ing->quantity,
+                                    'cost' => $ing->cost,
+                                ];
+                            }),
+                        ];
+                    }),
+                ];
+            });
+
+        // ✅ Get counts (these remain the same for KPIs)
+        $totalCount = MenuItem::count();
+        $activeCount = MenuItem::where('status', 1)->count();
+        $inactiveCount = MenuItem::where('status', 0)->count();
 
         return response()->json([
-            'message' => 'All menu items fetched for export',
-            'data' => $allItems,
-            'total' => $allItems->count(),
+            'message' => 'Menu items fetched successfully',
+            'data' => $menus->items(),
+            'pagination' => [
+                'current_page' => $menus->currentPage(),
+                'last_page' => $menus->lastPage(),
+                'per_page' => $menus->perPage(),
+                'total' => $menus->total(),
+                'from' => $menus->firstItem(),
+                'to' => $menus->lastItem(),
+                'links' => $menus->linkCollection()->toArray(),
+            ],
+            'counts' => [
+                'total' => $totalCount,
+                'active' => $activeCount,
+                'inactive' => $inactiveCount,
+            ],
         ]);
     }
 
-    // Normal paginated request
-    $menus = $query->paginate($perPage)
-        ->through(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'price' => $item->price,
-                'description' => $item->description,
-                'is_taxable' => $item->is_taxable,
-                'label_color' => $item->label_color,
-                'status' => $item->status,
-                'category' => $item->category,
-                'meals' => $item->meals,
-                'ingredients' => $item->ingredients,
-                'nutrition' => $item->nutrition,
-                'allergies' => $item->allergies,
-                'tags' => $item->tags,
-                'image_url' => UploadHelper::url($item->upload_id),
-                'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
-                'is_saleable' => $item->is_saleable,
-                'resale_type' => $item->resale_type,
-                'resale_value' => $item->resale_value,
-                'resale_price' => $item->resale_price,
-                'created_at' => $item->created_at,
-                'variants' => $item->variants->map(function ($variant) {
-                    return [
-                        'id' => $variant->id,
-                        'name' => $variant->name,
-                        'price' => $variant->price,
-                        'is_saleable' => $variant->is_saleable,
-                        'resale_type' => $variant->resale_type,
-                        'resale_value' => $variant->resale_value,
-                        'resale_price' => $variant->resale_price,
-                        'display_name' => $variant->display_name,
-                        'ingredients' => $variant->ingredients->map(function ($ing) {
-                            return [
-                                'inventory_item_id' => $ing->inventory_item_id,
-                                'product_name' => $ing->product_name,
-                                'quantity' => $ing->quantity,
-                                'cost' => $ing->cost,
-                            ];
-                        }),
-                    ];
-                }),
-            ];
-        });
-
-    // ✅ Get counts (these remain the same for KPIs)
-    $totalCount = MenuItem::count();
-    $activeCount = MenuItem::where('status', 1)->count();
-    $inactiveCount = MenuItem::where('status', 0)->count();
-
-    return response()->json([
-        'message' => 'Menu items fetched successfully',
-        'data' => $menus->items(),
-        'pagination' => [
-            'current_page' => $menus->currentPage(),
-            'last_page' => $menus->lastPage(),
-            'per_page' => $menus->perPage(),
-            'total' => $menus->total(),
-            'from' => $menus->firstItem(),
-            'to' => $menus->lastItem(),
-            'links' => $menus->linkCollection()->toArray(),
-        ],
-        'counts' => [
-            'total' => $totalCount,
-            'active' => $activeCount,
-            'inactive' => $inactiveCount,
-        ],
-    ]);
-}
     private function calculateResalePrice($item)
     {
         if (! $item->is_saleable || ! $item->resale_type || ! $item->resale_value) {
@@ -471,7 +482,7 @@ public function apiIndex(Request $request)
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
     }
 }

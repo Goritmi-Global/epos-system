@@ -1,7 +1,7 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
-import { ref, computed, onMounted, onUpdated } from "vue";
+import { ref, computed, onMounted, watch, onUpdated } from "vue";
 import Select from "primevue/select";
 import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
@@ -10,6 +10,8 @@ import { toast } from "vue3-toastify";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import Pagination from "@/Components/Pagination.vue";
+import Dropdown from 'primevue/dropdown'
 
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
@@ -17,17 +19,107 @@ const orders = ref([]);
 
 const loading = ref(false);
 
-const fetchOrdersWithPayment = async () => {
-    loading.value =  true;
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
+});
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null 
+    }
+}
+
+const fetchOrdersWithPayment = async (page = null) => {
+    loading.value = true;
     try {
-        const response = await axios.get("/api/orders/all");
-        orders.value = response.data.data;
+        const params = {
+            q: q.value,
+            page: page || pagination.value.current_page,
+            per_page: pagination.value.per_page,
+            sort_by: appliedFilters.value.sortBy || '',
+            payment_type: appliedFilters.value.paymentType || '',
+            date_from: appliedFilters.value.dateFrom || '',
+            date_to: appliedFilters.value.dateTo || '',
+            price_min: appliedFilters.value.priceMin || '',
+            price_max: appliedFilters.value.priceMax || '',
+        };
+
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
+            }
+        });
+
+        const response = await axios.get("/api/payments/all", { params });
+        
+        // ✅ Map payment data to order structure
+        orders.value = response.data.data.map(payment => {
+            const order = payment.order || {};
+            return {
+                id: order.id,
+                customer_name: order.customer_name,
+                promo: order.promo,
+                service_charges: order.service_charges,
+                delivery_charges: order.delivery_charges,
+                tax: order.tax,
+                sub_total: order.sub_total,
+                sales_discount: order.sales_discount,
+                approved_discounts: order.approved_discounts,
+                total_amount: order.total_amount,
+                status: order.status,
+                type: order.type,
+                // Payment specific fields
+                payment_type: payment.payment_type,
+                amount_received: payment.amount_received,
+                payment_date: payment.payment_date,
+                user: payment.user
+            };
+        });
+
+        // ✅ Update pagination
+        pagination.value = {
+            current_page: response.data.current_page,
+            last_page: response.data.last_page,
+            per_page: response.data.per_page,
+            total: response.data.total,
+            from: response.data.from,
+            to: response.data.to,
+            links: response.data.links
+        };
+
     } catch (error) {
-        console.error("Error fetching orders:", error);
-    }finally{
+        console.error("Error fetching payments:", error);
+        orders.value = [];
+        toast.error("Failed to load payments");
+    } finally {
         loading.value = false;
     }
 };
+
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+    if (page) {
+        fetchOrdersWithPayment(parseInt(page));
+    }
+};
+
 onMounted(async () => {
     q.value = "";
     searchKey.value = Date.now();
@@ -87,118 +179,38 @@ const payments = computed(() =>
             orderId: o.id,
             customer: o.customer_name,
             user: o.user?.name || "—",
-            type: o.payment?.payment_type || "—",
+            type: o.payment_type || "—",  // ✅ This should now come from payment
             serviceCharges: Number(o.service_charges || 0),
             deliveryCharges: Number(o.delivery_charges || 0),
             tax: Number(o.tax || 0),
-            amountReceived: Number(o.sub_total || 0),
+            amountReceived: Number(o.amount_received || 0),  // ✅ From payment
             promoDiscount: promo ? Number(promo.discount_amount || 0) : 0,
             salesDiscount: Number(o.sales_discount || 0),
             approvedDiscount: Number(o.approved_discounts || 0),
             grandTotal: Number(o.total_amount || 0),
             promoName: promo ? promo.promo_name : "—",
-            paidAt: o.payment?.payment_date || null,
+            paidAt: o.payment_date || null,  // ✅ From payment
             status: o.status,
         };
     })
 );
 
-const filtered = computed(() => {
-    const term = q.value.trim().toLowerCase();
-    let result = [...payments.value];
-
-    // Text search
-    if (term) {
-        result = result.filter((p) =>
-            [
-                String(p.orderId),
-                p.customer || "",
-                p.user || "",
-                p.type || "",
-                String(p.grandTotal),
-                formatDateTime(p.paidAt),
-            ]
-                .join(" ")
-                .toLowerCase()
-                .includes(term)
-        );
-    }
-
-    // Filter by payment type
-    if (filters.value.paymentType) {
-        result = result.filter(
-            (p) =>
-                (p.type ?? "").toLowerCase() ===
-                filters.value.paymentType.toLowerCase()
-        );
-    }
-
-    // Filter by price range (grand total)
-    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
-        result = result.filter((p) => {
-            const amount = Number(p.grandTotal) || 0;
-            return amount >= Number(filters.value.priceMin);
-        });
-    }
-    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
-        result = result.filter((p) => {
-            const amount = Number(p.grandTotal) || 0;
-            return amount <= Number(filters.value.priceMax);
-        });
-    }
-
-    // Date range filter
-    if (filters.value.dateFrom) {
-        result = result.filter((p) => {
-            if (!p.paidAt) return false;
-            const paymentDate = new Date(p.paidAt);
-            const filterDate = new Date(filters.value.dateFrom);
-            filterDate.setHours(0, 0, 0, 0);
-            return paymentDate >= filterDate;
-        });
-    }
-
-    if (filters.value.dateTo) {
-        result = result.filter((p) => {
-            if (!p.paidAt) return false;
-            const paymentDate = new Date(p.paidAt);
-            const filterDate = new Date(filters.value.dateTo);
-            filterDate.setHours(23, 59, 59, 999);
-            return paymentDate <= filterDate;
-        });
-    }
-
-    // Apply sorting
-    if (filters.value.sortBy) {
-        result = [...result]; // Create new array for sorting
-        switch (filters.value.sortBy) {
-            case "date_desc":
-                result.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
-                break;
-            case "date_asc":
-                result.sort((a, b) => new Date(a.paidAt) - new Date(b.paidAt));
-                break;
-            case "amount_desc":
-                result.sort((a, b) => Number(b.grandTotal) - Number(a.grandTotal));
-                break;
-            case "amount_asc":
-                result.sort((a, b) => Number(a.grandTotal) - Number(b.grandTotal));
-                break;
-            case "order_asc":
-                result.sort((a, b) => Number(a.orderId) - Number(b.orderId));
-                break;
-            case "order_desc":
-                result.sort((a, b) => Number(b.orderId) - Number(a.orderId));
-                break;
-        }
-    }
-
-    return result;
+const sortedPayments = computed(() => {
+    return payments.value;
 });
 
-const handleFilterApply = (appliedFilters) => {
-    filters.value = { ...filters.value, ...appliedFilters };
+const handleFilterApply = (appliedFiltersData) => {
+    filters.value = { ...filters.value, ...appliedFiltersData };
     appliedFilters.value = { ...filters.value };
+    pagination.value.current_page = 1;
+    fetchOrdersWithPayment(1);
+
+    const modal = bootstrap.Modal.getInstance(
+        document.getElementById("paymentFilterModal")
+    );
+    modal?.hide();
+
+    console.log("Filters applied:", filters.value);
 };
 
 const handleFilterClear = () => {
@@ -218,6 +230,11 @@ const handleFilterClear = () => {
         priceMin: null,
         priceMax: null,
     };
+    pagination.value.current_page = 1;
+    pagination.value.per_page = 10;
+    fetchOrdersWithPayment(1);
+
+    console.log("Filters cleared");
 };
 
 const filterOptions = computed(() => ({
@@ -271,14 +288,22 @@ function formatDateTime(d) {
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
 
+let searchTimeout = null;
+
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1;
+        fetchOrdersWithPayment(1);
+    }, 500);
+});
+
 const onDownload = (type) => {
     if (!orders.value || orders.value.length === 0) {
         toast.error("No payment data to download");
         return;
     }
-
-    // Filter only orders with payment information
-    const paymentsData = orders.value.filter(o => o.payment);
+    const paymentsData = orders.value;
 
     if (paymentsData.length === 0) {
         toast.error("No payments found to download");
@@ -301,39 +326,38 @@ const onDownload = (type) => {
     }
 };
 
-// CSV Download for Payments
+
 const downloadPaymentsCSV = (data) => {
     try {
         const headers = [
             "Order ID",
             "Date",
             "Customer",
-            "Order Type",
             "Payment Type",
             "Amount Received",
-            "Cash Amount",
-            "Card Amount",
-            "Card Brand",
-            "Last 4 Digits",
-            "Currency",
-            "Order Total",
+            "Promo Discount",
+            "Sales Discount",
+            "Approved Discount",
+            "Tax",
+            "Service Charges",
+            "Delivery Charges",
+            "Grand Total",
             "Status"
         ];
 
         const rows = data.map((order) => {
-            const payment = order.payment || {};
             return [
                 `"${order.id || ""}"`,
-                `"${dateFmt(order.created_at)}"`,
+                `"${dateFmt(order.payment_date)}"`,
                 `"${order.customer_name || "Walk In"}"`,
-                `"${order.type?.order_type || "-"}"`,
-                `"${payment.payment_type || "-"}"`,
-                `"${Number(payment.amount_received || 0).toFixed(2)}"`,
-                `"${Number(payment.cash_amount || 0).toFixed(2)}"`,
-                `"${Number(payment.card_amount || 0).toFixed(2)}"`,
-                `"${payment.brand || "-"}"`,
-                `"${payment.last_digits || "-"}"`,
-                `"${payment.currency_code || "GBP"}"`,
+                `"${order.payment_type || "-"}"`,
+                `"${Number(order.amount_received || 0).toFixed(2)}"`,
+                `"${Number(order.promo?.[0]?.discount_amount || 0).toFixed(2)}"`,
+                `"${Number(order.sales_discount || 0).toFixed(2)}"`,
+                `"${Number(order.approved_discounts || 0).toFixed(2)}"`,
+                `"${Number(order.tax || 0).toFixed(2)}"`,
+                `"${Number(order.service_charges || 0).toFixed(2)}"`,
+                `"${Number(order.delivery_charges || 0).toFixed(2)}"`,
                 `"${Number(order.total_amount || 0).toFixed(2)}"`,
                 `"${order.status || ""}"`
             ];
@@ -366,7 +390,6 @@ const downloadPaymentsCSV = (data) => {
     }
 };
 
-// PDF Download for Payments
 const downloadPaymentsPDF = (data) => {
     try {
         const doc = new jsPDF("l", "mm", "a4");
@@ -380,40 +403,36 @@ const downloadPaymentsPDF = (data) => {
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Payments: ${data.length}`, 14, 34);
-
-        // Calculate totals
         const totalAmount = data.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
-        const totalCash = data.reduce((sum, o) => sum + Number(o.payment?.cash_amount || 0), 0);
-        const totalCard = data.reduce((sum, o) => sum + Number(o.payment?.card_amount || 0), 0);
+        const totalReceived = data.reduce((sum, o) => sum + Number(o.amount_received || 0), 0);
 
         doc.text(`Total Revenue: £${totalAmount.toFixed(2)}`, 14, 40);
-        doc.text(`Cash: £${totalCash.toFixed(2)} | Card: £${totalCard.toFixed(2)}`, 14, 46);
+        doc.text(`Total Received: £${totalReceived.toFixed(2)}`, 14, 46);
 
         const tableColumns = [
             "Order ID",
             "Date",
             "Customer",
-            "Order Type",
             "Payment Type",
-            "Amount",
-            "Cash",
-            "Card",
-            "Brand",
+            "Amount Received",
+            "Promo Disc.",
+            "Sales Disc.",
+            "Tax",
+            "Grand Total",
             "Status"
         ];
 
         const tableRows = data.map((order) => {
-            const payment = order.payment || {};
             return [
                 order.id || "",
-                dateFmt(order.created_at),
+                dateFmt(order.payment_date),
                 order.customer_name || "Walk In",
-                order.type?.order_type || "-",
-                payment.payment_type || "-",
-                `£${Number(payment.amount_received || 0).toFixed(2)}`,
-                `£${Number(payment.cash_amount || 0).toFixed(2)}`,
-                `£${Number(payment.card_amount || 0).toFixed(2)}`,
-                payment.brand || "-",
+                order.payment_type || "-",
+                `£${Number(order.amount_received || 0).toFixed(2)}`,
+                `£${Number(order.promo?.[0]?.discount_amount || 0).toFixed(2)}`,
+                `£${Number(order.sales_discount || 0).toFixed(2)}`,
+                `£${Number(order.tax || 0).toFixed(2)}`,
+                `£${Number(order.total_amount || 0).toFixed(2)}`,
                 order.status || ""
             ];
         });
@@ -457,8 +476,6 @@ const downloadPaymentsPDF = (data) => {
         toast.error(`PDF generation failed: ${error.message}`);
     }
 };
-
-// Excel Download for Payments
 const downloadPaymentsExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") {
@@ -466,26 +483,23 @@ const downloadPaymentsExcel = (data) => {
         }
 
         const worksheetData = data.map((order) => {
-            const payment = order.payment || {};
             return {
                 "Order ID": order.id || "",
-                "Date": dateFmt(order.created_at),
-                "Time": (order.created_at),
+                "Date": dateFmt(order.payment_date),
                 "Customer": order.customer_name || "Walk In",
-                "Order Type": order.type?.order_type || "-",
-                "Table Number": order.type?.table_number || "-",
-                "Payment Type": payment.payment_type || "-",
-                "Amount Received": Number(payment.amount_received || 0).toFixed(2),
-                "Cash Amount": Number(payment.cash_amount || 0).toFixed(2),
-                "Card Amount": Number(payment.card_amount || 0).toFixed(2),
-                "Card Brand": payment.brand || "-",
-                "Last 4 Digits": payment.last_digits || "-",
-                "Exp Month": payment.exp_month || "-",
-                "Exp Year": payment.exp_year || "-",
-                "Currency": payment.currency_code || "GBP",
-                "Order Total": Number(order.total_amount || 0).toFixed(2),
+                "Order Type": order.type || "-",
+                "Payment Type": order.payment_type || "-",
+                "Amount Received": Number(order.amount_received || 0).toFixed(2),
+                "Promo Name": order.promo?.[0]?.promo_name || "-",
+                "Promo Discount": Number(order.promo?.[0]?.discount_amount || 0).toFixed(2),
+                "Sales Discount": Number(order.sales_discount || 0).toFixed(2),
+                "Approved Discount": Number(order.approved_discounts || 0).toFixed(2),
+                "Tax": Number(order.tax || 0).toFixed(2),
+                "Service Charges": Number(order.service_charges || 0).toFixed(2),
+                "Delivery Charges": Number(order.delivery_charges || 0).toFixed(2),
+                "Grand Total": Number(order.total_amount || 0).toFixed(2),
                 "Status": order.status || "",
-                "Refund Status": payment.refund_status || "None"
+                "User": order.user?.name || "—"
             };
         });
 
@@ -493,45 +507,38 @@ const downloadPaymentsExcel = (data) => {
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
         worksheet["!cols"] = [
-            { wch: 10 },  // Order ID
-            { wch: 12 },  // Date
-            { wch: 15 },  // Time
-            { wch: 20 },  // Customer
-            { wch: 12 },  // Order Type
-            { wch: 12 },  // Table Number
-            { wch: 12 },  // Payment Type
-            { wch: 15 },  // Amount Received
-            { wch: 12 },  // Cash Amount
-            { wch: 12 },  // Card Amount
-            { wch: 12 },  // Card Brand
-            { wch: 12 },  // Last 4 Digits
-            { wch: 10 },  // Exp Month
-            { wch: 10 },  // Exp Year
-            { wch: 10 },  // Currency
-            { wch: 12 },  // Order Total
-            { wch: 10 },  // Status
-            { wch: 15 }   // Refund Status
+            { wch: 10 },  
+            { wch: 12 },  
+            { wch: 20 }, 
+            { wch: 12 }, 
+            { wch: 12 }, 
+            { wch: 15 },  
+            { wch: 20 },  
+            { wch: 15 },  
+            { wch: 15 },  
+            { wch: 15 },  
+            { wch: 10 },  
+            { wch: 15 }, 
+            { wch: 15 },  
+            { wch: 12 },  
+            { wch: 10 },  
+            { wch: 15 }  
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Payments");
 
-        // Add summary sheet
         const totalRevenue = data.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
-        const totalCash = data.reduce((sum, o) => sum + Number(o.payment?.cash_amount || 0), 0);
-        const totalCard = data.reduce((sum, o) => sum + Number(o.payment?.card_amount || 0), 0);
-        const cashPayments = data.filter(o => o.payment?.payment_type?.toLowerCase() === 'cash').length;
-        const cardPayments = data.filter(o => o.payment?.payment_type?.toLowerCase() === 'card').length;
-        const splitPayments = data.filter(o => o.payment?.payment_type?.toLowerCase() === 'split').length;
+        const totalReceived = data.reduce((sum, o) => sum + Number(o.amount_received || 0), 0);
+        const totalPromoDiscount = data.reduce((sum, o) => sum + Number(o.promo?.[0]?.discount_amount || 0), 0);
+        const totalSalesDiscount = data.reduce((sum, o) => sum + Number(o.sales_discount || 0), 0);
 
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Payments", Value: data.length },
             { Info: "Total Revenue", Value: `£${totalRevenue.toFixed(2)}` },
-            { Info: "Total Cash", Value: `£${totalCash.toFixed(2)}` },
-            { Info: "Total Card", Value: `£${totalCard.toFixed(2)}` },
-            { Info: "Cash Payments Count", Value: cashPayments },
-            { Info: "Card Payments Count", Value: cardPayments },
-            { Info: "Split Payments Count", Value: splitPayments },
+            { Info: "Total Amount Received", Value: `£${totalReceived.toFixed(2)}` },
+            { Info: "Total Promo Discounts", Value: `£${totalPromoDiscount.toFixed(2)}` },
+            { Info: "Total Sales Discounts", Value: `£${totalSalesDiscount.toFixed(2)}` },
             { Info: "Exported By", Value: "Payment Management System" }
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
@@ -652,35 +659,22 @@ const downloadPaymentsExcel = (data) => {
                                 </template>
                             </FilterModal>
                             <!-- Download all -->
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown">
-                                    Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
-                                            Export as PDF
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
-                                            Export as Excel
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Export as CSV
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
+                          <Dropdown
+                            v-model="exportOption"
+                            :options="exportOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Export"
+                            class="export-dropdown"
+                            @change="onExportChange"
+                        />
+
                         </div>
                     </div>
 
                     <!-- Table -->
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle" >
+                        <table class="table table-hover align-middle">
                             <thead class="border-top small text-muted">
                                 <tr>
                                     <th>S. #</th>
@@ -701,7 +695,7 @@ const downloadPaymentsExcel = (data) => {
 
                             <tbody>
 
-                                 <tr v-if="loading">
+                                <tr v-if="loading">
                                     <td colspan="11" class="text-center py-5">
                                         <div class="d-flex flex-column align-items-center justify-content-center">
                                             <div class="spinner-border mb-3" role="status"
@@ -711,40 +705,49 @@ const downloadPaymentsExcel = (data) => {
                                             <div class="fw-semibold text-muted">Loading Payments...</div>
                                         </div>
                                     </td>
-                                </tr> 
+                                </tr>
 
                                 <template v-else>
- <tr v-for="(p, idx) in filtered" :key="p.orderId">
-                                    <td>{{ idx + 1 }}</td>
-                                    <td>{{ p.orderId }}</td>
-                                    <td>{{ formatCurrencySymbol(p.amountReceived) }}</td>
-                                    <td>{{ p.promoName }}</td>
-                                    <td class="text-success">
-                                        {{ p.promoDiscount ? formatCurrencySymbol(p.promoDiscount) : '—' }}
-                                    </td>
-                                    <td class="text-success">
-                                        {{ p.salesDiscount ? formatCurrencySymbol(p.salesDiscount) : '—' }}
-                                    </td>
-                                    <td class="text-success">
-                                        {{ p.approvedDiscount ? formatCurrencySymbol(p.approvedDiscount) : '—' }}
-                                    </td>
-                                    <td>{{ formatCurrencySymbol(p.tax) }}</td>
-                                    <td>{{ formatCurrencySymbol(p.serviceCharges) }}</td>
-                                    <td>{{ formatCurrencySymbol(p.deliveryCharges) }}</td>
-                                    <td>{{ formatCurrencySymbol(p.grandTotal) }}</td>
+                                    <tr v-for="(p, idx) in sortedPayments" :key="p.orderId">
+                                        <td>{{ (pagination.current_page - 1) * pagination.per_page + idx + 1 }}</td>
+                                        <td>{{ p.orderId }}</td>
+                                        <td>{{ formatCurrencySymbol(p.amountReceived) }}</td>
+                                        <td>{{ p.promoName }}</td>
+                                        <td class="text-success">
+                                            {{ p.promoDiscount ? formatCurrencySymbol(p.promoDiscount) : '—' }}
+                                        </td>
+                                        <td class="text-success">
+                                            {{ p.salesDiscount ? formatCurrencySymbol(p.salesDiscount) : '—' }}
+                                        </td>
+                                        <td class="text-success">
+                                            {{ p.approvedDiscount ? formatCurrencySymbol(p.approvedDiscount) : '—' }}
+                                        </td>
+                                        <td>{{ formatCurrencySymbol(p.tax) }}</td>
+                                        <td>{{ formatCurrencySymbol(p.serviceCharges) }}</td>
+                                        <td>{{ formatCurrencySymbol(p.deliveryCharges) }}</td>
+                                        <td>{{ formatCurrencySymbol(p.grandTotal) }}</td>
 
-                                    <td>{{ dateFmt(p.paidAt) }}</td>
-                                    <td class="text-capitalize">{{ p.type }}</td>
-                                </tr>
+                                        <td>{{ dateFmt(p.paidAt) }}</td>
+                                        <td class="text-capitalize">{{ p.type }}</td>
+                                    </tr>
 
-                                <tr v-if="!loading && filtered.length === 0">
-                                    <td colspan="13" class="text-center text-muted py-4">
-                                        No payments found.
-                                    </td>
-                                </tr>
-                                </template> 
+                                    <tr v-if="!loading && sortedPayments.length === 0">
+                                        <td colspan="13" class="text-center text-muted py-4">
+                                            No payments found.
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
+                    </div>
+                    <div v-if="!loading && pagination.last_page > 1"
+                        class="mt-4 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} items
+                        </div>
+
+                        <Pagination :pagination="pagination.links" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
                     </div>
                 </div>
             </div>

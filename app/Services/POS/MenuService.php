@@ -35,7 +35,7 @@ class MenuService
 
         unset($data['image']);
 
-        // ✅ FIX: Check for variant_metadata instead of variant_ingredients
+        // Check for variant_metadata instead of variant_ingredients
         $isVariantMenu = ! empty($data['variant_metadata']) && is_array($data['variant_metadata']);
 
         $resaleData = [
@@ -129,11 +129,15 @@ class MenuService
         }
 
         // Addon Group
-        if (! empty($data['addon_group_id'])) {
-            MenuItemAddonGroup::create([
-                'menu_item_id' => $menu->id,
-                'addon_group_id' => $data['addon_group_id'],
-            ]);
+        // REPLACE the Addon Group section:
+        // Addon Groups (Multiple)
+        if (! empty($data['addon_group_ids'])) {
+            foreach ($data['addon_group_ids'] as $groupId) {
+                MenuItemAddonGroup::create([
+                    'menu_item_id' => $menu->id,
+                    'addon_group_id' => $groupId,
+                ]);
+            }
         }
 
         return $menu->load([
@@ -229,7 +233,7 @@ class MenuService
                     $variant->update([
                         'name' => $variantData['name'],
                         'price' => $variantData['price'] ?? 0,
-                         'is_saleable' => isset($variantData['is_saleable']) ? (bool) $variantData['is_saleable'] : false,
+                        'is_saleable' => isset($variantData['is_saleable']) ? (bool) $variantData['is_saleable'] : false,
                         'resale_type' => $variantData['resale_type'] ?? null,
                         'resale_value' => $variantData['resale_value'] ?? null,
                     ]);
@@ -299,11 +303,13 @@ class MenuService
 
         // Update Addon Group
         MenuItemAddonGroup::where('menu_item_id', $menu->id)->delete();
-        if (! empty($data['addon_group_id'])) {
-            MenuItemAddonGroup::create([
-                'menu_item_id' => $menu->id,
-                'addon_group_id' => $data['addon_group_id'],
-            ]);
+        if (! empty($data['addon_group_ids'])) {
+            foreach ($data['addon_group_ids'] as $groupId) {
+                MenuItemAddonGroup::create([
+                    'menu_item_id' => $menu->id,
+                    'addon_group_id' => $groupId,
+                ]);
+            }
         }
 
         return $menu->load([

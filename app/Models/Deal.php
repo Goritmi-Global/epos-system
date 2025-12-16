@@ -16,6 +16,9 @@ class Deal extends Model
         'description',
         'upload_id',
         'status',
+        'is_taxable',
+        'label_color',
+        'category_id'
     ];
 
     protected $casts = [
@@ -26,10 +29,10 @@ class Deal extends Model
     /**
      * Get the menu items for this deal
      */
-    public function menuItems()
-    {
-        return $this->belongsToMany(MenuItem::class, 'deal_menu_item')->withTimestamps();
-    }
+    // public function menuItems()
+    // {
+    //     return $this->belongsToMany(MenuItem::class, 'deal_menu_item')->withTimestamps();
+    // }
 
     /**
      * Get the upload (image) for this deal
@@ -53,5 +56,34 @@ class Deal extends Model
     public function scopeInactive($query)
     {
         return $query->where('status', 0);
+    }
+
+    public function menuItems()
+    {
+        return $this->belongsToMany(MenuItem::class, 'deal_menu_item')->withPivot('quantity')->withTimestamps();
+    }
+
+    public function allergies()
+    {
+        return $this->belongsToMany(Allergy::class, 'deal_allergy')->withPivot('type')->withTimestamps();
+    }
+
+    public function tags()
+    {
+        return $this->belongsToMany(Tag::class, 'deal_tag')->withTimestamps();
+    }
+
+    public function meals()
+    {
+        return $this->belongsToMany(Meal::class, 'deal_meal')->withTimestamps();
+    }
+
+    public function addonGroups()
+    {
+        return $this->belongsToMany(AddonGroup::class, 'deal_addon', 'deal_id', 'addon_group_id')->withTimestamps();
+    }
+    public function category()
+    {
+        return $this->belongsTo(MenuCategory::class, 'category_id');
     }
 }

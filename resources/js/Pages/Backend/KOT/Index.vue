@@ -1,9 +1,9 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import Select from "primevue/select";
-import { Clock, CheckCircle, XCircle, Printer, Loader } from "lucide-vue-next";
+import { Clock, CheckCircle, XCircle, Printer, Loader, Eye } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
@@ -11,24 +11,136 @@ import { toast } from 'vue3-toastify';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import Pagination from "@/Components/Pagination.vue";
+import Dropdown from 'primevue/dropdown'
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 const orders = ref([]);
 const loading = ref(false);
+const selectedOrder = ref(null);
+const showOrderItemsModal = ref(false);
 
-const fetchOrders = async () => {
+// ==========================================
+// ADD THIS SECTION AFTER THE EXISTING REFS (around line 20)
+// ==========================================
+
+// Active tab for status filtering
+const activeStatusTab = ref('All');
+
+// Available status tabs
+const statusTabs = ref([
+    { label: 'All', value: 'All', icon: 'bi-list-ul' },
+    { label: 'Waiting', value: 'Waiting', icon: 'bi-hourglass-split' },
+    { label: 'In Progress', value: 'In Progress', icon: 'bi-gear' },
+    { label: 'Done', value: 'Done', icon: 'bi-check-circle' },
+    { label: 'Cancelled', value: 'Cancelled', icon: 'bi-x-circle' }
+]);
+
+
+const handleStatusTabChange = (status) => {
+    activeStatusTab.value = status;
+
+    if (status === 'All') {
+        appliedFilters.value.status = '';
+    } else {
+        appliedFilters.value.status = status;
+    }
+
+    pagination.value.current_page = 1;
+
+    fetchOrders(1);
+};
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null // reset after click
+    }
+}
+
+const statusTabCounts = computed(() => {
+    const counts = {
+        'All': orders.value.length,
+        'Waiting': 0,
+        'In Progress': 0,
+        'Done': 0,
+        'Cancelled': 0
+    };
+
+    orders.value.forEach(order => {
+        if (order.status && counts.hasOwnProperty(order.status)) {
+            counts[order.status]++;
+        }
+    });
+
+    return counts;
+});
+
+const getStatusTabBadgeClass = (status) => {
+    switch (status) {
+        case 'Waiting':
+            return 'bg-warning text-dark';
+        case 'In Progress':
+            return 'bg-info text-white';
+        case 'Done':
+            return 'bg-success';
+        case 'Cancelled':
+            return 'bg-danger';
+        default:
+            return 'bg-secondary';
+    }
+};
+
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
+});
+
+const fetchOrders = async (page = null) => {
     loading.value = true;
     try {
-        const response = await axios.get("/api/kots/all-orders");
+        const params = {
+            q: q.value,
+            page: page || pagination.value.current_page,
+            per_page: pagination.value.per_page,
+            sort_by: appliedFilters.value.sortBy || '',
+            order_type: appliedFilters.value.orderType || '',
+            status: appliedFilters.value.status || '',
+            date_from: appliedFilters.value.dateFrom || '',
+            date_to: appliedFilters.value.dateTo || '',
+        };
+
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
+            }
+        });
+
+        const response = await axios.get("/api/kots/all-orders", { params });
         console.log("Fetched KOT Orders:", response.data.data);
 
+        // ✅ Transform to order-wise structure (not item-wise)
         orders.value = (response.data.data || []).map(ko => {
             const posOrder = ko.pos_order_type?.order;
             const posOrderItems = posOrder?.items || [];
 
             return {
                 id: posOrder?.id || ko.id,
+                kot_id: ko.id, // ✅ Kitchen order ID
                 created_at: posOrder?.created_at || ko.created_at,
                 customer_name: posOrder?.customer_name || 'Walk In',
                 total_amount: posOrder?.total_amount || 0,
@@ -39,6 +151,7 @@ const fetchOrders = async () => {
                     table_number: ko.pos_order_type?.table_number
                 },
                 payment: posOrder?.payment,
+                // ✅ Store all items in the order
                 items: (ko.items || []).map(kotItem => {
                     const matchingPosItem = posOrderItems.find(posItem =>
                         posItem.title === kotItem.item_name ||
@@ -55,14 +168,36 @@ const fetchOrders = async () => {
                         ingredients: kotItem.ingredients || []
                     };
                 }),
-                orderIndex: ko.id
+                item_count: ko.items?.length || 0 // ✅ Count of items
             };
         });
+
+        // ✅ Update pagination
+        pagination.value = {
+            current_page: response.data.current_page,
+            last_page: response.data.last_page,
+            per_page: response.data.per_page,
+            total: response.data.total,
+            from: response.data.from,
+            to: response.data.to,
+            links: response.data.links
+        };
+
     } catch (error) {
         console.error("Error fetching orders:", error);
         orders.value = [];
+        toast.error("Failed to load KOT orders");
     } finally {
         loading.value = false;
+    }
+};
+
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+    if (page) {
+        fetchOrders(parseInt(page));
     }
 };
 
@@ -122,117 +257,18 @@ const statusFilter = ref("All");
 const orderTypeOptions = ref(["All", "Eat In", "Delivery", "Takeaway", "Collection"]);
 const statusOptions = ref(["All", "Waiting", "In Progress", "Done", "Cancelled"]);
 
-// ✅ STEP 1: Fix allItems computed to use item.status instead of order.status
-const allItems = computed(() => {
-    if (!orders.value || orders.value.length === 0) {
-        return [];
-    }
-
-    const flattened = orders.value.flatMap((order, orderIndex) => {
-        return order.items?.map((item, itemIndex) => ({
-            ...item,
-            status: item.status, // ✅ Use item's own status, not order.status
-            orderIndex,
-            order,
-            uniqueId: `${order.id}-${itemIndex}`
-        })) || [];
-    });
-
-    return flattened;
-});
-
-// const filtered = computed(() => {
-//     const term = q.value.trim().toLowerCase();
-
-//     return allItems.value
-//         .filter((item) =>
-//             orderTypeFilter.value === "All"
-//                 ? true
-//                 : (item.order?.type?.order_type ?? "").toLowerCase() ===
-//                 orderTypeFilter.value.toLowerCase()
-//         )
-//         .filter((item) =>
-//             statusFilter.value === "All"
-//                 ? true
-//                 : (item.status ?? "").toLowerCase() ===
-//                 statusFilter.value.toLowerCase()
-//         )
-//         .filter((item) => {
-//             if (!term) return true;
-//             return [
-//                 String(item.order?.id),
-//                 item.item_name ?? "",
-//                 item.variant_name ?? "",
-//                 item.ingredients?.join(', ') ?? "",
-//                 item.status ?? "",
-//             ]
-//                 .join(" ")
-//                 .toLowerCase()
-//                 .includes(term);
-//         });
-// });
-
-const filtered = computed(() => {
-    const term = q.value.trim().toLowerCase();
-    let result = [...allItems.value];
-
-    // Text search
-    if (term) {
-        result = result.filter((item) =>
-            [
-                String(item.order?.id),
-                item.item_name ?? "",
-                item.variant_name ?? "",
-                item.ingredients?.join(', ') ?? "",
-                item.status ?? "",
-            ]
-                .join(" ")
-                .toLowerCase()
-                .includes(term)
-        );
-    }
-
-    // Order Type filter
-    if (filters.value.orderType) {
-        result = result.filter(
-            (item) =>
-                (item.order?.type?.order_type ?? "").toLowerCase() ===
-                filters.value.orderType.toLowerCase()
-        );
-    }
-
-    // Status filter
-    if (filters.value.status) {
-        result = result.filter((item) => {
-            return item.status?.toLowerCase() === filters.value.status.toLowerCase();
-        });
-    }
-
-    // Date range filter
-    if (filters.value.dateFrom) {
-        result = result.filter((item) => {
-            const orderDate = new Date(item.order?.created_at);
-            const filterDate = new Date(filters.value.dateFrom);
-            return orderDate >= filterDate;
-        });
-    }
-
-    if (filters.value.dateTo) {
-        result = result.filter((item) => {
-            const orderDate = new Date(item.order?.created_at);
-            const filterDate = new Date(filters.value.dateTo);
-            filterDate.setHours(23, 59, 59, 999);
-            return orderDate <= filterDate;
-        });
-    }
-
-    return result;
-});
 
 const handleFilterApply = (appliedFiltersData) => {
     filters.value = { ...filters.value, ...appliedFiltersData };
-    // Save the applied filters
     appliedFilters.value = { ...filters.value };
+    pagination.value.current_page = 1;
+    fetchOrders(1);
+
+    const modal = bootstrap.Modal.getInstance(
+        document.getElementById("kotFilterModal")
+    );
+    modal?.hide();
+
     console.log("Filters applied:", filters.value);
 };
 
@@ -251,42 +287,23 @@ const handleFilterClear = () => {
         dateFrom: "",
         dateTo: "",
     };
+    pagination.value.current_page = 1;
+    pagination.value.per_page = 10;
+    fetchOrders(1);
+
     console.log("Filters cleared");
 };
 
-
-const sortedItems = computed(() => {
-    const arr = [...filtered.value];
-    const sortBy = filters.value.sortBy;
-
-    switch (sortBy) {
-        case "date_desc":
-            return arr.sort((a, b) => new Date(b.order?.created_at) - new Date(a.order?.created_at));
-        case "date_asc":
-            return arr.sort((a, b) => new Date(a.order?.created_at) - new Date(b.order?.created_at));
-        case "item_asc":
-            return arr.sort((a, b) =>
-                (a.item_name || "").localeCompare(b.item_name || "")
-            );
-        case "item_desc":
-            return arr.sort((a, b) =>
-                (b.item_name || "").localeCompare(a.item_name || "")
-            );
-        case "order_asc":
-            return arr.sort((a, b) => (a.order?.id || 0) - (b.order?.id || 0));
-        case "order_desc":
-            return arr.sort((a, b) => (b.order?.id || 0) - (a.order?.id || 0));
-        default:
-            return arr.sort((a, b) => new Date(b.order?.created_at) - new Date(a.order?.created_at));
-    }
+const sortedOrders = computed(() => {
+    return orders.value; // Sorting is handled by backend
 });
 
 const filterOptions = computed(() => ({
     sortOptions: [
-        { value: "item_asc", label: "Item: A to Z" },
-        { value: "item_desc", label: "Item: Z to A" },
-        { value: "order_asc", label: "Order ID: Low to High" },
         { value: "order_desc", label: "Order ID: High to Low" },
+        { value: "order_asc", label: "Order ID: Low to High" },
+        { value: "date_desc", label: "Date: Newest First" },
+        { value: "date_asc", label: "Date: Oldest First" },
     ],
     orderTypeOptions: [
         { value: "Eat In", label: "Eat In" },
@@ -302,7 +319,7 @@ const filterOptions = computed(() => ({
     ],
 }));
 
-/* ===================== KPIs ===================== */
+// ✅ Update KPIs to work with orders, not items
 const totalTables = computed(() => {
     const tables = new Set(
         orders.value
@@ -311,23 +328,39 @@ const totalTables = computed(() => {
     );
     return tables.size;
 });
-const totalItems = computed(() => allItems.value.length);
-// ✅ Count items by status
-const pendingItems = computed(
-    () => allItems.value.filter((item) => item.status === "Waiting").length
-);
 
-const inProgressItems = computed(
-    () => allItems.value.filter((item) => item.status === "In Progress").length
-);
+const totalItems = computed(() => {
+    return orders.value.reduce((sum, order) => sum + (order.item_count || 0), 0);
+});
 
-const doneItems = computed(
-    () => allItems.value.filter((item) => item.status === "Done").length
-);
+const pendingItems = computed(() => {
+    return orders.value.reduce((sum, order) => {
+        const pending = order.items?.filter(item => item.status === "Waiting").length || 0;
+        return sum + pending;
+    }, 0);
+});
 
-const cancelledItems = computed(
-    () => allItems.value.filter((item) => item.status === "Cancelled").length
-);
+const inProgressItems = computed(() => {
+    return orders.value.reduce((sum, order) => {
+        const inProgress = order.items?.filter(item => item.status === "In Progress").length || 0;
+        return sum + inProgress;
+    }, 0);
+});
+
+const doneItems = computed(() => {
+    return orders.value.reduce((sum, order) => {
+        const done = order.items?.filter(item => item.status === "Done").length || 0;
+        return sum + done;
+    }, 0);
+});
+
+const cancelledItems = computed(() => {
+    return orders.value.reduce((sum, order) => {
+        const cancelled = order.items?.filter(item => item.status === "Cancelled").length || 0;
+        return sum + cancelled;
+    }, 0);
+});
+
 const getStatusBadge = (status) => {
     switch (status) {
         case 'Done':
@@ -342,41 +375,9 @@ const getStatusBadge = (status) => {
             return 'bg-secondary';
     }
 };
-const updateKotStatus = async (item, status) => {
-    try {
-        const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
-        const order = orders.value.find(o => o.id === item.order.id);
 
-        if (order && order.items) {
-            const kotItem = order.items.find(i => i.id === item.id);
-            if (kotItem) {
-                kotItem.status = response.data.status || status;
 
-                // ✅ Update order status based on all items
-                const allStatuses = order.items.map(i => i.status);
-                const uniqueStatuses = [...new Set(allStatuses)];
 
-                if (uniqueStatuses.length === 1) {
-                    // All items have the same status
-                    order.status = uniqueStatuses[0];
-                } else if (allStatuses.includes('In Progress')) {
-                    order.status = 'In Progress';
-                } else if (allStatuses.every(s => s === 'Done' || s === 'Cancelled')) {
-                    order.status = 'Done';
-                } else {
-                    order.status = 'Waiting';
-                }
-
-                order.items = [...order.items];
-            }
-        }
-
-        toast.success(`"${item.item_name}" marked as ${status}`);
-    } catch (err) {
-        console.error("Failed to update KOT item status:", err);
-        toast.error(err.response?.data?.message || 'Failed to update status');
-    }
-};
 const printOrder = (order) => {
     const plainOrder = JSON.parse(JSON.stringify(order));
     const customerName = plainOrder?.customer_name || 'Walk-in Customer';
@@ -525,13 +526,68 @@ const fetchPrinters = async () => {
 };
 onMounted(fetchPrinters);
 
+
+let searchTimeout = null;
+
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1;
+        fetchOrders(1);
+    }, 500);
+});
+
+// ✅ Open modal to view order items
+const viewOrderItems = (order) => {
+    selectedOrder.value = order;
+    showOrderItemsModal.value = true;
+
+    const modalEl = document.getElementById('orderItemsModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+};
+
+// ✅ Close modal
+const closeOrderItemsModal = () => {
+    showOrderItemsModal.value = false;
+    selectedOrder.value = null;
+
+    const modalEl = document.getElementById('orderItemsModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+};
+
+const updateItemStatus = async (order, item, status) => {
+    try {
+        const response = await axios.put(`/api/kots/pos/kot-item/${item.id}/status`, { status });
+        const orderIndex = orders.value.findIndex(o => o.kot_id === order.kot_id);
+        if (orderIndex !== -1) {
+            const itemIndex = orders.value[orderIndex].items.findIndex(i => i.id === item.id);
+            if (itemIndex !== -1) {
+                orders.value[orderIndex].items[itemIndex].status = response.data.status;
+                orders.value[orderIndex].status = response.data.order_status;
+                orders.value = [...orders.value];
+            }
+        }
+
+        toast.success(`"${item.item_name}" marked as ${status}`);
+    } catch (err) {
+        console.error("Failed to update KOT item status:", err);
+        toast.error(err.response?.data?.message || 'Failed to update status');
+    }
+};
+
 const onDownload = (type) => {
-    if (!allItems.value || allItems.value.length === 0) {
+    if (!orders.value || orders.value.length === 0) {
         toast.error("No kitchen orders data to download");
         return;
     }
 
-    const dataToExport = q.value.trim() ? sortedItems.value : allItems.value;
+    const dataToExport = sortedOrders.value;
 
     if (dataToExport.length === 0) {
         toast.error("No kitchen orders found to download");
@@ -558,32 +614,28 @@ const onDownload = (type) => {
 const downloadCSV = (data) => {
     try {
         const headers = [
+            "KOT ID",
             "Order ID",
-            "Item Name",
-            "Variant",
-            "Quantity",
+            "Customer Name",
             "Order Type",
             "Table Number",
-            "Ingredients",
+            "Items Count",
             "Status",
-            "Customer",
-            // "Price",
+            "Total Amount",
             "Date"
         ];
 
-        const rows = data.map((item) => {
+        const rows = data.map((order) => {
             return [
-                `"${item.order?.id || ""}"`,
-                `"${item.item_name || ""}"`,
-                `"${item.variant_name || "-"}"`,
-                `"${item.quantity || 1}"`,
-                `"${item.order?.type?.order_type || "-"}"`,
-                `"${item.order?.type?.table_number || "-"}"`,
-                `"${item.ingredients?.join(', ') || "-"}"`,
-                `"${item.status || ""}"`,
-                `"${item.order?.customer_name || "Walk In"}"`,
-                // `"${Number(item.price || 0).toFixed(2)}"`,
-                `"${item.order?.created_at ? dateFmt(item.order.created_at) : ""}"`
+                `"${order.kot_id || ""}"`,
+                `"${order.id || ""}"`,
+                `"${order.customer_name || "Walk In"}"`,
+                `"${order.type?.order_type || "-"}"`,
+                `"${order.type?.table_number || "-"}"`,
+                `"${order.item_count || 0}"`,
+                `"${order.status || ""}"`,
+                `"${Number(order.total_amount || 0).toFixed(2)}"`,
+                `"${order.created_at ? dateFmt(order.created_at) : ""}"`
             ];
         });
 
@@ -627,29 +679,31 @@ const downloadPDF = (data) => {
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 28);
-        doc.text(`Total Items: ${data.length}`, 14, 34);
+        doc.text(`Total Orders: ${data.length}`, 14, 34);
 
         const tableColumns = [
+            "KOT ID",
             "Order ID",
-            "Item",
-            "Variant",
-            "Qty",
+            "Customer",
             "Type",
             "Table",
+            "Items",
             "Status",
-            "Customer"
+            "Amount",
+            "Date"
         ];
 
-        const tableRows = data.map((item) => {
+        const tableRows = data.map((order) => {
             return [
-                item.order?.id || "",
-                item.item_name || "",
-                item.variant_name || "-",
-                item.quantity || 1,
-                item.order?.type?.order_type || "-",
-                item.order?.type?.table_number || "-",
-                item.status || "",
-                item.order?.customer_name || "Walk In"
+                order.kot_id || "",
+                order.id || "",
+                order.customer_name || "Walk In",
+                order.type?.order_type || "-",
+                order.type?.table_number || "-",
+                order.item_count || 0,
+                order.status || "",
+                `£${Number(order.total_amount || 0).toFixed(2)}`,
+                order.created_at ? dateFmt(order.created_at) : ""
             ];
         });
 
@@ -700,19 +754,17 @@ const downloadExcel = (data) => {
             throw new Error("XLSX library is not loaded");
         }
 
-        const worksheetData = data.map((item) => {
+        const worksheetData = data.map((order) => {
             return {
-                "Order ID": item.order?.id || "",
-                "Item Name": item.item_name || "",
-                "Variant": item.variant_name || "-",
-                "Quantity": item.quantity || 1,
-                "Order Type": item.order?.type?.order_type || "-",
-                "Table Number": item.order?.type?.table_number || "-",
-                "Ingredients": item.ingredients?.join(', ') || "-",
-                "Status": item.status || "",
-                "Customer": item.order?.customer_name || "Walk In",
-                // "Price": Number(item.price || 0).toFixed(2),
-                "Date": item.order?.created_at || ""
+                "KOT ID": order.kot_id || "",
+                "Order ID": order.id || "",
+                "Customer Name": order.customer_name || "Walk In",
+                "Order Type": order.type?.order_type || "-",
+                "Table Number": order.type?.table_number || "-",
+                "Items Count": order.item_count || 0,
+                "Status": order.status || "",
+                "Total Amount": Number(order.total_amount || 0).toFixed(2),
+                "Date": order.created_at || ""
             };
         });
 
@@ -720,24 +772,22 @@ const downloadExcel = (data) => {
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
         worksheet["!cols"] = [
-            { wch: 10 },
-            { wch: 25 },
-            { wch: 15 },
-            { wch: 8 },
-            { wch: 12 },
-            { wch: 12 },
-            { wch: 30 },
-            { wch: 10 },
-            { wch: 20 },
-            { wch: 10 },
-            { wch: 18 }
+            { wch: 10 },  // KOT ID
+            { wch: 10 },  // Order ID
+            { wch: 20 },  // Customer Name
+            { wch: 12 },  // Order Type
+            { wch: 12 },  // Table Number
+            { wch: 12 },  // Items Count
+            { wch: 12 },  // Status
+            { wch: 12 },  // Total Amount
+            { wch: 18 }   // Date
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Kitchen Orders");
 
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
-            { Info: "Total Items", Value: data.length },
+            { Info: "Total Orders", Value: data.length },
             { Info: "Exported By", Value: "Kitchen Management System" }
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
@@ -860,8 +910,13 @@ const downloadExcel = (data) => {
                     </div>
                 </div>
             </div>
+            <!-- ========================================== -->
+            <!-- REPLACE THE ENTIRE CARD SECTION (around line 300) -->
+            <!-- ========================================== -->
+
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body">
+                    <!-- Header with Search and Export -->
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                         <h5 class="mb-0 fw-semibold">Kitchen Orders</h5>
 
@@ -914,29 +969,48 @@ const downloadExcel = (data) => {
                                     </div>
                                 </template>
                             </FilterModal>
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown">
-                                    Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
-                                            Export as PDF
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
-                                            Export as Excel
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Export as CSV
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
+
+                           <Dropdown
+                                v-model="exportOption"
+                                :options="exportOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Export"
+                                class="export-dropdown"
+                                @change="onExportChange"
+                            />
+
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button v-for="tab in statusTabs" :key="tab.value" @click="handleStatusTabChange(tab.value)"
+                                :class="[
+                                    'btn btn-sm rounded-pill px-4 py-2 d-flex align-items-center gap-2',
+                                    activeStatusTab === tab.value
+                                        ? 'btn-primary text-white shadow-sm'
+                                        : 'btn-outline-secondary'
+                                ]" style="min-width: 120px; transition: all 0.2s ease;">
+                                <i :class="tab.icon"></i>
+                                <span>{{ tab.label }}</span>
+                                <span v-if="tab.value !== 'All'" :class="[
+                                    'badge rounded-pill ms-1',
+                                    activeStatusTab === tab.value
+                                        ? 'bg-white text-primary'
+                                        : getStatusTabBadgeClass(tab.value)
+                                ]" style="min-width: 24px;">
+                                    {{ statusTabCounts[tab.value] || 0 }}
+                                </span>
+                                <span v-else :class="[
+                                    'badge rounded-pill ms-1',
+                                    activeStatusTab === tab.value
+                                        ? 'bg-white text-primary'
+                                        : 'bg-secondary'
+                                ]" style="min-width: 24px;">
+                                    {{ statusTabCounts.All }}
+                                </span>
+                            </button>
                         </div>
                     </div>
 
@@ -946,19 +1020,20 @@ const downloadExcel = (data) => {
                             <thead class="border-top small text-muted">
                                 <tr>
                                     <th>#</th>
+                                    <th>KOT ID</th>
                                     <th>Order ID</th>
-                                    <th>Item Name</th>
-                                    <th>Kitchen Note</th>
-                                    <th>Variant</th>
+                                    <th>Customer</th>
                                     <th>Order Type</th>
-                                    <th>Ingredients</th>
+                                    <th>Table</th>
+                                    <th>Items Count</th>
                                     <th>Status</th>
+                                    <th>Date</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-if="loading">
-                                    <td colspan="11" class="text-center py-5">
+                                    <td colspan="10" class="text-center py-5">
                                         <div class="d-flex flex-column align-items-center justify-content-center">
                                             <div class="spinner-border mb-3" role="status"
                                                 style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;">
@@ -969,59 +1044,223 @@ const downloadExcel = (data) => {
                                     </td>
                                 </tr>
                                 <template v-else>
-                                    <tr v-for="(item, index) in sortedItems" :key="item.uniqueId || index">
-                                        <td>{{ index + 1 }}</td>
-                                        <td>{{ item.order?.id }}</td>
-                                        <td>{{ item.item_name }}</td>
-                                        <td>{{ item?.item_kitchen_note || '-' }}</td>
-                                        <td>{{ item.variant_name }}</td>
-                                        <td>{{ item.order?.type?.order_type || '-' }}</td>
-                                        <td>{{ item.ingredients?.join(', ') || '-' }}</td>
+                                    <tr v-for="(order, index) in sortedOrders" :key="order.kot_id">
+                                        <td>{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</td>
+                                        <td class="fw-semibold">{{ order.kot_id }}</td>
+                                        <td>{{ order.id }}</td>
+                                        <td>{{ order.customer_name }}</td>
+                                        <td>{{ order.type?.order_type || '-' }}</td>
+                                        <td>{{ order.type?.table_number || '-' }}</td>
                                         <td>
-                                            <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"
-                                                style="width: 80px; display: inline-flex; justify-content: center; align-items: center; height: 25px;">
-                                                {{ item.status }}
+                                            <span class="badge bg-info text-white rounded-pill">
+                                                {{ order.item_count }} items
                                             </span>
                                         </td>
                                         <td>
+                                            <span :class="['badge', 'rounded-pill', getStatusBadge(order.status)]"
+                                                style="min-width: 90px; display: inline-flex; justify-content: center; align-items: center; height: 25px;">
+                                                {{ order.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ dateFmt(order.created_at) }}</td>
+                                        <td>
                                             <div class="d-flex justify-content-center align-items-center gap-2">
-                                                <button @click="updateKotStatus(item, 'Waiting')" title="Waiting"
-                                                    class="p-2 rounded-full text-warning hover:bg-gray-100">
-                                                    <Clock class="w-5 h-5" />
+                                                <!-- View Items Button -->
+                                                <button @click="viewOrderItems(order)" title="View Items"
+                                                    class="p-2 rounded-full text-primary hover:bg-gray-100">
+                                                    <Eye class="w-5 h-5" />
                                                 </button>
 
-                                                <button @click="updateKotStatus(item, 'In Progress')"
-                                                    title="In Progress"
-                                                    class="p-2 rounded-full text-info hover:bg-gray-100">
-                                                    <Loader class="w-5 h-5" />
-                                                </button>
-
-                                                <button @click="updateKotStatus(item, 'Done')" title="Done"
-                                                    class="p-2 rounded-full text-success hover:bg-gray-100">
-                                                    <CheckCircle class="w-5 h-5" />
-                                                </button>
-
-                                                <button @click="updateKotStatus(item, 'Cancelled')" title="Cancelled"
-                                                    class="p-2 rounded-full text-danger hover:bg-gray-100">
-                                                    <XCircle class="w-5 h-5" />
-                                                </button>
-
+                                                <!-- Print Button -->
                                                 <button v-if="printers.length > 0"
                                                     class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
-                                                    @click.prevent="printOrder(item.order)" title="Print">
+                                                    @click.prevent="printOrder(order)" title="Print">
                                                     <Printer class="w-5 h-5" />
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
-                                    <tr v-if="!loading && filtered.length === 0">
-                                        <td colspan="8" class="text-center text-muted py-4">
-                                            No KOT Order found.
+                                    <tr v-if="!loading && sortedOrders.length === 0">
+                                        <td colspan="10" class="text-center text-muted py-4">
+                                            <div
+                                                class="d-flex flex-column align-items-center justify-content-center py-3">
+                                                <i class="bi bi-inbox"
+                                                    style="font-size: 2rem; opacity: 0.5; margin-bottom: 0.5rem;"></i>
+                                                <div class="fw-semibold">No KOT orders found</div>
+                                                <div class="small text-secondary mt-1">
+                                                    {{ activeStatusTab === 'All'
+                                                        ? 'Try adjusting your filters or date range'
+                                                        : `No orders with status "${activeStatusTab}"`
+                                                    }}
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 </template>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div v-if="!loading && pagination.last_page > 1"
+                        class="mt-4 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} items
+                        </div>
+
+                        <Pagination :pagination="pagination.links" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Items Modal -->
+        <div class="modal fade" id="orderItemsModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content rounded-4 shadow border-0 dark:bg-[#212121]">
+                    <!-- Header -->
+                    <div class="modal-header border-0 dark:bg-[#181818]">
+                        <div class="d-flex align-items-center gap-3 dark:text-white">
+                            <div class="rounded-circle p-3 bg-white bg-opacity-25 dark:bg-white dark:bg-opacity-10">
+                                <i class="bi bi-list-task fs-4"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold mb-1">
+                                    Order Items - KOT #{{ selectedOrder?.kot_id }}
+                                </h5>
+                                <small class="opacity-75">
+                                    Order #{{ selectedOrder?.id }} | {{ selectedOrder?.customer_name }}
+                                </small>
+                            </div>
+                        </div>
+                        <button
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition transform hover:scale-110"
+                            @click="closeOrderItemsModal" data-bs-dismiss="modal" aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="modal-body p-4">
+                        <div v-if="selectedOrder" class="rounded-3 p-4">
+                            <!-- Order Info -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block dark:text-gray-400">Order Type</small>
+                                    <strong class="dark:text-white">{{ selectedOrder.type?.order_type || '-' }}</strong>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block dark:text-gray-400">Table Number</small>
+                                    <strong class="dark:text-white">{{ selectedOrder.type?.table_number || '-'
+                                        }}</strong>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block dark:text-gray-400">Order Status</small>
+                                    <span :class="['badge', 'rounded-pill', getStatusBadge(selectedOrder.status)]">
+                                        {{ selectedOrder.status }}
+                                    </span>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block dark:text-gray-400">Date</small>
+                                    <strong class="dark:text-white">{{ dateFmt(selectedOrder.created_at) }}</strong>
+                                </div>
+                            </div>
+
+                            <hr class="my-3 dark:border-gray-600" />
+
+                            <!-- Items Table -->
+                            <h6 class="fw-bold mb-3 text-primary dark:text-blue-400">
+                                <i class="bi bi-basket me-2"></i>Order Items ({{ selectedOrder.item_count }})
+                            </h6>
+                            <div class="table-responsive">
+                                <table
+                                    class="table table-hover align-middle rounded-3 overflow-hidden dark:text-gray-200">
+                                    <thead>
+                                        <tr>
+                                            <th class="px-3">#</th>
+                                            <th>Item Name</th>
+                                            <th>Variant</th>
+                                            <th>Quantity</th>
+                                            <th>Kitchen Note</th>
+                                            <th>Ingredients</th>
+                                            <th>Status</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(item, idx) in selectedOrder.items" :key="item.id"
+                                            class="dark:border-gray-700">
+                                            <td class="px-3">{{ idx + 1 }}</td>
+                                            <td class="fw-semibold">{{ item.item_name }}</td>
+                                            <td>{{ item.variant_name }}</td>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ item.quantity }}</span>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted dark:text-gray-400">{{ item.item_kitchen_note
+                                                    || '-'
+                                                    }}</small>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted dark:text-gray-400">{{
+                                                    item.ingredients?.join(', ') ||
+                                                    '-' }}</small>
+                                            </td>
+                                            <td>
+                                                <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"
+                                                    style="min-width: 80px;">
+                                                    {{ item.status }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex justify-content-center align-items-center gap-2">
+                                                    <button @click="updateItemStatus(selectedOrder, item, 'Waiting')"
+                                                        title="Waiting"
+                                                        class="btn btn-sm p-1 text-warning dark:text-yellow-400 dark:hover:bg-gray-700">
+                                                        <Clock class="w-4 h-4" />
+                                                    </button>
+
+                                                    <button
+                                                        @click="updateItemStatus(selectedOrder, item, 'In Progress')"
+                                                        title="In Progress"
+                                                        class="btn btn-sm p-1 text-info dark:text-blue-400 dark:hover:bg-gray-700">
+                                                        <Loader class="w-4 h-4" />
+                                                    </button>
+
+                                                    <button @click="updateItemStatus(selectedOrder, item, 'Done')"
+                                                        title="Done"
+                                                        class="btn btn-sm p-1 text-success dark:text-green-400 dark:hover:bg-gray-700">
+                                                        <CheckCircle class="w-4 h-4" />
+                                                    </button>
+
+                                                    <button @click="updateItemStatus(selectedOrder, item, 'Cancelled')"
+                                                        title="Cancelled"
+                                                        class="btn btn-sm p-1 text-danger dark:text-red-400 dark:hover:bg-gray-700">
+                                                        <XCircle class="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer border-0 dark:bg-[#212121]">
+                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2"
+                            @click="closeOrderItemsModal">
+                            Close
+                        </button>
+                        <button v-if="printers.length > 0" class="btn btn-primary rounded-pill px-4"
+                            @click="printOrder(selectedOrder)">
+                            <Printer class="w-4 h-4 me-2" style="display: inline-block;" />
+                            Print Order
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1037,6 +1276,10 @@ const downloadExcel = (data) => {
 
 .dark .icon-wrap {
     color: #fff !important;
+}
+
+.dark .modal-header {
+    background-color: #181818 !important;
 }
 
 :global(.dark .form-control:focus) {
@@ -1085,6 +1328,40 @@ const downloadExcel = (data) => {
 :deep(.p-multiselect-overlay) {
     background: #fff !important;
     color: #000 !important;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #142985 0%, #390072 100%);
+    border: none;
+}
+
+.btn-outline-secondary:hover {
+    background-color: rgba(108, 117, 125, 0.1);
+    border-color: #6c757d;
+}
+
+/* Tab Badge Animation */
+.badge {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+* {
+    transition: all 0.2s ease;
 }
 
 :deep(.p-multiselect-header) {

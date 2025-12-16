@@ -31,5 +31,9 @@ class KitchenOrderItem extends Model
     {
         return $this->belongsTo(KitchenOrder::class, 'kitchen_order_id');
     }
+     public function kitchenOrder()
+    {
+        return $this->belongsTo(KitchenOrder::class);
+    }
 }
 

@@ -20,6 +20,8 @@ import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
 import FilterModal from "@/Components/FilterModal.vue";
+import Pagination from "@/Components/Pagination.vue";
+import Dropdown from 'primevue/dropdown'
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -70,6 +72,21 @@ const promoScopes = ref([]);
 const editingPromoScope = ref(null);
 const promoScopeFormErrors = ref({});
 
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null 
+    }
+}
+
 
 const discountOptions = [
     { label: "Flat Amount", value: "flat" },
@@ -94,6 +111,7 @@ watch(() => promoScopeForm.value.meals, (newVal) => {
 
 watch(() => promoScopeForm.value.menu_items, (newVal) => {
 }, { deep: true });
+
 
 
 /* ============= IMPORT CONFIGURATION ============= */
@@ -232,16 +250,51 @@ const handleImport = (data) => {
 };
 
 /* ---------------- Fetch Promos ---------------- */
-const fetchPromos = async () => {
+const fetchPromos = async (page = 1) => {
+    loading.value = true;
     try {
-        const res = await axios.get("/api/promos/all");
-        promos.value = res.data.data;
+        const res = await axios.get("/api/promos/all", {
+            params: {
+                page: page,
+                per_page: perPage.value,
+                q: q.value.trim() || null,
+                status: appliedFilters.value.stockStatus || null,
+                category: appliedFilters.value.category || null,
+                sort_by: appliedFilters.value.sortBy || null,
+                price_min: appliedFilters.value.priceMin || null,
+                price_max: appliedFilters.value.priceMax || null,
+                date_from: appliedFilters.value.dateFrom || null,
+                date_to: appliedFilters.value.dateTo || null,
+            }
+        });
+
+        promos.value = res.data.data || [];
+
+        // ✅ Update pagination state
+        if (res.data.pagination) {
+            currentPage.value = res.data.pagination.current_page;
+            totalItems.value = res.data.pagination.total;
+            paginationLinks.value = res.data.pagination.links;
+        }
+
     } catch (err) {
         console.error("Failed to fetch promos:", err);
         toast.error("Failed to load promos");
+    } finally {
+        loading.value = false;
     }
 };
 
+const handlePageChange = (url) => {
+    if (!url || loading.value) return;
+
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+
+    if (page) {
+        fetchPromos(parseInt(page));
+    }
+};
 /* ---------------- Fetch Promo Scopes ---------------- */
 const fetchPromoScopes = async () => {
     try {
@@ -272,7 +325,7 @@ onMounted(async () => {
 
     await fetchPromos();
     await fetchPromoScopes();
-     const filterModal = document.getElementById('promosFilterModal');
+    const filterModal = document.getElementById('promosFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
             // Only clear if filters were NOT just applied
@@ -332,83 +385,38 @@ const filters = ref({
     dateTo: null
 });
 
+const appliedFilters = ref({
+    sortBy: "",
+    stockStatus: "",
+    category: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: null,
+    dateTo: null
+});
+
+const currentPage = ref(1);
+const perPage = ref(10);
+const totalItems = ref(0);
+const paginationLinks = ref([]);
+const loading = ref(false);
+
 const promoTypesForFilter = computed(() => [
     { id: "flat", name: "Flat" },
     { id: "percent", name: "Percentage" }
 ]);
 
 
-/* ---------------- Search & Filter ---------------- */
-const filtered = computed(() => {
-    let result = promos.value;
 
-    // Search by name
-    const t = q.value.trim().toLowerCase();
-    if (t) {
-        result = result.filter((p) => p.name.toLowerCase().includes(t));
-    }
-
-    // Filter by status
-    if (filters.value.stockStatus) {
-        result = result.filter((p) => p.status === filters.value.stockStatus);
-    }
-
-    // Filter by type (using category field for type)
-    if (filters.value.category) {
-        result = result.filter((p) => p.type === filters.value.category);
-    }
-
-    // Filter by discount amount range (using price fields)
-    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
-        result = result.filter((p) => parseFloat(p.max_discount) >= parseFloat(filters.value.priceMin));
-    }
-    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
-        result = result.filter((p) => parseFloat(p.max_discount) <= parseFloat(filters.value.priceMax));
-    }
-
-    // Filter by date range (start_date)
-    if (filters.value.dateFrom) {
-        const fromDate = new Date(filters.value.dateFrom);
-        result = result.filter((p) => new Date(p.start_date) >= fromDate);
-    }
-    if (filters.value.dateTo) {
-        const toDate = new Date(filters.value.dateTo);
-        result = result.filter((p) => new Date(p.start_date) <= toDate);
-    }
-
-    // Apply sorting
-    // Apply sorting
-    if (filters.value.sortBy) {
-        result = [...result]; // Create a new array before sorting
-        switch (filters.value.sortBy) {
-            case "discount_asc":
-                result.sort((a, b) => parseFloat(a.discount_amount) - parseFloat(b.discount_amount));
-                break;
-            case "discount_desc":
-                result.sort((a, b) => parseFloat(b.discount_amount) - parseFloat(a.discount_amount));
-                break;
-            case "name_asc":
-                result.sort((a, b) => a.name.localeCompare(b.name));
-                break;
-            case "name_desc":
-                result.sort((a, b) => b.name.localeCompare(a.name));
-                break;
-            case "date_asc":
-                result.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
-                break;
-            case "date_desc":
-                result.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
-                break;
-        }
-    }
-    return result;
-});
 
 const filtersJustApplied = ref(false);
 
-const handleFilterApply = (appliedFilters) => {
-    filters.value = { ...filters.value, ...appliedFilters };
-     filtersJustApplied.value = true;
+const handleFilterApply = (appliedFiltersData) => {
+    appliedFilters.value = { ...appliedFiltersData };
+    filters.value = { ...appliedFiltersData };
+    currentPage.value = 1;
+    filtersJustApplied.value = true;
+    fetchPromos(1);
 };
 
 const handleFilterClear = () => {
@@ -430,6 +438,8 @@ const handleFilterClear = () => {
         dateFrom: null,
         dateTo: null
     };
+    currentPage.value = 1;
+    fetchPromos(1);
 };
 /* ---------------- Form State ---------------- */
 const promoForm = ref({
@@ -504,6 +514,16 @@ const submitPromo = async () => {
         submitting.value = false;
     }
 };
+
+let searchTimeout = null;
+
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        currentPage.value = 1;
+        fetchPromos(1);
+    }, 500);
+});
 
 /* ---------------- Submit Promo Scope (Create/Update) ---------------- */
 const submitPromoScope = async () => {
@@ -604,33 +624,66 @@ const toggleStatus = async (row) => {
 
 onUpdated(() => window.feather?.replace());
 
-const onDownload = (type) => {
+const fetchAllPromosForExport = async () => {
+    try {
+        loading.value = true;
+
+        const res = await axios.get("/api/promos/all", {
+            params: {
+                export: 'all',
+                q: q.value.trim() || null,
+                status: appliedFilters.value.stockStatus || null,
+                category: appliedFilters.value.category || null,
+                sort_by: appliedFilters.value.sortBy || null,
+                price_min: appliedFilters.value.priceMin || null,
+                price_max: appliedFilters.value.priceMax || null,
+                date_from: appliedFilters.value.dateFrom || null,
+                date_to: appliedFilters.value.dateTo || null,
+            }
+        });
+
+        return res.data.data || [];
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+const onDownload = async (type) => {
     if (!promos.value || promos.value.length === 0) {
         toast.error("No Promos data to download");
         return;
     }
-    const dataToExport = q.value.trim() ? filtered.value : promos.value;
-    if (dataToExport.length === 0) {
-        toast.error("No Promos found to download");
-        return;
-    }
 
     try {
+        loading.value = true;
+        const allData = await fetchAllPromosForExport();
+
+        if (!allData.length) {
+            toast.error("No promos found to download");
+            loading.value = false;
+            return;
+        }
+
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allData);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allData);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allData);
         } else {
             toast.error("Invalid download type");
         }
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
-
 const downloadCSV = (data) => {
     try {
         const headers = ["S.#", "Promo Name", "Type", "Discount Amount", "Start Date", "End Date", "Min Purchase", "Max Discount", "Status", "Description"];
@@ -863,8 +916,6 @@ const downloadExcel = (data) => {
                                                     modalId="promosFilterModal" modalSize="modal-lg" :sortOptions="[
                                                         { value: 'name_asc', label: 'Name: A to Z' },
                                                         { value: 'name_desc', label: 'Name: Z to A' },
-                                                        { value: 'discount_asc', label: 'Discount: Low to High' },
-                                                        { value: 'discount_desc', label: 'Discount: High to Low' },
                                                     ]" :categories="promoTypesForFilter" categoryLabel="Promo Type"
                                                     statusLabel="Promo Status" :showPriceRange="true"
                                                     :show-stock-status="false" priceRangeLabel="Discount Amount Range"
@@ -896,29 +947,16 @@ const downloadExcel = (data) => {
                                                 <ImportFile label="Import Promos" :sampleHeaders="sampleHeaders"
                                                     :sampleData="sampleData" @on-import="handleImport" />
 
-                                                <div class="dropdown">
-                                                    <button
-                                                        class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
-                                                        data-bs-toggle="dropdown">
-                                                        Export
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                                        <li>
-                                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                                @click="onDownload('pdf')">Export as PDF</a>
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                                @click="onDownload('excel')">Export as Excel</a>
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                                @click="onDownload('csv')">
-                                                                Export as CSV
-                                                            </a>
-                                                        </li>
-                                                    </ul>
-                                                </div>
+                                              <Dropdown
+                                                    v-model="exportOption"
+                                                    :options="exportOptions"
+                                                    optionLabel="label"
+                                                    optionValue="value"
+                                                    placeholder="Export"
+                                                    class="export-dropdown"
+                                                    @change="onExportChange"
+                                                />
+
                                             </div>
                                         </div>
 
@@ -939,7 +977,17 @@ const downloadExcel = (data) => {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr v-for="(row, i) in filtered" :key="row.id">
+
+                                                    <!-- Loading State -->
+                                                    <tr v-if="loading">
+                                                        <td colspan="9" class="text-center py-4">
+                                                            <div class="spinner-border text-primary" role="status">
+                                                                <span class="visually-hidden">Loading...</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+
+                                                    <tr v-for="(row, i) in promos" :key="row.id">
                                                         <td>{{ i + 1 }}</td>
                                                         <td class="fw-semibold">{{ row.name }}</td>
                                                         <td>
@@ -997,13 +1045,25 @@ const downloadExcel = (data) => {
                                                         </td>
                                                     </tr>
 
-                                                    <tr v-if="filtered.length === 0">
+                                                    <tr v-if="!loading && promos.length === 0">
                                                         <td colspan="9" class="text-center text-muted py-4">
                                                             No promos found.
                                                         </td>
                                                     </tr>
                                                 </tbody>
                                             </table>
+                                        </div>
+
+                                        <div v-if="paginationLinks && paginationLinks.length > 0 && !loading"
+                                            class="mt-4 d-flex justify-content-between align-items-center">
+                                            <div class="text-muted small">
+                                                Showing {{ (currentPage - 1) * perPage + 1 }} to
+                                                {{ Math.min(currentPage * perPage, totalItems) }} of
+                                                {{ totalItems }} entries
+                                            </div>
+
+                                            <Pagination :pagination="paginationLinks" :isApiDriven="true"
+                                                @page-changed="handlePageChange" />
                                         </div>
                                     </div>
                                 </div>
@@ -1372,7 +1432,7 @@ const downloadExcel = (data) => {
     background: #f8f9fa;
 }
 
- .p-tablist{
+.p-tablist {
     background-color: #fff !important;
 }
 

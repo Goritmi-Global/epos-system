@@ -9,6 +9,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
 import Pagination from "@/Components/Pagination.vue";
+import Dropdown from 'primevue/dropdown'
 
 
 import { useFormatters } from '@/composables/useFormatters'
@@ -59,6 +60,23 @@ const pagination = ref({
     links: []
 });
 const inventories = ref(props.inventories?.data || []);
+
+
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null // reset after click
+    }
+}
 const items = computed(() => inventories.value);
 
 
@@ -68,16 +86,32 @@ const fetchInventories = async (page = null) => {
         console.log('🔍 Fetching with params:', {
             q: q.value,
             page: page || pagination.value.current_page,
-            per_page: pagination.value.per_page
+            per_page: pagination.value.per_page,
+            filters: appliedFilters.value // ✅ Log filters
         });
 
-        const res = await axios.get("inventory/api-inventories", {
-            params: {
-                q: q.value,
-                page: page || pagination.value.current_page,
-                per_page: pagination.value.per_page
+        // ✅ Build params object with ALL filters
+        const params = {
+            q: q.value,
+            page: page || pagination.value.current_page,
+            per_page: pagination.value.per_page,
+            // ✅ Add all applied filters
+            category: appliedFilters.value.category || undefined,
+            supplier: appliedFilters.value.supplier || undefined,
+            stockStatus: appliedFilters.value.stockStatus || undefined,
+            priceMin: appliedFilters.value.priceMin || undefined,
+            priceMax: appliedFilters.value.priceMax || undefined,
+            sortBy: appliedFilters.value.sortBy || undefined,
+        };
+
+        // ✅ Remove undefined values to keep URL clean
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
             }
         });
+
+        const res = await axios.get("inventory/api-inventories", { params });
 
         inventories.value = res.data.data || [];
 
@@ -185,88 +219,90 @@ const filters = ref({
     dateTo: "",
 });
 const appliedFilters = ref({ ...filters.value });
-const filteredItems = computed(() => {
-    let filtered = [...items.value];
-    const term = q.value.trim().toLowerCase();
+// const filteredItems = computed(() => {
+//     let filtered = [...items.value];
+//     const term = q.value.trim().toLowerCase();
 
-    // Text search
-    if (term) {
-        filtered = filtered.filter((i) => {
-            const name = (i?.name || "").toLowerCase();
-            const categoryName =
-                (i.category && typeof i.category === "object")
-                    ? (i.category.name || "").toLowerCase()
-                    : (i?.category || "").toString().toLowerCase();
-            const unitName =
-                (i.unit && typeof i.unit === "object")
-                    ? (i?.unit?.name || "").toLowerCase()
-                    : (i?.unit || "").toString().toLowerCase();
+//     // Text search
+//     if (term) {
+//         filtered = filtered.filter((i) => {
+//             const name = (i?.name || "").toLowerCase();
+//             const categoryName =
+//                 (i.category && typeof i.category === "object")
+//                     ? (i.category.name || "").toLowerCase()
+//                     : (i?.category || "").toString().toLowerCase();
+//             const unitName =
+//                 (i.unit && typeof i.unit === "object")
+//                     ? (i?.unit?.name || "").toLowerCase()
+//                     : (i?.unit || "").toString().toLowerCase();
 
-            return (
-                name.includes(term) ||
-                categoryName.includes(term) ||
-                unitName.includes(term)
-            );
-        });
-    }
+//             return (
+//                 name.includes(term) ||
+//                 categoryName.includes(term) ||
+//                 unitName.includes(term)
+//             );
+//         });
+//     }
 
-    // Category filter
-    if (appliedFilters.value.category) {
-        filtered = filtered.filter((item) => {
-            const categoryId =
-                (item?.category && typeof item.category === "object")
-                    ? item.category.id
-                    : item?.category_id;
-            return categoryId == appliedFilters.value.category;
-        });
-    }
+//     // Category filter
+//     if (appliedFilters.value.category) {
+//         filtered = filtered.filter((item) => {
+//             const categoryId =
+//                 (item?.category && typeof item.category === "object")
+//                     ? item.category.id
+//                     : item?.category_id;
+//             return categoryId == appliedFilters.value.category;
+//         });
+//     }
 
-    if (appliedFilters.value.supplier) {
-        filtered = filtered.filter((item) => {
-            const supplierId =
-                (item?.supplier && typeof item.supplier === "object")
-                    ? item.supplier.id
-                    : item?.supplier_id;
-            return supplierId == appliedFilters.value.supplier;
-        });
-    }
+//     if (appliedFilters.value.supplier) {
+//         filtered = filtered.filter((item) => {
+//             const supplierId =
+//                 (item?.supplier && typeof item.supplier === "object")
+//                     ? item.supplier.id
+//                     : item?.supplier_id;
+//             return supplierId == appliedFilters.value.supplier;
+//         });
+//     }
 
-    if (appliedFilters.value.stockStatus) {
-        filtered = filtered.filter((item) => {
-            const stock = item.availableStock || 0;
-            const minAlert = item.minAlert || 5;
+//     if (appliedFilters.value.stockStatus) {
+//         filtered = filtered.filter((item) => {
+//             const stock = item.availableStock || 0;
+//             const minAlert = item.minAlert || 5;
 
-            switch (appliedFilters.value.stockStatus) {
-                case "in_stock":
-                    return stock >= minAlert;
-                case "low_stock":
-                    return stock > 0 && stock < minAlert;
-                case "out_of_stock":
-                    return stock <= 0;
-                case "expired":
-                    return item.status === "expired";
-                case "near_expiry":
-                    return item.status === "near_expiry";
-                default:
-                    return true;
-            }
-        });
-    }
+//             switch (appliedFilters.value.stockStatus) {
+//                 case "in_stock":
+//                     return stock >= minAlert;
+//                 case "low_stock":
+//                     return stock > 0 && stock < minAlert;
+//                 case "out_of_stock":
+//                     return stock <= 0;
+//                 case "expired":
+//                     return item.status === "expired";
+//                 case "near_expiry":
+//                     return item.status === "near_expiry";
+//                 default:
+//                     return true;
+//             }
+//         });
+//     }
 
-    if (appliedFilters.value.priceMin !== null || appliedFilters.value.priceMax !== null) {
-        filtered = filtered.filter((item) => {
-            const price = item.price || item.stockValue || 0;
-            const min = appliedFilters.value.priceMin || 0;
-            const max = appliedFilters.value.priceMax || Infinity;
-            return price >= min && price <= max;
-        });
-    }
+//     if (appliedFilters.value.priceMin !== null || appliedFilters.value.priceMax !== null) {
+//         filtered = filtered.filter((item) => {
+//             const price = item.price || item.stockValue || 0;
+//             const min = appliedFilters.value.priceMin || 0;
+//             const max = appliedFilters.value.priceMax || Infinity;
+//             return price >= min && price <= max;
+//         });
+//     }
 
-    return filtered;
-});
+//     return filtered;
+// });
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
+    pagination.value.current_page = 1;
+    fetchInventories(1);
 };
 
 const handleFilterClear = () => {
@@ -281,33 +317,36 @@ const handleFilterClear = () => {
         dateTo: "",
     };
     appliedFilters.value = { ...filters.value };
+    pagination.value.current_page = 1;
+    pagination.value.per_page = 10;
+    fetchInventories(1);
 };
 
-const sortedItems = computed(() => {
-    const arr = [...filteredItems.value];
-    const sortBy = appliedFilters.value.sortBy;
+// const sortedItems = computed(() => {
+//     const arr = [...filteredItems.value];
+//     const sortBy = appliedFilters.value.sortBy;
 
-    switch (sortBy) {
-        case "stock_desc":
-            return arr.sort(
-                (a, b) => (b.availableStock || 0) - (a.availableStock || 0)
-            );
-        case "stock_asc":
-            return arr.sort(
-                (a, b) => (a.availableStock || 0) - (b.availableStock || 0)
-            );
-        case "name_asc":
-            return arr.sort((a, b) =>
-                (a.name || "").localeCompare(b.name || "")
-            );
-        case "name_desc":
-            return arr.sort((a, b) =>
-                (b.name || "").localeCompare(a.name || "")
-            );
-        default:
-            return arr;
-    }
-});
+//     switch (sortBy) {
+//         case "stock_desc":
+//             return arr.sort(
+//                 (a, b) => (b.availableStock || 0) - (a.availableStock || 0)
+//             );
+//         case "stock_asc":
+//             return arr.sort(
+//                 (a, b) => (a.availableStock || 0) - (b.availableStock || 0)
+//             );
+//         case "name_asc":
+//             return arr.sort((a, b) =>
+//                 (a.name || "").localeCompare(b.name || "")
+//             );
+//         case "name_desc":
+//             return arr.sort((a, b) =>
+//                 (b.name || "").localeCompare(a.name || "")
+//             );
+//         default:
+//             return arr;
+//     }
+// });
 
 // watch function for search
 let searchTimeout = null;
@@ -315,9 +354,7 @@ watch(q, (newVal, oldVal) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
         pagination.value.current_page = 1;
-        if (!newVal || newVal.trim() === '') {
-            pagination.value.per_page = 10;
-        }
+
 
         fetchInventories(1);
     }, 500);
@@ -1570,26 +1607,10 @@ const handleImport = (data) => {
 
 
                             <!-- Download all -->
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary btn-sm py-2 rounded-pill px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown">
-                                    Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('pdf')">Export as PDF</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('excel')">Export as Excel</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('csv')">Export as CSV</a>
-                                    </li>
-                                </ul>
-                            </div>
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
+
                         </div>
                     </div>
 
@@ -1622,7 +1643,7 @@ const handleImport = (data) => {
 
                             <!-- Your existing rows -->
                             <tbody v-else>
-                                <tr v-for="(item, idx) in sortedItems" :key="item.id">
+                                <tr v-for="(item, idx) in inventories" :key="item.id">
                                     <td>{{ pagination.from + idx }}</td>
                                     <td class="fw-semibold">
                                         {{ item.name }}
@@ -1691,7 +1712,7 @@ const handleImport = (data) => {
                                     </td>
                                 </tr>
 
-                                <tr v-if="sortedItems.length === 0">
+                                <tr v-if="inventories.length === 0">
                                     <td colspan="10" class="text-center text-muted py-4">
                                         No items found.
                                     </td>
@@ -1779,7 +1800,7 @@ const handleImport = (data) => {
                                         'is-invalid': formErrors.minAlert,
                                     }" placeholder="e.g., 5" />
                                     <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1790,7 +1811,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.unit_id,
                                         }" />
                                     <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1892,7 +1913,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <!-- Tags -->
@@ -2121,20 +2142,20 @@ const handleImport = (data) => {
                                             <span class="text-muted">Stocked In</span>
                                             <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
                                                 totals.availableQty
-                                                }}</span>
+                                            }}</span>
                                         </div>
 
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
                                                 dateFmt(viewItemRef.updated_at)
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>

@@ -38,17 +38,86 @@ class AddonController extends Controller
         return inertia('Addons/Addons');
     }
 
-    /**
-     * Get all addons (API endpoint for Vue)
-     */
-    public function all(): JsonResponse
+   
+    public function all(Request $request): JsonResponse
     {
         try {
-            $addons = $this->addonService->getAllAddons();
+            $filters = [
+                'q' => $request->query('q', ''),
+                'status' => $request->query('status', ''),
+                'category' => $request->query('category', ''),
+                'sort_by' => $request->query('sort_by', ''),
+                'price_min' => $request->query('price_min'),
+                'price_max' => $request->query('price_max'),
+                'per_page' => $request->query('per_page', 10),
+            ];
+            if ($request->has('export') && $request->export === 'all') {
+                $query = Addon::with('addonGroup');
+                if (! empty($filters['q'])) {
+                    $query->where(function ($q) use ($filters) {
+                        $q->where('name', 'like', "%{$filters['q']}%")
+                            ->orWhereHas('addonGroup', function ($subQ) use ($filters) {
+                                $subQ->where('name', 'like', "%{$filters['q']}%");
+                            });
+                    });
+                }
+                if (! empty($filters['status'])) {
+                    $query->where('status', $filters['status']);
+                }
+                if (! empty($filters['category'])) {
+                    $query->where('addon_group_id', $filters['category']);
+                }
+                if (isset($filters['price_min']) && $filters['price_min'] !== null) {
+                    $query->where('price', '>=', (float) $filters['price_min']);
+                }
+                if (isset($filters['price_max']) && $filters['price_max'] !== null) {
+                    $query->where('price', '<=', (float) $filters['price_max']);
+                }
+                if (! empty($filters['sort_by'])) {
+                    switch ($filters['sort_by']) {
+                        case 'name_asc':
+                            $query->orderBy('name', 'asc');
+                            break;
+                        case 'name_desc':
+                            $query->orderBy('name', 'desc');
+                            break;
+                        case 'price_asc':
+                            $query->orderBy('price', 'asc');
+                            break;
+                        case 'price_desc':
+                            $query->orderBy('price', 'desc');
+                            break;
+                        case 'newest':
+                            $query->orderBy('created_at', 'desc');
+                            break;
+                        case 'oldest':
+                            $query->orderBy('created_at', 'asc');
+                            break;
+                    }
+                }
+
+                $allAddons = $query->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $allAddons,
+                    'total' => $allAddons->count(),
+                ]);
+            }
+            $addons = $this->addonService->getAllAddons($filters);
 
             return response()->json([
                 'success' => true,
-                'data' => $addons,
+                'data' => $addons->items(),
+                'pagination' => [
+                    'current_page' => $addons->currentPage(),
+                    'last_page' => $addons->lastPage(),
+                    'per_page' => $addons->perPage(),
+                    'total' => $addons->total(),
+                    'from' => $addons->firstItem(),
+                    'to' => $addons->lastItem(),
+                    'links' => $addons->linkCollection()->toArray(),
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([

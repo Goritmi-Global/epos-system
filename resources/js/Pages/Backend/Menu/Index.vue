@@ -14,6 +14,7 @@ import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 import ImportFile from "@/Components/importFile.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import { Head } from "@inertiajs/vue3";
+import Dropdown from 'primevue/dropdown'
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 import {
@@ -46,6 +47,10 @@ const props = defineProps({
     addonGroups: {
         type: Array,
         default: () => []
+    },
+    menuItems: {
+        type: Array,
+        default: () => []
     }
 });
 
@@ -69,28 +74,50 @@ const selectedVariantForIngredients = ref(null);
 const variantIngredients = ref({});
 
 const variantResaleConfig = ref({});
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null // reset after click
+    }
+}
 const loadAddons = () => {
-    if (form.value.addon_group_id) {
-        const group = props.addonGroups?.find(g => g.id === form.value.addon_group_id);
-        if (group) {
-            addons.value = group.addons || [];
-            form.value.addon_group_constraints = {
-                min_select: group.min_select,
-                max_select: group.max_select
-            };
-        } else {
-            addons.value = [];
-            form.value.addon_group_constraints = null;
-        }
+    if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+        // Collect all addons from all selected groups
+        const allAddons = [];
+
+        form.value.addon_group_ids.forEach(groupId => {
+            const group = props.addonGroups?.find(g => g.id === groupId);
+            if (group && group.addons) {
+                allAddons.push(...group.addons);
+            }
+        });
+
+        // Remove duplicates based on addon id
+        addons.value = allAddons.filter((addon, index, self) =>
+            index === self.findIndex((a) => a.id === addon.id)
+        );
+
         if (!Array.isArray(form.value.addon_ids)) {
             form.value.addon_ids = [];
         }
     } else {
         addons.value = [];
         form.value.addon_ids = [];
-        form.value.addon_group_constraints = null;
     }
 }
+
+const allSelectedAddons = computed(() => {
+    return addons.value;
+});
 
 const labelColors = [
     { name: "Meat", value: "#E74C3C" },
@@ -111,10 +138,47 @@ const i_cart = ref([]);
 
 const fetchInventory = async () => {
     try {
-        const response = await axios.get("/inventory/api-inventories");
+        const response = await axios.get("/inventory/api-inventories?all=1");
         inventoryItems.value = response.data.data;
     } catch (error) {
         console.error("Error fetching inventory:", error);
+    }
+};
+
+// Fetch Deals
+const fetchDeals = async (page = 1) => {
+    isLoading.value = true;
+    try {
+        const res = await axios.get("/api/deals", {
+            params: {
+                page: page,
+                per_page: perPage.value,
+                search: q.value.trim() || null,
+                status: filters.value.status !== "" ? filters.value.status : null,
+                sort_by: filters.value.sortBy || null,
+                price_min: filters.value.priceMin || null,
+                price_max: filters.value.priceMax || null,
+            }
+        });
+        console.log('Response', res.data.data);
+
+        deals.value = res.data.data || [];
+
+        if (res.data.pagination) {
+            currentPage.value = res.data.pagination.current_page;
+            totalItems.value = res.data.pagination.total;
+            paginationLinks.value = res.data.pagination.links;
+        }
+
+        if (res.data.counts) {
+            counts.value = res.data.counts;
+        }
+
+    } catch (err) {
+        console.error("❌ Error fetching deals:", err);
+        toast.error("Failed to fetch deals");
+    } finally {
+        isLoading.value = false;
     }
 };
 
@@ -283,6 +347,7 @@ onMounted(async () => {
         }
     }, 100);
     fetchInventory();
+    fetchDeals();
     const filterModal = document.getElementById('menuFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
@@ -346,41 +411,75 @@ const counts = ref({
 const fetchMenus = async (page = 1) => {
     isLoading.value = true;
     try {
-        const res = await axios.get("/api/menu/items", {
-            params: {
-                page: page,
-                per_page: perPage.value,
-                search: q.value.trim() || null,
-                category: filters.value.category || null,
-                status: filters.value.status !== "" ? filters.value.status : null,
-                sort_by: filters.value.sortBy || null,
-                price_min: filters.value.priceMin || null,
-                price_max: filters.value.priceMax || null,
-                date_from: filters.value.dateFrom || null,
-                date_to: filters.value.dateTo || null,
-            }
-        });
+        // Fetch both menu items and deals in parallel
+        const [menusRes, dealsRes] = await Promise.all([
+            axios.get("/api/menu/items", {
+                params: {
+                    page: page,
+                    per_page: perPage.value,
+                    search: q.value.trim() || null,
+                    category: filters.value.category || null,
+                    status: filters.value.status !== "" ? filters.value.status : null,
+                    sort_by: filters.value.sortBy || null,
+                    price_min: filters.value.priceMin || null,
+                    price_max: filters.value.priceMax || null,
+                    date_from: filters.value.dateFrom || null,
+                    date_to: filters.value.dateTo || null,
+                }
+            }),
+            axios.get("/api/deals", {
+                params: {
+                    page: page,
+                    per_page: perPage.value,
+                    search: q.value.trim() || null,
+                    status: filters.value.status !== "" ? filters.value.status : null,
+                    sort_by: filters.value.sortBy || null,
+                    price_min: filters.value.priceMin || null,
+                    price_max: filters.value.priceMax || null,
+                }
+            })
+        ]);
+        console.log('dealsRes.data.data ', dealsRes.data.data);
+        // Combine both datasets with a type indicator
+        const menus = (menusRes.data.data || []).map(item => ({
+            ...item,
+            type: 'menu',
+            display_name: item.name
+        }));
 
-        menuItems.value = res.data.data || [];
+        const deals = (dealsRes.data.data || []).map(item => ({
+            ...item,
+            type: 'deal',
+            display_name: item.name
+        }));
 
-        if (res.data.pagination) {
-            currentPage.value = res.data.pagination.current_page;
-            totalItems.value = res.data.pagination.total;
-            paginationLinks.value = res.data.pagination.links;
+        // Merge both arrays
+        menuItems.value = [...menus, ...deals];
+
+        // Update pagination (you might need to adjust this based on your needs)
+        if (menusRes.data.pagination) {
+            currentPage.value = menusRes.data.pagination.current_page;
+            totalItems.value = menusRes.data.pagination.total + (dealsRes.data.pagination?.total || 0);
+            paginationLinks.value = menusRes.data.pagination.links;
         }
 
-        // ✅ Load global counts from backend
-        if (res.data.counts) {
-            counts.value = res.data.counts;
+        // Update counts
+        if (menusRes.data.counts && dealsRes.data.counts) {
+            counts.value = {
+                total: menusRes.data.counts.total + dealsRes.data.counts.total,
+                active: menusRes.data.counts.active + dealsRes.data.counts.active,
+                inactive: menusRes.data.counts.inactive + dealsRes.data.counts.inactive,
+            };
         }
 
     } catch (err) {
-        console.error("❌ Error fetching menus:", err);
-        toast.error("Failed to fetch menu items");
+        console.error("❌ Error fetching items:", err);
+        toast.error("Failed to fetch items");
     } finally {
         isLoading.value = false;
     }
 };
+
 
 const handlePageChange = (url) => {
     if (!url || isLoading.value) return;
@@ -396,6 +495,7 @@ const handlePageChange = (url) => {
 onMounted(() => {
     fetchInventories();
     fetchMenus();
+    fetchDeals();
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -417,16 +517,21 @@ const defaultMenuFilters = {
 const filters = ref({ ...defaultMenuFilters });
 const appliedFilters = ref({ ...defaultMenuFilters });
 
-// ✅ REPLACE THIS
+// REPLACE THIS
 const filteredItems = computed(() => {
     // Backend already handles filtering, just return the data
     return menuItems.value;
 });
 
-watch(q, () => {
-    fetchMenus(1);
-});
+let searchTimeout = null;
 
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        currentPage.value = 1;
+        fetchMenus(1);
+    }, 500);
+});
 watch(
     () => appliedFilters.value,
     () => {
@@ -454,14 +559,20 @@ const filterOptions = computed(() => ({
 }));
 
 
-const handleFilterClear = () => {
-    filters.value = { ...defaultMenuFilters };
-    appliedFilters.value = { ...defaultMenuFilters };
-    fetchMenus(1);
-};
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
+    currentPage.value = 1;
+    fetchMenus(1);
+    const modal = bootstrap.Modal.getInstance(
+        document.getElementById("menuFilterModal")
+    );
+    modal?.hide();
+};
+const handleFilterClear = () => {
+    filters.value = { ...defaultMenuFilters };
+    appliedFilters.value = { ...defaultMenuFilters };
+    currentPage.value = 1;
     fetchMenus(1);
 };
 
@@ -520,6 +631,8 @@ function resetErrors() {
     formErrors.value = {};
 }
 
+const deals = ref([]);
+
 const form = ref({
     name: "",
     category_id: null,
@@ -539,12 +652,16 @@ const form = ref({
     is_taxable: null,
     variant_group_id: '',
     variant_prices: {},
-    addon_group_id: '',
+    addon_group_ids: [],
     addon_ids: [],
     addon_group_constraints: null,
     is_saleable: false,
     resale_type: null,
     resale_value: null,
+
+    deal_name: "",
+    deal_price: "",
+    menu_item_ids: [],
 });
 
 
@@ -569,6 +686,316 @@ function onCropped({ file }) {
 }
 
 const submitting = ref(false);
+const handleSubmit = () => {
+    if (activeTab.value === 'deals') {
+        form.value.id ? submitEditDeal() : submitDeal();
+    } else {
+        form.value.id ? submitEdit() : submitProduct();
+    }
+};
+// ============================================================
+// ADD DEAL SUBMISSION FUNCTION
+// ============================================================
+
+const submitDeal = async () => {
+    submitting.value = true;
+    formErrors.value = {};
+
+    try {
+        const formData = new FormData();
+        formData.append("name", form.value.deal_name.trim());
+        formData.append("price", form.value.deal_price);
+        formData.append("description", form.value.description || "");
+        formData.append("status", 1);
+
+        if (form.value.is_taxable !== null) {
+            formData.append("is_taxable", String(form.value.is_taxable));
+        }
+
+        if (form.value.label_color) {
+            formData.append("label_color", form.value.label_color);
+        }
+
+        if (form.value.category_id) {
+            formData.append("category_id", form.value.category_id);
+        }
+
+        form.value.meals.forEach((mealId, i) => {
+            formData.append(`meals[${i}]`, mealId);
+        });
+
+        form.value.allergies.forEach((a, i) => {
+            formData.append(`allergies[${i}]`, a.id);
+            formData.append(`allergy_types[${i}]`, a.type === 'Contain' ? 1 : 0);
+        });
+
+        form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
+
+        // Addons
+        if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+            form.value.addon_group_ids.forEach((groupId, index) => {
+                formData.append(`addon_group_ids[${index}]`, groupId);
+            });
+        }
+
+        if (form.value.addon_ids && form.value.addon_ids.length > 0) {
+            form.value.addon_ids.forEach((addonId, index) => {
+                formData.append(`addon_ids[${index}]`, addonId);
+            });
+        }
+
+        // Updated: Send menu items with quantities
+        if (Array.isArray(form.value.menu_item_ids)) {
+            form.value.menu_item_ids.forEach((item, index) => {
+                if (typeof item === 'object') {
+                    formData.append(`menu_item_ids[${index}][id]`, item.id);
+                    formData.append(`menu_item_ids[${index}][qty]`, item.qty);
+                } else {
+                    formData.append(`menu_item_ids[${index}][id]`, item);
+                    formData.append(`menu_item_ids[${index}][qty]`, 1);
+                }
+            });
+        }
+
+        if (form.value.imageFile) {
+            formData.append("image", form.value.imageFile);
+        }
+
+        await axios.post("/deals", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        toast.success("Deal created successfully");
+        resetForm();
+        await fetchDeals();
+        bootstrap.Modal.getInstance(document.getElementById("addItemModal"))?.hide();
+    } catch (err) {
+        console.error("❌ Error saving:", err.response?.data);
+
+        if (err?.response?.status === 422 && err.response.data?.errors) {
+            formErrors.value = err.response.data.errors;
+            const errorMessages = Object.values(err.response.data.errors)
+                .flat()
+                .join("\n");
+            toast.error(errorMessages || "Validation failed");
+        } else {
+            toast.error("Failed to save deal: " + (err.response?.data?.message || err.message));
+        }
+    } finally {
+        submitting.value = false;
+    }
+};
+
+
+const editDeal = (deal) => {
+    console.log('Edit Deals', deal);
+    if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(form.value.imageUrl);
+    }
+
+    isEditMode.value = true;
+    activeTab.value = 'deals';
+
+    // ✅ Extract addon_group_id from deal_addon_groups array
+    const addonGroupIds = deal.deal_addon_groups?.map(
+        g => g.group_id
+    ) || [];
+
+    const addonIds = [];
+
+    deal.deal_addon_groups?.forEach(group => {
+        if (group.addons) {
+            addonIds.push(...group.addons.map(a => a.id));
+        }
+    });
+
+    form.value = {
+        id: deal.id,
+        deal_name: deal.name,
+        deal_price: deal.price,
+        description: deal.description || "",
+        menu_item_ids: deal.menu_items?.map(item => ({
+            id: item.id,
+            qty: item.qty ?? 0
+        })) || [],
+        imageFile: null,
+        imageUrl: deal.image_url || null,
+        is_taxable: deal.is_taxable ?? 0,
+        label_color: deal.label_color || null,
+        category_id: deal.category_id || null,
+        meals: deal.meals?.map(m => m.id) || [],
+
+        // ✅ Store only IDs for form submission (validation expects IDs)
+        allergies: deal.allergies?.map(a => a.id) || [],
+        tags: deal.tags?.map(t => t.id) || [],
+
+        // ✅ Addon fields
+        addon_group_ids: addonGroupIds,
+        addon_ids: addonIds,
+        addon_group_constraints: null,
+
+        // Not used for deals
+        variant_group_id: '',
+        variant_prices: {},
+        is_saleable: false,
+        resale_type: null,
+        resale_value: null,
+        name: "",
+        price: "",
+    };
+
+    // ✅ Load allergies with types for the modal display
+    if (deal.allergies && deal.allergies.length > 0) {
+        selectedAllergies.value = deal.allergies.map(a => {
+            const rawType = a.pivot?.type ?? a.type ?? 1;
+            return {
+                id: a.id,
+                name: a.name,
+                type: Number(rawType) === 1 ? 'Contain' : 'Trace',
+            };
+        });
+
+        // ✅ Populate selectedTypes for radio buttons in modal
+        selectedTypes.value = {};
+        selectedAllergies.value.forEach(a => {
+            selectedTypes.value[a.id] = a.type;
+        });
+
+        // ✅ Update form.allergies to match selectedAllergies structure for submission
+        form.value.allergies = selectedAllergies.value;
+    } else {
+        selectedAllergies.value = [];
+        selectedTypes.value = {};
+    }
+
+    // ✅ Load addons after setting addon_group_id
+    if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+        nextTick(() => {
+            loadAddons();
+        });
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
+    modal.show();
+};
+
+
+// Submit Edit Deals
+const submitEditDeal = async () => {
+    submitting.value = true;
+    formErrors.value = {};
+
+    try {
+        const formData = new FormData();
+        formData.append("name", form.value.deal_name.trim());
+        formData.append("price", form.value.deal_price);
+        formData.append("description", form.value.description || "");
+        formData.append("is_taxable", String(form.value.is_taxable ?? 0));
+
+        if (form.value.label_color) {
+            formData.append("label_color", form.value.label_color);
+        }
+
+        if (form.value.category_id) {
+            formData.append("category_id", form.value.category_id);
+        }
+
+        // Meals
+        form.value.meals.forEach((mealId, i) => {
+            formData.append(`meals[${i}]`, mealId);
+        });
+
+        // ✅ MISSING: Allergies with types
+        form.value.allergies.forEach((a, i) => {
+            formData.append(`allergies[${i}]`, a.id);
+            formData.append(`allergy_types[${i}]`, a.type === 'Contain' ? 1 : 0);
+        });
+
+        // ✅ MISSING: Tags
+        form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
+
+        // ✅ MISSING: Addons
+        // ✅ MISSING: Addons
+        if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+            form.value.addon_group_ids.forEach((groupId, index) => {
+                formData.append(`addon_group_ids[${index}]`, groupId);
+            });
+        }
+
+        if (form.value.addon_ids && form.value.addon_ids.length > 0) {
+            form.value.addon_ids.forEach((addonId, index) => {
+                formData.append(`addon_ids[${index}]`, addonId);
+            });
+        }
+
+        // Menu items with quantities
+        if (Array.isArray(form.value.menu_item_ids)) {
+            form.value.menu_item_ids.forEach((item, index) => {
+                if (typeof item === 'object') {
+                    formData.append(`menu_item_ids[${index}][id]`, item.id);
+                    formData.append(`menu_item_ids[${index}][qty]`, item.qty);
+                } else {
+                    formData.append(`menu_item_ids[${index}][id]`, item);
+                    formData.append(`menu_item_ids[${index}][qty]`, 1);
+                }
+            });
+        }
+
+        // Image
+        if (form.value.imageFile) {
+            formData.append("image", form.value.imageFile);
+        }
+
+        formData.append("_method", "PUT");
+
+        await axios.post(`/deals/${form.value.id}`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        toast.success("Deal updated successfully");
+        resetForm();
+        await fetchDeals();
+        await fetchMenus();
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById("addItemModal"));
+        modal?.hide();
+    } catch (err) {
+        console.error("❌ Update failed:", err.response?.data);
+
+        if (err?.response?.status === 422 && err.response.data?.errors) {
+            formErrors.value = err.response.data.errors;
+            const errorMessages = Object.values(err.response.data.errors)
+                .flat()
+                .join("\n");
+            toast.error(errorMessages || "Validation failed");
+        } else {
+            toast.error("Failed to update deal: " + (err.response?.data?.message || err.message));
+        }
+    } finally {
+        submitting.value = false;
+    }
+};
+
+// ==================== TOGGLE DEAL STATUS ====================
+const toggleDealStatus = async (deal) => {
+    try {
+        console.log('Toggling status for deal:', deal);
+        const newStatus = deal.status === 1 ? 0 : 1;
+        await axios.patch(`/deals/${deal.id}/status`, { status: newStatus });
+
+        const dealIndex = deals.value.findIndex(d => d.id === deal.id);
+        if (dealIndex !== -1) {
+            deals.value[dealIndex].status = newStatus;
+        }
+
+        toast.success(`Deal is now ${newStatus === 1 ? "Active" : "Inactive"}`);
+    } catch (err) {
+        console.error("Failed to toggle status", err);
+        toast.error("Failed to update status");
+        await fetchDeals(currentPage.value);
+    }
+};
+
 
 // ==================== UPDATED: Submit Product ====================
 
@@ -681,9 +1108,14 @@ const submitProduct = async () => {
         }
 
         // Addons
-        if (form.value.addon_group_id) {
-            formData.append("addon_group_id", form.value.addon_group_id);
+        // Addons - REPLACE THIS SECTION
+        if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+            form.value.addon_group_ids.forEach((groupId, index) => {
+                formData.append(`addon_group_ids[${index}]`, groupId);
+            });
+        }
 
+        if (form.value.addon_ids && form.value.addon_ids.length > 0) {
             form.value.addon_ids.forEach((addonId, index) => {
                 formData.append(`addon_ids[${index}]`, addonId);
             });
@@ -783,6 +1215,7 @@ const i_displayInv = computed(() => {
 });
 
 const editItem = (item) => {
+    console.log('Edit Item', item);
     if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
@@ -810,8 +1243,8 @@ const editItem = (item) => {
         tags: itemData.tags?.map((t) => t.id) || [],
         imageFile: null,
         imageUrl: itemData.image_url || null,
-        addon_group_id: itemData.addon_group_id || '',
-        addon_ids: itemData.addon_ids || itemData.addons?.map(a => a.id) || [],
+        addon_group_ids: itemData.addon_group_relations?.map(rel => rel.addon_group_id) || [],
+        addon_ids: itemData.addons?.map(a => a.id) || [],
 
         is_saleable: itemData.is_saleable === 1 || itemData.is_saleable === true ? true : false,
         resale_type: itemData.resale_type || null,
@@ -868,7 +1301,7 @@ const editItem = (item) => {
         variantIdCounter.value = maxVariantId + 1;
     }
 
-    if (itemData.addon_group_id) {
+    if (itemData.addon_group_ids && itemData.addon_group_ids.length > 0) {
         loadAddons();
     }
 
@@ -1063,8 +1496,14 @@ const submitEdit = async () => {
         }
 
         // Addons
-        if (form.value.addon_group_id) {
-            formData.append("addon_group_id", form.value.addon_group_id);
+        // Addons
+        if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+            form.value.addon_group_ids.forEach((groupId, index) => {
+                formData.append(`addon_group_ids[${index}]`, groupId);
+            });
+        }
+
+        if (form.value.addon_ids && form.value.addon_ids.length > 0) {
             form.value.addon_ids.forEach((addonId, index) => {
                 formData.append(`addon_ids[${index}]`, addonId);
             });
@@ -1145,12 +1584,16 @@ function resetForm() {
         is_taxable: null,
         variant_group_id: '',
         variant_prices: {},
-        addon_group_id: '',
+        addon_group_ids: [],
         addon_ids: [],
         addon_group_constraints: null,
         is_saleable: false,
         resale_type: null,
         resale_value: null,
+
+        deal_name: "",
+        deal_price: "",
+        menu_item_ids: [],
     };
     showCropper.value = false;
     showImageModal.value = false;
@@ -1169,6 +1612,7 @@ function resetForm() {
     variantForm.value = { name: '', price: null };
     variants.value = [];
     addons.value = [];
+    m_cart.value = [];
 }
 const openAddMenuModal = () => {
     resetForm();
@@ -1889,7 +2333,7 @@ const handleImport = (data) => {
                 }
             }
 
-            // ✅ Force remove any lingering backdrops
+            // Force remove any lingering backdrops
             setTimeout(() => {
                 const backdrops = document.querySelectorAll('.modal-backdrop');
                 backdrops.forEach(backdrop => backdrop.remove());
@@ -1917,9 +2361,9 @@ const handleImport = (data) => {
 
 
 
-// ============================================
+// ===============================================================
 // COMPLETE VARIANT MANAGEMENT CODE - REPLACE YOUR EXISTING CODE
-// ============================================
+// ===============================================================
 const variantForm = ref({
     name: '',
     price: null
@@ -2175,6 +2619,176 @@ const sampleMenuData = [
 const format = (val) => {
     return Number(val || 0).toFixed(2);
 };
+
+
+// menu code
+
+// Add new state for menu cart (similar to ingredients cart)
+const m_search = ref(""); // menu search
+const m_cart = ref([]); // menu cart for deals
+
+// Computed for filtered menu items
+const m_filteredMenus = computed(() => {
+    const t = m_search.value.trim().toLowerCase();
+    if (!t) return menuItems.value;
+    return menuItems.value.filter((m) =>
+        [m.name, m.category?.name ?? ""]
+            .join(" ")
+            .toLowerCase()
+            .includes(t)
+    );
+});
+
+// Computed for display menu items with cart quantities
+const m_displayMenus = computed(() => {
+    return m_filteredMenus.value.map((menu) => {
+        const found = m_cart.value.find((c) => c.id === menu.id);
+        return found
+            ? {
+                ...menu,
+                qty: found.qty,
+            }
+            : {
+                ...menu,
+                qty: 0,
+            };
+    });
+});
+
+// Computed total for selected menus
+const m_totalPrice = computed(() => {
+    return m_cart.value.reduce((sum, item) => {
+        return sum + (Number(item.price) * Number(item.qty));
+    }, 0);
+});
+
+// Add menu to cart
+function addMenuToCart(menu) {
+    const qty = Number(menu.qty || 0);
+
+    formErrors.value[menu.id] = {};
+
+    if (!qty || qty <= 0) {
+        formErrors.value[menu.id].qty = "Enter a valid quantity.";
+        toast.error("Enter a valid quantity.");
+        return;
+    }
+
+    const found = m_cart.value.find((r) => r.id === menu.id);
+
+    if (found) {
+        found.qty = qty;
+    } else {
+        m_cart.value.push({
+            id: menu.id,
+            name: menu.name,
+            category: menu.category,
+            price: menu.price,
+            qty: qty,
+        });
+    }
+
+    if (!isEditMode.value) {
+        menu.qty = null;
+    }
+
+    toast.success(`${menu.name} added to deal!`);
+}
+
+// Remove menu from cart
+function removeMenuFromCart(idx) {
+    const menu = m_cart.value[idx];
+    if (!menu) return;
+
+    m_cart.value.splice(idx, 1);
+
+    const found = m_displayMenus.value.find((m) => m.id === menu.id);
+    if (found) {
+        found.qty = null;
+    }
+}
+
+// Open Menu Selection Modal
+const openMenuSelectionModal = () => {
+    const mainModal = bootstrap.Modal.getInstance(
+        document.getElementById("addItemModal")
+    );
+    if (mainModal) {
+        mainModal.hide();
+    }
+
+    console.log('menuItems', menuItems.value);
+    console.log('menu_item_ids', form.value.menu_item_ids);
+
+    if (
+        isEditMode.value &&
+        Array.isArray(form.value.menu_item_ids) &&
+        form.value.menu_item_ids.length > 0
+    ) {
+        m_cart.value = form.value.menu_item_ids
+            .map((item) => {
+                // ✅ Handle both formats
+                const menuId = typeof item === 'object' ? item.id : item;
+                const qty = typeof item === 'object' ? item.qty || 1 : 1;
+
+                const menu = menuItems.value.find(m => m.id === menuId);
+
+                // ✅ SAFETY CHECK
+                if (!menu) return null;
+
+                return {
+                    id: menu.id,
+                    name: menu.name,
+                    category: menu.category,
+                    price: menu.price,
+                    qty,
+                };
+            })
+            .filter(Boolean); // remove nulls
+    }
+
+    setTimeout(() => {
+        const menuModalEl = document.getElementById("addMenuSelectionModal");
+        if (!menuModalEl) {
+            console.error("Menu modal element not found");
+            return;
+        }
+
+        const menuModal = new bootstrap.Modal(menuModalEl);
+        menuModal.show();
+    }, 300);
+};
+
+
+// Save selected menus
+function saveMenusToCart() {
+    if (m_cart.value.length === 0) {
+        toast.error("Please add at least one menu item");
+        return;
+    }
+
+    // Store menu IDs in form
+    form.value.menu_item_ids = m_cart.value.map(item => ({
+        id: item.id,
+        qty: item.qty
+    }));
+
+    toast.success("Menu items saved successfully!");
+
+    // Close menu modal
+    const menuModal = bootstrap.Modal.getInstance(
+        document.getElementById("addMenuSelectionModal")
+    );
+    menuModal.hide();
+
+    // Reopen main modal
+    setTimeout(() => {
+        const mainModal = new bootstrap.Modal(
+            document.getElementById("addItemModal")
+        );
+        mainModal.show();
+    }, 300);
+}
 </script>
 
 <template>
@@ -2249,32 +2863,16 @@ const format = (val) => {
                                 @on-import="handleImport" />
 
                             <!-- Download all -->
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown">
-                                    Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                           <Dropdown
+                                v-model="exportOption"
+                                :options="exportOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Export"
+                                class="export-dropdown"
+                                @change="onExportChange"
+                            />
 
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('allergens')">Export Allergen</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('pdf')">Export as PDF</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('excel')">Export as Excel</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Export as CSV
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
                         </div>
                     </div>
 
@@ -2295,19 +2893,19 @@ const format = (val) => {
                             <tbody>
                                 <!-- ✅ Loading State -->
                                 <tr v-if="isLoading">
-                                    <td colspan="7" class="text-center py-5">
+                                    <td colspan="8" class="text-center py-5">
                                         <div class="d-flex flex-column align-items-center justify-content-center">
                                             <div class="spinner-border text-primary mb-3" role="status">
                                                 <span class="visually-hidden">Loading...</span>
                                             </div>
-                                            <p class="text-muted mb-0">Loading menu items...</p>
+                                            <p class="text-muted mb-0">Loading items...</p>
                                         </div>
                                     </td>
                                 </tr>
 
-                                <!-- ✅ Data Rows (show only when not loading) -->
+                                <!-- ✅ Data Rows -->
                                 <template v-else>
-                                    <tr v-for="(item, idx) in sortedItems" :key="item.id">
+                                    <tr v-for="(item, idx) in sortedItems" :key="`${item.type}-${item.id}`">
                                         <td>
                                             {{ (currentPage - 1) * perPage + idx + 1 }}
                                         </td>
@@ -2318,6 +2916,11 @@ const format = (val) => {
                                         </td>
                                         <td class="fw-semibold">
                                             {{ item.name }}
+                                            <!-- Type Badge -->
+                                            <span class="badge ms-2"
+                                                :class="item.type === 'deal' ? 'bg-info' : 'bg-secondary'">
+                                                {{ item.type === 'deal' ? 'Deal' : 'Menu' }}
+                                            </span>
                                         </td>
                                         <td class="text-truncate" style="max-width: 260px">
                                             {{ item.category?.name || "—" }}
@@ -2327,21 +2930,29 @@ const format = (val) => {
                                         </td>
                                         <td>
                                             <span v-if="item.status === 0"
-                                                class="badge bg-red-600 rounded-pill d-inline-block text-center px-3 py-1">Inactive</span>
+                                                class="badge bg-red-600 rounded-pill d-inline-block text-center px-3 py-1">
+                                                Inactive
+                                            </span>
                                             <span v-else
-                                                class="badge bg-success rounded-pill d-inline-block text-center px-3 py-1">Active</span>
+                                                class="badge bg-success rounded-pill d-inline-block text-center px-3 py-1">
+                                                Active
+                                            </span>
                                         </td>
                                         <td class="text-center">
                                             <div class="d-inline-flex align-items-center gap-3">
-                                                <button @click="editItem(item)" data-bs-toggle="modal" title="Edit"
+                                                <!-- Edit button - call different functions based on type -->
+                                                <button @click="item.type === 'deal' ? editDeal(item) : editItem(item)"
+                                                    data-bs-toggle="modal" title="Edit"
                                                     class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                     <Pencil class="w-4 h-4" />
                                                 </button>
+
+                                                <!-- Status toggle - call different functions based on type -->
                                                 <ConfirmModal :title="'Confirm Status Change'"
-                                                    :message="`Are you sure you want to ${item.status === 1 ? 'deactivate' : 'activate'} this item?`"
+                                                    :message="`Are you sure you want to ${item.status === 1 ? 'deactivate' : 'activate'} this ${item.type}?`"
                                                     :showStatusButton="true"
                                                     :status="item.status === 1 ? 'active' : 'inactive'"
-                                                    @confirm="() => toggleStatus(item)">
+                                                    @confirm="() => item.type === 'deal' ? toggleDealStatus(item) : toggleStatus(item)">
                                                     <template #trigger>
                                                         <button
                                                             class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
@@ -2357,8 +2968,8 @@ const format = (val) => {
                                         </td>
                                     </tr>
                                     <tr v-if="sortedItems.length === 0">
-                                        <td colspan="7" class="text-center text-muted py-4">
-                                            No Menu items found.
+                                        <td colspan="8" class="text-center text-muted py-4">
+                                            No items found.
                                         </td>
                                     </tr>
                                 </template>
@@ -2412,6 +3023,12 @@ const format = (val) => {
                                     <button class="nav-link" :class="{ active: activeTab === 'variant' }"
                                         @click="activeTab = 'variant'" type="button">
                                         Variant Menu
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" :class="{ active: activeTab === 'deals' }"
+                                        @click="activeTab = 'deals'" type="button">
+                                        Deals
                                     </button>
                                 </li>
                             </ul>
@@ -2618,19 +3235,20 @@ const format = (val) => {
                                             </small>
                                         </div>
 
+                                        <!-- REPLACE THIS SECTION -->
                                         <div class="col-md-12">
-                                            <label class="form-label">Addon Group</label>
-                                            <Select v-model="form.addon_group_id" :options="addonGroups"
-                                                optionLabel="name" optionValue="id" placeholder="Select Addon Group"
-                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                                showClear @update:modelValue="loadAddons"
-                                                :class="{ 'is-invalid': formErrors.addon_group_id }" />
-                                            <small v-if="formErrors.addon_group_id" class="text-danger">
-                                                {{ formErrors.addon_group_id[0] }}
+                                            <label class="form-label">Addon Groups</label>
+                                            <MultiSelect v-model="form.addon_group_ids" :options="addonGroups"
+                                                optionLabel="name" optionValue="id" filter
+                                                placeholder="Select Addon Groups" class="w-100" appendTo="self"
+                                                :autoZIndex="true" :baseZIndex="2000" @update:modelValue="loadAddons"
+                                                :class="{ 'is-invalid': formErrors.addon_group_ids }" />
+                                            <small v-if="formErrors.addon_group_ids" class="text-danger">
+                                                {{ formErrors.addon_group_ids[0] }}
                                             </small>
                                         </div>
 
-                                        <!-- Show addons from selected group -->
+                                        <!-- Show addons from all selected groups -->
                                         <div v-if="addons && addons.length > 0" class="col-md-12">
                                             <label class="form-label">Select Addons</label>
                                             <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
@@ -2846,19 +3464,20 @@ const format = (val) => {
                                         </div>
 
                                         <!-- Addon Group -->
+                                        <!-- REPLACE Addon Group section -->
                                         <div class="col-md-12">
-                                            <label class="form-label">Addon Group</label>
-                                            <Select v-model="form.addon_group_id" :options="addonGroups"
-                                                optionLabel="name" optionValue="id" placeholder="Select Addon Group"
-                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                                showClear @update:modelValue="loadAddons"
-                                                :class="{ 'is-invalid': formErrors.addon_group_id }" />
-                                            <small v-if="formErrors.addon_group_id" class="text-danger">
-                                                {{ formErrors.addon_group_id[0] }}
+                                            <label class="form-label">Addon Groups</label>
+                                            <MultiSelect v-model="form.addon_group_ids" :options="addonGroups"
+                                                optionLabel="name" optionValue="id" filter
+                                                placeholder="Select Addon Groups" class="w-100" appendTo="self"
+                                                :autoZIndex="true" :baseZIndex="2000" @update:modelValue="loadAddons"
+                                                :class="{ 'is-invalid': formErrors.addon_group_ids }" />
+                                            <small v-if="formErrors.addon_group_ids" class="text-danger">
+                                                {{ formErrors.addon_group_ids[0] }}
                                             </small>
                                         </div>
 
-                                        <!-- Show addons from selected group -->
+                                        <!-- Show addons from all selected groups -->
                                         <div v-if="addons && addons.length > 0" class="col-md-12">
                                             <label class="form-label">Select Addons</label>
                                             <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
@@ -3129,19 +3748,262 @@ const format = (val) => {
                                         </div>
                                     </div>
                                 </div>
-                                <!-- END VARIANT MENU TAB -->
+
+
+                                <!-- ==================== Deals MENU TAB ==================== -->
+                                <div v-show="activeTab === 'deals'">
+                                    <!-- Top row -->
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Deal Name</label>
+                                            <input v-model="form.deal_name" type="text" class="form-control"
+                                                :class="{ 'is-invalid': formErrors.deal_name || formErrors.name }"
+                                                placeholder="e.g., Family Deal" />
+                                            <small v-if="formErrors.deal_name || formErrors.name" class="text-danger">
+                                                {{ formErrors.deal_name?.[0] || formErrors.name?.[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Deal Price</label>
+                                            <input v-model="form.deal_price" type="number" min="0" step="0.01"
+                                                class="form-control"
+                                                :class="{ 'is-invalid': formErrors.deal_price || formErrors.price }"
+                                                placeholder="e.g., 29.99" />
+                                            <small v-if="formErrors.deal_price || formErrors.price" class="text-danger">
+                                                {{ formErrors.deal_price?.[0] || formErrors.price?.[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Is this Taxable Deal?</label>
+                                            <Select v-model="form.is_taxable" :options="taxableOptions"
+                                                optionLabel="label" optionValue="value" placeholder="Select Option"
+                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.is_taxable }" />
+                                            <small v-if="formErrors.is_taxable" class="text-danger">
+                                                {{ formErrors.is_taxable[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Label Color</label>
+                                            <Select v-model="form.label_color" :options="labelColors" optionLabel="name"
+                                                optionValue="value" placeholder="Select Label Color" class="w-100"
+                                                appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.label_color }" />
+                                            <small v-if="formErrors.label_color" class="text-danger">
+                                                {{ formErrors.label_color[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Category</label>
+                                            <Select v-model="form.category_id" :options="categories" optionLabel="name"
+                                                optionValue="id" placeholder="Select Category" class="w-100"
+                                                appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                @update:modelValue="form.subcategory = ''"
+                                                :class="{ 'is-invalid': formErrors.category_id }" />
+                                            <small v-if="formErrors.category_id" class="text-danger">
+                                                {{ formErrors.category_id[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Meals</label>
+                                            <MultiSelect v-model="form.meals" :options="meals" optionLabel="name"
+                                                optionValue="id" filter placeholder="Select Meals"
+                                                class="w-full md:w-80" appendTo="self" :autoZIndex="true"
+                                                :baseZIndex="2000" :class="{ 'is-invalid': formErrors.meals }" />
+                                            <small v-if="formErrors.meals" class="text-danger">
+                                                {{ formErrors.meals[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="form-label">Description</label>
+                                            <textarea v-model="form.description" rows="4" class="form-control"
+                                                :class="{ 'is-invalid': formErrors.description }"
+                                                placeholder="Deal description"></textarea>
+                                            <small v-if="formErrors.description" class="text-danger">
+                                                {{ formErrors.description[0] }}
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Second Row -->
+                                    <div class="row g-4 mt-1">
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Allergies</label>
+                                            <div @click="openAllergyModal" class="form-control py-2 px-3"
+                                                style="cursor:pointer;">
+                                                <span v-if="selectedAllergies.length === 0" class="text-muted">
+                                                    Select Allergies
+                                                </span>
+                                                <span v-else>
+                                                    <span v-for="(item, index) in selectedAllergies" :key="index"
+                                                        class="badge text-dark mx-1 d-inline-flex align-items-center">
+                                                        {{ item.name }}
+                                                        <span v-if="item.type === 'Contain'" class="ms-1"
+                                                            style="color: #22c55e; font-weight: bold;">(✔️)</span>
+                                                        <span v-else class="ms-1"
+                                                            style="color: #f97316; font-weight: bold;">(*)</span>
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                            <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
+                                                optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
+                                                appendTo="self" :class="{ 'is-invalid': formErrors.tags }" />
+                                            <small v-if="formErrors.tags" class="text-danger">
+                                                {{ formErrors.tags[0] }}
+                                            </small>
+                                        </div>
+
+                                        <!-- REPLACE THIS SECTION -->
+                                        <div class="col-md-12">
+                                            <label class="form-label">Addon Groups</label>
+                                            <MultiSelect v-model="form.addon_group_ids" :options="addonGroups"
+                                                optionLabel="name" optionValue="id" filter
+                                                placeholder="Select Addon Groups" class="w-100" appendTo="self"
+                                                :autoZIndex="true" :baseZIndex="2000" @update:modelValue="loadAddons"
+                                                :class="{ 'is-invalid': formErrors.addon_group_ids }" />
+                                            <small v-if="formErrors.addon_group_ids" class="text-danger">
+                                                {{ formErrors.addon_group_ids[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div v-if="addons && addons.length > 0" class="col-md-12">
+                                            <label class="form-label">Select Addons</label>
+                                            <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
+                                                optionValue="id" filter placeholder="Select Addons" class="w-full"
+                                                appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.addon_ids }">
+                                                <template #option="slotProps">
+                                                    <div
+                                                        class="d-flex justify-content-between align-items-center w-100">
+                                                        <span>{{ slotProps.option.name }}</span>
+                                                        <span class="badge bg-primary">{{
+                                                            formatCurrencySymbol(slotProps.option.price) }}</span>
+                                                    </div>
+                                                </template>
+                                            </MultiSelect>
+                                            <small v-if="formErrors.addon_ids" class="text-danger">
+                                                {{ formErrors.addon_ids[0] }}
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Image and Menu Selection -->
+                                    <div class="row g-3 mt-2 align-items-center">
+                                        <div class="col-md-4">
+                                            <div class="logo-card" :class="{ 'is-invalid': formErrors.image }">
+                                                <div class="logo-frame"
+                                                    @click="form.imageUrl ? openImageModal() : (showCropper = true)">
+                                                    <img v-if="form.imageUrl" :src="form.imageUrl" alt="Deal Image" />
+                                                    <div v-else class="placeholder">
+                                                        <i class="bi bi-image"></i>
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted mt-2 d-block">Upload Image</small>
+                                                <ImageCropperModal :show="showCropper" @close="showCropper = false"
+                                                    @cropped="onCropped" />
+                                                <ImageZoomModal v-if="showImageModal" :show="showImageModal"
+                                                    :image="previewImage" @close="showImageModal = false" />
+                                            </div>
+                                        </div>
+
+                                        <!-- Menu Selection Button and Cart Display -->
+                                        <div class="mt-4 col-sm-6 col-md-8">
+                                            <button class="btn btn-primary rounded-pill px-4"
+                                                :class="{ 'is-invalid': formErrors.menu_item_ids }"
+                                                @click="openMenuSelectionModal">
+                                                {{ isEditMode ? "Menu Items" : "+ Add Menu Items" }}
+                                            </button>
+                                            <small v-if="formErrors.menu_item_ids" class="text-danger d-block mt-1">
+                                                {{ formErrors.menu_item_ids[0] }}
+                                            </small>
+
+                                            <!-- Display Selected Menus -->
+                                            <div v-if="Array.isArray(form.menu_item_ids) && form.menu_item_ids.length > 0"
+                                                class="mt-3">
+                                                <!-- Total Price Card -->
+                                                <div class="card border rounded-4 mb-3">
+                                                    <div class="p-3 fw-semibold">
+                                                        <div class="mb-2">Deal Summary</div>
+                                                        <div class="d-flex flex-wrap gap-2">
+                                                            <span class="badge bg-primary px-3 py-2 rounded-pill">
+                                                                Items: {{ form.menu_item_ids.length }}
+                                                            </span>
+                                                            <span class="badge bg-success px-3 py-2 rounded-pill">
+                                                                Total: {{formatCurrencySymbol(
+                                                                    form.menu_item_ids.reduce((sum, item) => {
+                                                                        const menu = menuItems.find(m => m.id === (item.id ||
+                                                                            item));
+                                                                        const qty = item.qty || 1;
+                                                                        return sum + ((menu?.price || 0) * qty);
+                                                                    }, 0)
+                                                                )}}
+                                                            </span>
+                                                            <span
+                                                                class="badge bg-warning text-dark px-3 py-2 rounded-pill"
+                                                                v-if="form.deal_price">
+                                                                Deal: {{ formatCurrencySymbol(form.deal_price) }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Menus Table -->
+                                                <div class="card border rounded-4">
+                                                    <div class="table-responsive">
+                                                        <table class="table align-middle mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Menu Name</th>
+                                                                    <th>Qty</th>
+                                                                    <th>Price</th>
+                                                                    <th>Total</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr v-for="(item, idx) in form.menu_item_ids"
+                                                                    :key="idx">
+                                                                    <td>{{menuItems.find(m => m.id === (item.id ||
+                                                                        item))?.name}}
+                                                                    </td>
+                                                                    <td>{{ item.qty || 1 }}</td>
+                                                                    <td>{{formatCurrencySymbol(menuItems.find(m => m.id
+                                                                        ===
+                                                                        (item.id || item))?.price || 0)}}</td>
+                                                                    <td>{{formatCurrencySymbol((menuItems.find(m =>
+                                                                        m.id ===
+                                                                        (item.id || item))?.price || 0) * (item.qty ||
+                                                                            1))}}</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <!-- End Tab Content -->
 
                             <div class="mt-4">
                                 <button class="btn btn-primary rounded-pill btn-sm px-5 py-2" :disabled="submitting"
-                                    @click="form.id ? submitEdit() : submitProduct()">
+                                    @click="handleSubmit">
                                     <template v-if="submitting">
                                         <span class="spinner-border spinner-border-sm me-2"></span>
-                                        {{ form.id ? "Saving..." : "saving..." }}
+                                        Saving...
                                     </template>
                                     <template v-else>
-                                        {{ form.id ? "Save" : "Save" }}
+                                        Save
                                     </template>
                                 </button>
 
@@ -3351,6 +4213,125 @@ const format = (val) => {
                                     <div class="mt-3 text-center">
                                         <button class="btn btn-primary btn-sm py-2 px-5 rounded-pill"
                                             @click="saveIngredients">
+                                            Done
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add menu Modal -->
+
+            <div class="modal fade" id="addMenuSelectionModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-centered">
+                    <div class="modal-content rounded-4">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-semibold">
+                                {{ isEditMode ? "Edit Menu Items" : "Add Menu Items" }}
+                            </h5>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal" aria-label="Close" @click="showMenuModal" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="modal-body">
+                            <div class="row g-4">
+                                <!-- Left side: Available Menus -->
+                                <div class="col-lg-5">
+                                    <div class="search-wrap mb-2">
+                                        <input v-model="m_search" type="text" class="form-control search-input"
+                                            placeholder="Search Menus..." />
+                                    </div>
+
+                                    <div v-for="menu in m_displayMenus" :key="menu.id"
+                                        class="card shadow-sm border-0 rounded-4 mb-3">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-start gap-3">
+                                                <img :src="menu.image_url ? menu.image_url : '/assets/img/default.png'"
+                                                    class="rounded"
+                                                    style="width: 56px; height: 56px; object-fit: cover; border: 1px solid white;" />
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-semibold">{{ menu.name }}</div>
+                                                    <div class="text-muted small">Category: {{ menu.category?.name }}
+                                                    </div>
+                                                    <div class="text-muted small">Price: {{
+                                                        formatCurrencySymbol(menu.price) }}
+                                                    </div>
+                                                </div>
+
+                                                <button class="btn btn-primary btn-sm py-2 px-4 rounded-pill"
+                                                    @click="addMenuToCart(menu)">
+                                                    {{m_cart.some((c) => c.id === menu.id) ? "Update" : "Add"}}
+                                                </button>
+                                            </div>
+
+                                            <div class="row g-2 mt-3">
+                                                <div class="col-6">
+                                                    <label class="small text-muted">Quantity</label>
+                                                    <input v-model.number="menu.qty" type="number" min="1"
+                                                        class="form-control form-control-sm" placeholder="Enter qty" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Right side: Cart -->
+                                <div class="col-lg-7">
+                                    <div class="card border rounded-4 mb-3">
+                                        <div class="p-3 fw-semibold">
+                                            <div>Deal Summary</div>
+                                            <div>Total Menu Items: {{ m_cart.length }}</div>
+                                            <div>Total Price: {{ formatCurrencySymbol(m_totalPrice) }}</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="card border rounded-4">
+                                        <div class="table-responsive">
+                                            <table class="table align-middle mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Qty</th>
+                                                        <th>Price</th>
+                                                        <th>Total</th>
+                                                        <th class="text-end">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(menu, idx) in m_cart" :key="idx">
+                                                        <td>{{ menu.name }}</td>
+                                                        <td>{{ menu.qty }}</td>
+                                                        <td>{{ formatCurrencySymbol(menu.price) }}</td>
+                                                        <td>{{ formatCurrencySymbol(menu.price * menu.qty) }}</td>
+                                                        <td class="text-end">
+                                                            <button class="btn btn-sm btn-danger"
+                                                                @click="removeMenuFromCart(idx)">
+                                                                Remove
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr v-if="m_cart.length === 0">
+                                                        <td colspan="5" class="text-center text-muted py-3">
+                                                            No menu items added.
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3 text-center">
+                                        <button class="btn btn-primary btn-sm py-2 px-5 rounded-pill"
+                                            @click="saveMenusToCart">
                                             Done
                                         </button>
                                     </div>

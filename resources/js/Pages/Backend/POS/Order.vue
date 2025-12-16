@@ -1,7 +1,7 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import Select from "primevue/select";
 import { Pencil, Eye, XCircle } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
@@ -9,6 +9,7 @@ import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
 import { toast } from 'vue3-toastify';
 import OrderCancellationModal from "@/Components/OrderCancellationModal.vue";
+import Dropdown from 'primevue/dropdown'
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const cancellingOrderId = ref(null);
@@ -20,17 +21,81 @@ const orders = ref([]);
 
 const loading = ref(false);
 
-const fetchOrders = async () => {
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+// 🔁 Keep function call same
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null // reset after click
+    }
+}
+
+const fetchOrders = async (page = null) => {
     loading.value = true;
     try {
-        const response = await axios.get("/api/orders/all");
-        orders.value = response.data.data;
+        // ✅ Build params with all filters
+        const params = {
+            q: q.value,
+            page: page || pagination.value.current_page,
+            per_page: pagination.value.per_page,
+            // ✅ Add filter parameters
+            sort_by: appliedFilters.value.sortBy || '',
+            order_type: appliedFilters.value.orderType || '',
+            payment_type: appliedFilters.value.paymentType || '',
+            status: appliedFilters.value.status || '',
+            price_min: appliedFilters.value.priceMin || '',
+            price_max: appliedFilters.value.priceMax || '',
+            date_from: appliedFilters.value.dateFrom || '',
+            date_to: appliedFilters.value.dateTo || '',
+        };
+
+        // ✅ Remove empty values
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
+            }
+        });
+
+        const response = await axios.get("/api/orders/all", { params });
+
+        orders.value = response.data.data || [];
+
+        // ✅ Update pagination
+        pagination.value = {
+            current_page: response.data.current_page,
+            last_page: response.data.last_page,
+            per_page: response.data.per_page,
+            total: response.data.total,
+            from: response.data.from,
+            to: response.data.to,
+            links: response.data.links
+        };
+
     } catch (error) {
-        console.error("Error fetching inventory:", error);
+        console.error("Error fetching orders:", error);
+        toast.error("Failed to load orders");
     } finally {
         loading.value = false;
     }
 };
+
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+    if (page) {
+        fetchOrders(parseInt(page));
+    }
+};
+
 onMounted(async () => {
 
     q.value = "";
@@ -72,6 +137,17 @@ const q = ref("");
 const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
+
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
+});
+
 const filters = ref({
     sortBy: "",
     orderType: "",
@@ -98,99 +174,8 @@ const appliedFilters = ref({
 const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway"]);
 const paymentTypeOptions = ref(["All", "Cash", "Card", "Split"]);
 
-const filtered = computed(() => {
-    const term = q.value.trim().toLowerCase();
-    let result = [...orders.value];
-    if (term) {
-        result = result.filter((o) =>
-            [
-                String(o.id),
-                o.type?.table_number ?? "",
-                o.type?.order_type ?? "",
-                o.customer_name ?? "",
-                o.payment?.payment_type ?? "",
-                o.status ?? "",
-                String(o.total_amount ?? ""),
-                formatDate(o.created_at),
-                timeAgo(o.created_at),
-            ]
-                .join(" ")
-                .toLowerCase()
-                .includes(term)
-        );
-    }
-    if (filters.value.orderType) {
-        result = result.filter(
-            (o) =>
-                (o.type?.order_type ?? "").toLowerCase() ===
-                filters.value.orderType.toLowerCase()
-        );
-    }
-    if (filters.value.paymentType) {
-        result = result.filter(
-            (o) =>
-                (o.payment?.payment_type ?? "").toLowerCase() ===
-                filters.value.paymentType.toLowerCase()
-        );
-    }
-    if (filters.value.status) {
-        result = result.filter((o) => {
-            return o.status?.toLowerCase() === filters.value.status.toLowerCase();
-        });
-    }
-    if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
-        result = result.filter((o) => {
-            const price = o.total_amount || 0;
-            const min = filters.value.priceMin || 0;
-            const max = filters.value.priceMax || Infinity;
-            return price >= min && price <= max;
-        });
-    }
-    if (filters.value.dateFrom) {
-        result = result.filter((o) => {
-            const orderDate = new Date(o.created_at);
-            const filterDate = new Date(filters.value.dateFrom);
-            return orderDate >= filterDate;
-        });
-    }
 
-    if (filters.value.dateTo) {
-        result = result.filter((o) => {
-            const orderDate = new Date(o.created_at);
-            const filterDate = new Date(filters.value.dateTo);
-            filterDate.setHours(23, 59, 59, 999); // End of day
-            return orderDate <= filterDate;
-        });
-    }
 
-    return result;
-});
-
-const sortedOrders = computed(() => {
-    const arr = [...filtered.value];
-    const sortBy = filters.value.sortBy;
-
-    switch (sortBy) {
-        case "date_desc":
-            return arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        case "date_asc":
-            return arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        case "price_desc":
-            return arr.sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0));
-        case "price_asc":
-            return arr.sort((a, b) => (a.total_amount || 0) - (b.total_amount || 0));
-        case "customer_asc":
-            return arr.sort((a, b) =>
-                (a.customer_name || "").localeCompare(b.customer_name || "")
-            );
-        case "customer_desc":
-            return arr.sort((a, b) =>
-                (b.customer_name || "").localeCompare(a.customer_name || "")
-            );
-        default:
-            return arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    }
-});
 
 const filterOptions = computed(() => ({
     sortOptions: [
@@ -220,10 +205,14 @@ const filterOptions = computed(() => ({
 }));
 
 const handleFilterApply = (appliedFiltersData) => {
-    filters.value = { ...filters.value, ...appliedFiltersData };
-    // Save the applied filters
     appliedFilters.value = { ...filters.value };
-    console.log("Filters applied:", filters.value);
+    pagination.value.current_page = 1;
+    fetchOrders(1);
+
+    const modal = bootstrap.Modal.getInstance(
+        document.getElementById("orderFilterModal")
+    );
+    modal?.hide();
 };
 
 const handleFilterClear = () => {
@@ -247,18 +236,19 @@ const handleFilterClear = () => {
         dateFrom: "",
         dateTo: "",
     };
-    console.log("Filters cleared");
+    pagination.value.current_page = 1;
+    pagination.value.per_page = 10;
+    fetchOrders(1);
 };
 
 /* ===================== KPIs ===================== */
-const totalOrders = computed(() => orders.value.length);
+const totalOrders = computed(() => pagination.value.total || 0);
 const completedOrders = computed(
     () => orders.value.filter((o) => o.status === "paid").length
 );
 const pendingOrders = computed(
-    () => orders.value.filter((o) => o.status !== "paid").length
+    () => orders.value.filter((o) => o.status === "cancelled").length
 );
-
 const totalOrdersAmount = computed(() => {
     return orders.value.reduce((sum, order) => {
         return sum + (Number(order.total_amount) || 0);
@@ -698,10 +688,21 @@ const confirmCancelOrder = async (reason) => {
     }
 };
 
+let searchTimeout = null;
+
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1; // ✅ Reset to page 1
+        fetchOrders(1);
+    }, 500);
+});
+
 // Add these imports at the top of your script (if not already present)
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import Pagination from "@/Components/Pagination.vue";
 
 // Add this export handler function
 const onDownload = (type) => {
@@ -1109,29 +1110,16 @@ const downloadExcel = (data) => {
                             </FilterModal>
                             <!-- Download -->
                             <!-- Replace the existing Export dropdown in your template -->
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown">
-                                    Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
-                                            Export as PDF
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
-                                            Export as Excel
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Export as CSV
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
+                           <Dropdown
+                            v-model="exportOption"
+                            :options="exportOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Export"
+                            class="export-dropdown"
+                            @change="onExportChange"
+                        />
+
                         </div>
                     </div>
 
@@ -1162,7 +1150,6 @@ const downloadExcel = (data) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Loading Spinner -->
                                 <tr v-if="loading">
                                     <td colspan="11" class="text-center py-5">
                                         <div class="d-flex flex-column align-items-center justify-content-center">
@@ -1177,7 +1164,7 @@ const downloadExcel = (data) => {
 
                                 <!-- Orders List (only show when not loading) -->
                                 <template v-else>
-                                    <tr v-for="(o, i) in sortedOrders" :key="o.id">
+                                    <tr v-for="(o, i) in orders" :key="o.id">
                                         <td>{{ i + 1 }}</td>
                                         <td>{{ o.type?.table_number ?? "-" }}</td>
                                         <td>{{ o.type?.order_type ?? "-" }}</td>
@@ -1228,7 +1215,7 @@ const downloadExcel = (data) => {
                                     </tr>
 
                                     <!-- No Data Message -->
-                                    <tr v-if="!loading && filtered.length === 0">
+                                    <tr v-if="!loading && orders.length === 0">
                                         <td colspan="11" class="text-center text-muted py-4">
                                             <div
                                                 class="d-flex flex-column align-items-center justify-content-center py-3">
@@ -1245,6 +1232,16 @@ const downloadExcel = (data) => {
                         </table>
                     </div>
 
+
+                    <div v-if="!loading && pagination.last_page > 1"
+                        class="mt-4 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
+                        </div>
+
+                        <Pagination :pagination="pagination.links" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
+                    </div>
                 </div>
             </div>
 

@@ -6,6 +6,7 @@ import axios from "axios";
 import { useFormatters } from '@/composables/useFormatters'
 import { nextTick } from "vue";
 import Select from "primevue/select";
+import Dropdown from 'primevue/dropdown'
 import VueDatePicker from "@vuepic/vue-datepicker";
 import "@vuepic/vue-datepicker/dist/main.css";
 import jsPDF from 'jspdf';
@@ -27,6 +28,27 @@ const filters = ref({
     orderType: "",
     paymentType: "",
 });
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+]
+
+const handleExport = (value) => {
+    if (!value) return
+
+    if (value === 'pdf') {
+        downloadPDF()
+    }
+
+    if (value === 'excel') {
+        downloadExcel()
+    }
+
+    exportOption.value = null // reset after export
+}
 
 const analyticsTypeOptions = [
     { label: 'Sales Analytics', value: 'sales' },
@@ -835,24 +857,9 @@ const downloadExcel = () => {
             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
                 <h4 class="mb-1">Analytics & Reports</h4>
                 <div></div>
-                <div class="dropdown">
-                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                        data-bs-toggle="dropdown">
-                        <i class="fas fa-download me-2"></i>Export
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                        <li>
-                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="downloadPDF">
-                               Export as PDF
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="downloadExcel">
-                               Export as Excel
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+                <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label" optionValue="value"
+                    placeholder="Export" class="export-select" @update:modelValue="handleExport" />
+
             </div>
 
             <!-- KPIs - Dynamic based on Analytics Type -->
@@ -1736,7 +1743,7 @@ const downloadExcel = () => {
     color: white;
 }
 
-:global(.dark .form-control:focus){
+:global(.dark .form-control:focus) {
     border-color: #fff !important;
 }
 

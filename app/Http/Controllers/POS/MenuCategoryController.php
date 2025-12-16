@@ -47,24 +47,34 @@ class MenuCategoryController extends Controller
     /**
      * Get parent categories for dropdown
      */
-    public function getParents(): JsonResponse
-    {
-        try {
-            $parentCategories = $this->MenuCategoryService->getParentCategories();
+   /**
+ * ✅ UPDATED: Get parent categories with filters and pagination
+ */
+public function getParents(Request $request): JsonResponse
+{
+    try {
+        // ✅ Extract all filter parameters
+        $filters = [
+            'q' => $request->query('q', ''),
+            'sort_by' => $request->query('sort_by', ''),
+            'status' => $request->query('status', ''),
+            'category' => $request->query('category', ''),
+            'has_subcategories' => $request->query('has_subcategories', ''),
+            'per_page' => $request->query('per_page', 10),
+        ];
 
-            return response()->json([
-                'success' => true,
-                'data' => $parentCategories,
-                'message' => 'Parent categories retrieved successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve parent categories',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        // ✅ Get paginated categories with filters
+        $parentCategories = $this->MenuCategoryService->getParentCategories($filters);
+
+        return response()->json($parentCategories);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to retrieve parent categories',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Store newly created categories
