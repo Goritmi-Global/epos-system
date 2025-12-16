@@ -18,7 +18,7 @@ class StoreMenuRequest extends FormRequest
         $isVariantMenu = is_array($this->variant_metadata) && count($this->variant_metadata) > 0;
 
         return [
-           'name' => 'required|string|max:255|unique:menu_items,name',
+            'name' => 'required|string|max:255|unique:menu_items,name',
 
             // Price is required only for simple menus
             'price' => $isVariantMenu ? 'nullable|numeric|min:0' : 'required|numeric|min:0',
@@ -62,7 +62,8 @@ class StoreMenuRequest extends FormRequest
             ],
 
             // Addons
-            'addon_group_id' => 'nullable|exists:addon_groups,id',
+            'addon_group_ids' => 'nullable|array',
+            'addon_group_ids.*' => 'exists:addon_groups,id',
             'addon_ids' => 'nullable|array',
             'addon_ids.*' => 'exists:addons,id',
 

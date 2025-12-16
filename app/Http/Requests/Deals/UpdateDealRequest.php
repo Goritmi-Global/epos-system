@@ -26,7 +26,9 @@ class UpdateDealRequest extends FormRequest
             'category_id' => 'nullable|exists:menu_categories,id',
 
             // ✅ FIXED: Single addon group (not array)
-            'addon_group_id' => 'nullable|exists:addon_groups,id',
+            'addon_group_ids' => 'nullable|array',
+            'addon_group_ids.*' => 'exists:addon_groups,id',
+
             'addon_ids' => 'nullable|array',
             'addon_ids.*' => 'exists:addons,id',
 
@@ -73,7 +75,7 @@ class UpdateDealRequest extends FormRequest
             'menu_item_ids.*.qty.min' => 'Quantity must be at least 1',
 
             'category_id.exists' => 'Selected category is invalid',
-            'addon_group_id.exists' => 'Selected addon group is invalid',
+            'addon_group_ids.*.exists' => 'One or more selected addon groups are invalid',
             'addon_ids.*.exists' => 'One or more selected addons are invalid',
 
             'allergies.*.exists' => 'One or more selected allergies are invalid',

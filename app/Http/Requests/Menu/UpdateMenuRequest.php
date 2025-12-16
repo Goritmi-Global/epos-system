@@ -63,7 +63,8 @@ class UpdateMenuRequest extends FormRequest
             // 'resale_value' => 'required_if:is_saleable,true|nullable|numeric|min:0',
 
             // Addons
-            'addon_group_id' => 'nullable|exists:addon_groups,id',
+            'addon_group_ids' => 'nullable|array',
+            'addon_group_ids.*' => 'exists:addon_groups,id',
             'addon_ids' => 'nullable|array',
             'addon_ids.*' => 'exists:addons,id',
 

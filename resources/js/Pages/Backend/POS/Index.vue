@@ -5245,7 +5245,6 @@ const decrementModalAddon = (groupId, addonId) => {
                                 Orders
                             < </button> -->
                             <button class="btn btn-info px-3 py-2" @click="openPendingOrdersModal">
-                                <i class="bi bi-clock-history me-1"></i>
                                 Pending
                                 <span v-if="pendingOrders.length > 0" class="badge bg-danger ms-1">
                                     {{ pendingOrders.length }}
@@ -5446,7 +5445,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -5492,7 +5491,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
                                     </div>
                                     <!-- Total After All Discounts -->
@@ -5519,7 +5518,6 @@ const decrementModalAddon = (groupId, addonId) => {
                                     Clear
                                 </button>
                                 <button class="btn btn-warning" @click="holdOrderAsPending">
-                                    <i class="bi bi-clock-history me-1"></i>
                                     Pending
                                 </button>
                                 <button class="btn btn-primary btn-place" @click="openConfirmModal">
@@ -5817,7 +5815,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                                }}</strong>
+                                            }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -5855,7 +5853,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                    }}</h6>
+                                                                }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">
