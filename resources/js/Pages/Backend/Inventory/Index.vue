@@ -9,6 +9,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
 import Pagination from "@/Components/Pagination.vue";
+import Dropdown from 'primevue/dropdown'
 
 
 import { useFormatters } from '@/composables/useFormatters'
@@ -59,6 +60,23 @@ const pagination = ref({
     links: []
 });
 const inventories = ref(props.inventories?.data || []);
+
+
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null // reset after click
+    }
+}
 const items = computed(() => inventories.value);
 
 
@@ -299,7 +317,7 @@ const handleFilterClear = () => {
         dateTo: "",
     };
     appliedFilters.value = { ...filters.value };
-     pagination.value.current_page = 1;
+    pagination.value.current_page = 1;
     pagination.value.per_page = 10;
     fetchInventories(1);
 };
@@ -336,7 +354,7 @@ watch(q, (newVal, oldVal) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
         pagination.value.current_page = 1;
-      
+
 
         fetchInventories(1);
     }, 500);
@@ -1589,26 +1607,10 @@ const handleImport = (data) => {
 
 
                             <!-- Download all -->
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary btn-sm py-2 rounded-pill px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown">
-                                    Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('pdf')">Export as PDF</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('excel')">Export as Excel</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('csv')">Export as CSV</a>
-                                    </li>
-                                </ul>
-                            </div>
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
+
                         </div>
                     </div>
 
@@ -1798,7 +1800,7 @@ const handleImport = (data) => {
                                         'is-invalid': formErrors.minAlert,
                                     }" placeholder="e.g., 5" />
                                     <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1809,7 +1811,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.unit_id,
                                         }" />
                                     <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1911,7 +1913,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <!-- Tags -->
@@ -2140,20 +2142,20 @@ const handleImport = (data) => {
                                             <span class="text-muted">Stocked In</span>
                                             <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
                                                 totals.availableQty
-                                                }}</span>
+                                            }}</span>
                                         </div>
 
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
                                                 dateFmt(viewItemRef.updated_at)
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>

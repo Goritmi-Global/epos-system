@@ -6,6 +6,7 @@ import Select from "primevue/select";
 import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
+import Dropdown from 'primevue/dropdown'
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -28,6 +29,22 @@ const manualCategories = ref([]);
 const categories = ref([]);
 const editingCategory = ref(null);
 const manualSubcategories = ref([]);
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+// 🔁 Keep function call same
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null // reset after click
+    }
+}
 
 const pagination = ref({
     current_page: 1,
@@ -1299,27 +1316,16 @@ const handleImport = (data) => {
                             ]" @on-import="handleImport" />
 
                             <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown">
-                                    Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('pdf')">Export as PDF</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('excel')">Export as Excel</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Export as CSV
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
+                          <Dropdown
+                            v-model="exportOption"
+                            :options="exportOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Export"
+                            class="export-dropdown"
+                            @change="onExportChange"
+                        />
+
                         </div>
                     </div>
 

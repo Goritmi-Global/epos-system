@@ -31,4 +31,34 @@ class KitchenOrder extends Model
     {
         return $this->hasMany(KitchenOrderItem::class);
     }
+
+     public function calculateStatus(): string
+    {
+        $items = $this->items;
+        
+        if ($items->isEmpty()) {
+            return 'Waiting';
+        }
+
+        $statuses = $items->pluck('status')->unique()->values();
+
+        if ($statuses->count() === 1) {
+            return $statuses->first();
+        }
+
+        if ($statuses->contains('In Progress')) {
+            return 'In Progress';
+        }
+
+        if ($statuses->every(fn($s) => in_array($s, ['Done', 'Cancelled']))) {
+            return 'Done';
+        }
+        return 'Waiting';
+    }
+
+    public function updateStatus(): void
+    {
+        $this->status = $this->calculateStatus();
+        $this->save();
+    }
 }

@@ -12,6 +12,7 @@ import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
 import { Head, usePage } from "@inertiajs/vue3";
 import Pagination from "@/Components/Pagination.vue";
+import Dropdown from 'primevue/dropdown'
 const pageProps = usePage();
 
 const onboarding = computed(() => pageProps.props.onboarding.language_and_location?.country_id ?? "PK");
@@ -27,6 +28,21 @@ const pagination = ref({
 });
 const page = ref(1);
 const perPage = ref(15);
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null
+    }
+}
 
 const fetchSuppliers = async (page = null) => {
     loading.value = true;
@@ -718,29 +734,8 @@ const handleImport = (data) => {
                             ['Ali Khan', 'ali@example.com', '+44 3721232321', 'Lahore', 'Steel'],
                             ['Ahmed Raza', 'ahmed@example.com', '+44 5676576576', 'Karachi', 'Cement']
                         ]" @on-import="handleImport" />
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown">
-                            Export
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                            <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
-                                    Export as PDF
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
-                                    Export as Excel
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                    Export as CSV
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
+                    <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label" optionValue="value"
+                        placeholder="Export" class="export-dropdown" @change="onExportChange" />
                 </div>
             </div>
 
@@ -946,6 +941,75 @@ const handleImport = (data) => {
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
+}
+
+.export-select {
+    min-width: 150px;
+}
+
+/* Base */
+:deep(.export-select .p-dropdown) {
+    border-radius: 9999px;
+    padding: 0 10px;
+    height: 38px;
+    border: 1px solid #dee2e6;
+    background: #fff;
+}
+
+/* Text */
+:deep(.export-select .p-dropdown-label) {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Icon */
+:deep(.export-select .p-dropdown-trigger) {
+    width: 2rem;
+}
+
+/* Hover */
+:deep(.export-select .p-dropdown:hover) {
+    border-color: var(--brand);
+}
+
+.p-select{
+    background: #fff !important;
+}
+
+/* =========================
+   DARK MODE
+========================= */
+:global(.dark) :deep(.export-select .p-dropdown) {
+    background: #181818;
+    border-color: #2a2a2a;
+    color: #fff;
+}
+
+:global(.dark) :deep(.export-select .p-dropdown-label) {
+    color: #fff;
+}
+
+:global(.dark) :deep(.export-select .p-dropdown-trigger svg) {
+    color: #fff;
+}
+
+/* Dropdown panel */
+:global(.dark) :deep(.p-dropdown-panel) {
+    background: #212121;
+    border: 1px solid #2a2a2a;
+}
+
+:global(.dark) :deep(.p-dropdown-item) {
+    color: #e5e5e5;
+}
+
+:global(.dark) :deep(.p-dropdown-item:hover) {
+    background: #2f2f2f;
+}
+
+/* Light mode panel */
+:deep(.p-dropdown-panel) {
+    border-radius: 12px;
 }
 
 .side-link {
