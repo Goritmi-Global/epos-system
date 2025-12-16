@@ -14,7 +14,6 @@ class UpdateMenuRequest extends FormRequest
 
     public function rules(): array
     {
-        // ✅ Check for variant_metadata instead of variant_group_id or variant_ingredients
         $isVariantMenu = is_array($this->variant_metadata) && count($this->variant_metadata) > 0;
 
         return [
@@ -59,13 +58,13 @@ class UpdateMenuRequest extends FormRequest
             'resale_type' => 'required_if:is_saleable,true|nullable|in:flat,percentage',
             'resale_value' => 'required_if:is_saleable,true|nullable|numeric|min:0',
 
-
             // 'is_saleable' => 'nullable|boolean',
             // 'resale_type' => 'required_if:is_saleable,true|nullable|in:flat,percentage',
             // 'resale_value' => 'required_if:is_saleable,true|nullable|numeric|min:0',
 
             // Addons
-            'addon_group_id' => 'nullable|exists:addon_groups,id',
+            'addon_group_ids' => 'nullable|array',
+            'addon_group_ids.*' => 'exists:addon_groups,id',
             'addon_ids' => 'nullable|array',
             'addon_ids.*' => 'exists:addons,id',
 

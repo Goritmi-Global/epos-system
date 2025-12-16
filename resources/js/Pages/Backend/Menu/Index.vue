@@ -90,27 +90,34 @@ const onExportChange = (e) => {
     }
 }
 const loadAddons = () => {
-    if (form.value.addon_group_id) {
-        const group = props.addonGroups?.find(g => g.id === form.value.addon_group_id);
-        if (group) {
-            addons.value = group.addons || [];
-            form.value.addon_group_constraints = {
-                min_select: group.min_select,
-                max_select: group.max_select
-            };
-        } else {
-            addons.value = [];
-            form.value.addon_group_constraints = null;
-        }
+    if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+        // Collect all addons from all selected groups
+        const allAddons = [];
+
+        form.value.addon_group_ids.forEach(groupId => {
+            const group = props.addonGroups?.find(g => g.id === groupId);
+            if (group && group.addons) {
+                allAddons.push(...group.addons);
+            }
+        });
+
+        // Remove duplicates based on addon id
+        addons.value = allAddons.filter((addon, index, self) =>
+            index === self.findIndex((a) => a.id === addon.id)
+        );
+
         if (!Array.isArray(form.value.addon_ids)) {
             form.value.addon_ids = [];
         }
     } else {
         addons.value = [];
         form.value.addon_ids = [];
-        form.value.addon_group_constraints = null;
     }
 }
+
+const allSelectedAddons = computed(() => {
+    return addons.value;
+});
 
 const labelColors = [
     { name: "Meat", value: "#E74C3C" },
@@ -521,9 +528,9 @@ let searchTimeout = null;
 watch(q, () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        currentPage.value = 1; 
+        currentPage.value = 1;
         fetchMenus(1);
-    }, 500); 
+    }, 500);
 });
 watch(
     () => appliedFilters.value,
@@ -566,7 +573,7 @@ const handleFilterClear = () => {
     filters.value = { ...defaultMenuFilters };
     appliedFilters.value = { ...defaultMenuFilters };
     currentPage.value = 1;
-    fetchMenus(1); 
+    fetchMenus(1);
 };
 
 /* ===================== KPIs ===================== */
@@ -645,7 +652,7 @@ const form = ref({
     is_taxable: null,
     variant_group_id: '',
     variant_prices: {},
-    addon_group_id: '',
+    addon_group_ids: [],
     addon_ids: [],
     addon_group_constraints: null,
     is_saleable: false,
@@ -725,9 +732,13 @@ const submitDeal = async () => {
         form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
         // Addons
-        if (form.value.addon_group_id) {
-            formData.append("addon_group_id", form.value.addon_group_id);
+        if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+            form.value.addon_group_ids.forEach((groupId, index) => {
+                formData.append(`addon_group_ids[${index}]`, groupId);
+            });
+        }
 
+        if (form.value.addon_ids && form.value.addon_ids.length > 0) {
             form.value.addon_ids.forEach((addonId, index) => {
                 formData.append(`addon_ids[${index}]`, addonId);
             });
@@ -786,8 +797,17 @@ const editDeal = (deal) => {
     activeTab.value = 'deals';
 
     // ✅ Extract addon_group_id from deal_addon_groups array
-    const addonGroupId = deal.addon_group_id || deal.deal_addon_groups?.[0]?.group_id || '';
-    const addonIds = deal.addon_ids || deal.deal_addon_groups?.[0]?.addons?.map(a => a.id) || [];
+    const addonGroupIds = deal.deal_addon_groups?.map(
+        g => g.group_id
+    ) || [];
+
+    const addonIds = [];
+
+    deal.deal_addon_groups?.forEach(group => {
+        if (group.addons) {
+            addonIds.push(...group.addons.map(a => a.id));
+        }
+    });
 
     form.value = {
         id: deal.id,
@@ -810,7 +830,7 @@ const editDeal = (deal) => {
         tags: deal.tags?.map(t => t.id) || [],
 
         // ✅ Addon fields
-        addon_group_id: addonGroupId,
+        addon_group_ids: addonGroupIds,
         addon_ids: addonIds,
         addon_group_constraints: null,
 
@@ -849,8 +869,7 @@ const editDeal = (deal) => {
     }
 
     // ✅ Load addons after setting addon_group_id
-    if (form.value.addon_group_id) {
-        // Need to wait a tick for the form to update
+    if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
         nextTick(() => {
             loadAddons();
         });
@@ -896,9 +915,14 @@ const submitEditDeal = async () => {
         form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
         // ✅ MISSING: Addons
-        if (form.value.addon_group_id) {
-            formData.append("addon_group_id", form.value.addon_group_id);
+        // ✅ MISSING: Addons
+        if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+            form.value.addon_group_ids.forEach((groupId, index) => {
+                formData.append(`addon_group_ids[${index}]`, groupId);
+            });
+        }
 
+        if (form.value.addon_ids && form.value.addon_ids.length > 0) {
             form.value.addon_ids.forEach((addonId, index) => {
                 formData.append(`addon_ids[${index}]`, addonId);
             });
@@ -955,6 +979,7 @@ const submitEditDeal = async () => {
 // ==================== TOGGLE DEAL STATUS ====================
 const toggleDealStatus = async (deal) => {
     try {
+        console.log('Toggling status for deal:', deal);
         const newStatus = deal.status === 1 ? 0 : 1;
         await axios.patch(`/deals/${deal.id}/status`, { status: newStatus });
 
@@ -1083,9 +1108,14 @@ const submitProduct = async () => {
         }
 
         // Addons
-        if (form.value.addon_group_id) {
-            formData.append("addon_group_id", form.value.addon_group_id);
+        // Addons - REPLACE THIS SECTION
+        if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+            form.value.addon_group_ids.forEach((groupId, index) => {
+                formData.append(`addon_group_ids[${index}]`, groupId);
+            });
+        }
 
+        if (form.value.addon_ids && form.value.addon_ids.length > 0) {
             form.value.addon_ids.forEach((addonId, index) => {
                 formData.append(`addon_ids[${index}]`, addonId);
             });
@@ -1185,6 +1215,7 @@ const i_displayInv = computed(() => {
 });
 
 const editItem = (item) => {
+    console.log('Edit Item', item);
     if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
@@ -1212,8 +1243,8 @@ const editItem = (item) => {
         tags: itemData.tags?.map((t) => t.id) || [],
         imageFile: null,
         imageUrl: itemData.image_url || null,
-        addon_group_id: itemData.addon_group_id || '',
-        addon_ids: itemData.addon_ids || itemData.addons?.map(a => a.id) || [],
+        addon_group_ids: itemData.addon_group_relations?.map(rel => rel.addon_group_id) || [],
+        addon_ids: itemData.addons?.map(a => a.id) || [],
 
         is_saleable: itemData.is_saleable === 1 || itemData.is_saleable === true ? true : false,
         resale_type: itemData.resale_type || null,
@@ -1270,7 +1301,7 @@ const editItem = (item) => {
         variantIdCounter.value = maxVariantId + 1;
     }
 
-    if (itemData.addon_group_id) {
+    if (itemData.addon_group_ids && itemData.addon_group_ids.length > 0) {
         loadAddons();
     }
 
@@ -1465,8 +1496,14 @@ const submitEdit = async () => {
         }
 
         // Addons
-        if (form.value.addon_group_id) {
-            formData.append("addon_group_id", form.value.addon_group_id);
+        // Addons
+        if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
+            form.value.addon_group_ids.forEach((groupId, index) => {
+                formData.append(`addon_group_ids[${index}]`, groupId);
+            });
+        }
+
+        if (form.value.addon_ids && form.value.addon_ids.length > 0) {
             form.value.addon_ids.forEach((addonId, index) => {
                 formData.append(`addon_ids[${index}]`, addonId);
             });
@@ -1547,7 +1584,7 @@ function resetForm() {
         is_taxable: null,
         variant_group_id: '',
         variant_prices: {},
-        addon_group_id: '',
+        addon_group_ids: [],
         addon_ids: [],
         addon_group_constraints: null,
         is_saleable: false,
@@ -3198,19 +3235,20 @@ function saveMenusToCart() {
                                             </small>
                                         </div>
 
+                                        <!-- REPLACE THIS SECTION -->
                                         <div class="col-md-12">
-                                            <label class="form-label">Addon Group</label>
-                                            <Select v-model="form.addon_group_id" :options="addonGroups"
-                                                optionLabel="name" optionValue="id" placeholder="Select Addon Group"
-                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                                showClear @update:modelValue="loadAddons"
-                                                :class="{ 'is-invalid': formErrors.addon_group_id }" />
-                                            <small v-if="formErrors.addon_group_id" class="text-danger">
-                                                {{ formErrors.addon_group_id[0] }}
+                                            <label class="form-label">Addon Groups</label>
+                                            <MultiSelect v-model="form.addon_group_ids" :options="addonGroups"
+                                                optionLabel="name" optionValue="id" filter
+                                                placeholder="Select Addon Groups" class="w-100" appendTo="self"
+                                                :autoZIndex="true" :baseZIndex="2000" @update:modelValue="loadAddons"
+                                                :class="{ 'is-invalid': formErrors.addon_group_ids }" />
+                                            <small v-if="formErrors.addon_group_ids" class="text-danger">
+                                                {{ formErrors.addon_group_ids[0] }}
                                             </small>
                                         </div>
 
-                                        <!-- Show addons from selected group -->
+                                        <!-- Show addons from all selected groups -->
                                         <div v-if="addons && addons.length > 0" class="col-md-12">
                                             <label class="form-label">Select Addons</label>
                                             <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
@@ -3426,19 +3464,20 @@ function saveMenusToCart() {
                                         </div>
 
                                         <!-- Addon Group -->
+                                        <!-- REPLACE Addon Group section -->
                                         <div class="col-md-12">
-                                            <label class="form-label">Addon Group</label>
-                                            <Select v-model="form.addon_group_id" :options="addonGroups"
-                                                optionLabel="name" optionValue="id" placeholder="Select Addon Group"
-                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                                showClear @update:modelValue="loadAddons"
-                                                :class="{ 'is-invalid': formErrors.addon_group_id }" />
-                                            <small v-if="formErrors.addon_group_id" class="text-danger">
-                                                {{ formErrors.addon_group_id[0] }}
+                                            <label class="form-label">Addon Groups</label>
+                                            <MultiSelect v-model="form.addon_group_ids" :options="addonGroups"
+                                                optionLabel="name" optionValue="id" filter
+                                                placeholder="Select Addon Groups" class="w-100" appendTo="self"
+                                                :autoZIndex="true" :baseZIndex="2000" @update:modelValue="loadAddons"
+                                                :class="{ 'is-invalid': formErrors.addon_group_ids }" />
+                                            <small v-if="formErrors.addon_group_ids" class="text-danger">
+                                                {{ formErrors.addon_group_ids[0] }}
                                             </small>
                                         </div>
 
-                                        <!-- Show addons from selected group -->
+                                        <!-- Show addons from all selected groups -->
                                         <div v-if="addons && addons.length > 0" class="col-md-12">
                                             <label class="form-label">Select Addons</label>
                                             <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
@@ -3824,15 +3863,16 @@ function saveMenusToCart() {
                                             </small>
                                         </div>
 
+                                        <!-- REPLACE THIS SECTION -->
                                         <div class="col-md-12">
-                                            <label class="form-label">Addon Group</label>
-                                            <Select v-model="form.addon_group_id" :options="addonGroups"
-                                                optionLabel="name" optionValue="id" placeholder="Select Addon Group"
-                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                                showClear @update:modelValue="loadAddons"
-                                                :class="{ 'is-invalid': formErrors.addon_group_id }" />
-                                            <small v-if="formErrors.addon_group_id" class="text-danger">
-                                                {{ formErrors.addon_group_id[0] }}
+                                            <label class="form-label">Addon Groups</label>
+                                            <MultiSelect v-model="form.addon_group_ids" :options="addonGroups"
+                                                optionLabel="name" optionValue="id" filter
+                                                placeholder="Select Addon Groups" class="w-100" appendTo="self"
+                                                :autoZIndex="true" :baseZIndex="2000" @update:modelValue="loadAddons"
+                                                :class="{ 'is-invalid': formErrors.addon_group_ids }" />
+                                            <small v-if="formErrors.addon_group_ids" class="text-danger">
+                                                {{ formErrors.addon_group_ids[0] }}
                                             </small>
                                         </div>
 

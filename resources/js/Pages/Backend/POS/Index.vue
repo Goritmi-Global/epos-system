@@ -76,8 +76,11 @@ const fetchMenuItems = async () => {
 /* ----------------------------
    Products by Category
 -----------------------------*/
+
 const productsByCat = computed(() => {
     const grouped = {};
+
+    //  Step 1: Add all menu items
     menuItems.value.forEach((item) => {
         const catId = item.category?.id || "uncategorized";
         const catName = item.category?.name || "Uncategorized";
@@ -98,17 +101,53 @@ const productsByCat = computed(() => {
             ingredients: item.ingredients ?? [],
             variants: item.variants ?? [],
             addon_groups: item.addon_groups ?? [],
-
-            //  ADD THESE THREE FIELDS:
             is_saleable: item.is_saleable,
             resale_type: item.resale_type,
             resale_value: item.resale_value,
+            isDeal: false, // ⭐ Regular item
         };
 
         grouped[catId].push(product);
     });
+
+    //  Step 2: Add deals to their categories
+    deals.value.forEach((deal) => {
+        // IMPORTANT: Your deal needs a category_id field
+        // If you don't have it, you need to add it to your backend
+        const catId = deal.category_id || "uncategorized";
+
+        if (!grouped[catId]) grouped[catId] = [];
+
+        const dealProduct = {
+            id: `deal-${deal.id}`,
+            dealId: deal.id,
+            title: deal.title,
+            img: deal.img,
+            stock: 999999,
+            price: Number(deal.price),
+            label_color: "#dc3545", // Red for deals
+            family: "Deal",
+            description: deal.description,
+            nutrition: {},
+            tags: [],
+            allergies: [],
+            ingredients: [],
+            variants: [],
+            addon_groups: [],
+            is_saleable: false,
+            resale_type: null,
+            resale_value: null,
+            isDeal: true,
+            category_id: deal.category_id,
+            menu_items: deal.menu_items || [],
+        };
+
+        grouped[catId].push(dealProduct);
+    });
+
     return grouped;
 });
+
 const selectedCardVariant = ref({});
 
 //  Initialize variants when products load
@@ -448,7 +487,64 @@ const openDetailsModal = async (item) => {
     modal.show();
 };
 
+// const calculateAvailableStock = (product, variantId, variantIngredients) => {
+//     const activeIngredients = variantIngredients.filter(ing =>
+//         !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
+//     );
+
+//     if (!activeIngredients || activeIngredients.length === 0) return 999999;
+
+//     const ingredientUsage = {};
+//     for (const item of orderItems.value) {
+//         const itemIngredients = getVariantIngredients(item, item.variant_id);
+
+//         //  Filter out ingredients that were removed from this cart item
+//         const activeItemIngredients = itemIngredients.filter(ing => {
+//             if (!item.removed_ingredients || item.removed_ingredients.length === 0) {
+//                 return true;
+//             }
+//             return !item.removed_ingredients.includes(ing.id || ing.inventory_item_id);
+//         });
+
+//         activeItemIngredients.forEach(ing => {
+//             const id = ing.inventory_item_id;
+//             const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+
+//             if (!ingredientUsage[id]) {
+//                 ingredientUsage[id] = { totalStock: stock, used: 0 };
+//             }
+
+//             const required = Number(ing.quantity ?? ing.qty ?? 1) * item.qty;
+//             ingredientUsage[id].used += required;
+//         });
+//     }
+//     let maxPossible = 999999;
+
+//     for (const ing of activeIngredients) {
+//         const id = ing.inventory_item_id;
+//         const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+//         const requiredPerItem = Number(ing.quantity ?? ing.qty ?? 1);
+
+//         if (!ingredientUsage[id]) {
+//             const possible = Math.floor(stock / requiredPerItem);
+//             maxPossible = Math.min(maxPossible, possible);
+//         } else {
+//             const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+//             const possible = Math.floor(available / requiredPerItem);
+//             maxPossible = Math.min(maxPossible, possible);
+//         }
+//     }
+
+//     return maxPossible;
+// };
+
+
 const calculateAvailableStock = (product, variantId, variantIngredients) => {
+    // If inventory tracking is disabled, return unlimited stock
+    if (!enableInventoryTracking.value) {
+        return 999999;
+    }
+
     const activeIngredients = variantIngredients.filter(ing =>
         !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
     );
@@ -635,8 +731,35 @@ const getAllIngredients = (item) => {
 
 
 // Get stock for a specific product (based on selected variant)
+// const getProductStock = (product) => {
+//     if (!product) return 0;
+
+//     const variant = getSelectedVariant(product);
+//     const variantId = variant ? variant.id : null;
+//     const ingredients = getVariantIngredients(product, variantId);
+
+//     if (!ingredients.length) return 999999; // No ingredients = unlimited
+
+//     let menuStock = Infinity;
+
+//     ingredients.forEach((ing) => {
+//         const required = Number(ing.quantity ?? ing.qty ?? 1);
+//         const inventoryStock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+//         if (required <= 0) return;
+//         const possible = Math.floor(inventoryStock / required);
+//         menuStock = Math.min(menuStock, possible);
+//     });
+
+//     return menuStock === Infinity ? 0 : menuStock;
+// };
+
 const getProductStock = (product) => {
     if (!product) return 0;
+
+    // If inventory tracking is disabled, return unlimited stock
+    if (!enableInventoryTracking.value) {
+        return 999999;
+    }
 
     const variant = getSelectedVariant(product);
     const variantId = variant ? variant.id : null;
@@ -699,7 +822,7 @@ const fetchProfileTables = async () => {
                 type.charAt(0).toUpperCase() + type.slice(1)
             );
 
-            // ✅ Check for saved order type from localStorage
+            //  Check for saved order type from localStorage
             const savedOrderType = localStorage.getItem("quickOrderType");
             if (savedOrderType) {
                 const matchingType = orderTypes.value.find(
@@ -866,7 +989,7 @@ const incCart = async (i) => {
     const it = orderItems.value[i];
     if (!it) return;
 
-    // ✅ SPECIAL HANDLING FOR DEALS
+    //  SPECIAL HANDLING FOR DEALS
     if (it.isDeal) {
         // Use the same deal stock check logic as incrementDealQty
         const stockCheck = calculateDealStock(
@@ -902,7 +1025,7 @@ const incCart = async (i) => {
         return;
     }
 
-    // ✅ REGULAR MENU ITEM HANDLING
+    //  REGULAR MENU ITEM HANDLING
     const stockCheck = calculateClientSideStock(it, it.qty + 1);
 
     if (!stockCheck.canAdd) {
@@ -932,7 +1055,142 @@ const incCart = async (i) => {
     }
 };
 
+// const calculateClientSideStock = (item, requestedQty) => {
+//     const ingredients = item.ingredients || [];
+
+//     // If no ingredients, unlimited stock
+//     if (ingredients.length === 0) {
+//         return { canAdd: true, missing: [] };
+//     }
+
+//     const missingIngredients = [];
+
+//     // Build ingredient usage map from current cart
+//     const ingredientUsage = {};
+
+//     orderItems.value.forEach(cartItem => {
+//         const itemIngredients = cartItem.ingredients || [];
+
+//         // Filter out removed ingredients
+//         const activeIngredients = itemIngredients.filter(ing => {
+//             if (!cartItem.removed_ingredients || cartItem.removed_ingredients.length === 0) {
+//                 return true;
+//             }
+//             return !cartItem.removed_ingredients.includes(ing.id || ing.inventory_item_id);
+//         });
+
+//         activeIngredients.forEach(ing => {
+//             const id = ing.inventory_item_id;
+//             const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+
+//             if (!ingredientUsage[id]) {
+//                 ingredientUsage[id] = {
+//                     totalStock: stock,
+//                     used: 0,
+//                     name: ing.product_name || ing.name,
+//                     unit: ing.unit || 'unit'
+//                 };
+//             }
+
+//             const required = Number(ing.quantity ?? ing.qty ?? 1) * cartItem.qty;
+//             ingredientUsage[id].used += required;
+//         });
+//     });
+
+//     // Check if new quantity would exceed stock
+//     // Filter out removed ingredients for this item too
+//     const activeIngredients = ingredients.filter(ing => {
+//         if (!item.removed_ingredients || item.removed_ingredients.length === 0) {
+//             return true;
+//         }
+//         return !item.removed_ingredients.includes(ing.id || ing.inventory_item_id);
+//     });
+
+//     activeIngredients.forEach(ing => {
+//         const id = ing.inventory_item_id;
+//         const required = Number(ing.quantity ?? ing.qty ?? 1) * requestedQty;
+//         const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+
+//         if (!ingredientUsage[id]) {
+//             // This ingredient isn't used by other cart items yet
+//             if (stock < required) {
+//                 missingIngredients.push({
+//                     item_id: item.id,
+//                     item_title: item.title,
+//                     variant_id: item.variant_id || null,
+//                     variant_name: item.variant_name || null,
+//                     inventory_item_id: id,
+//                     inventory_item_name: ing.product_name || ing.name,
+//                     required_quantity: required,
+//                     available_quantity: stock,
+//                     shortage_quantity: required - stock,
+//                     unit: ing.unit || 'unit',
+//                     order_quantity: requestedQty
+//                 });
+//             }
+//         } else {
+//             // Ingredient is already used by other cart items
+//             const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+
+//             // If this exact item is already in cart, add back its current usage
+//             const existingItem = orderItems.value.find(ci =>
+//                 ci.id === item.id &&
+//                 ci.variant_id === item.variant_id &&
+//                 JSON.stringify(ci.addons?.map(a => a.id).sort()) === JSON.stringify(item.addons?.map(a => a.id).sort())
+//             );
+
+//             if (existingItem) {
+//                 const currentUsage = Number(ing.quantity ?? ing.qty ?? 1) * existingItem.qty;
+//                 const availableForThisItem = available + currentUsage;
+
+//                 if (availableForThisItem < required) {
+//                     missingIngredients.push({
+//                         item_id: item.id,
+//                         item_title: item.title,
+//                         variant_id: item.variant_id || null,
+//                         variant_name: item.variant_name || null,
+//                         inventory_item_id: id,
+//                         inventory_item_name: ing.product_name || ing.name,
+//                         required_quantity: required,
+//                         available_quantity: availableForThisItem,
+//                         shortage_quantity: required - availableForThisItem,
+//                         unit: ing.unit || 'unit',
+//                         order_quantity: requestedQty
+//                     });
+//                 }
+//             } else {
+//                 if (available < required) {
+//                     missingIngredients.push({
+//                         item_id: item.id,
+//                         item_title: item.title,
+//                         variant_id: item.variant_id || null,
+//                         variant_name: item.variant_name || null,
+//                         inventory_item_id: id,
+//                         inventory_item_name: ing.product_name || ing.name,
+//                         required_quantity: required,
+//                         available_quantity: available,
+//                         shortage_quantity: required - available,
+//                         unit: ing.unit || 'unit',
+//                         order_quantity: requestedQty
+//                     });
+//                 }
+//             }
+//         }
+//     });
+
+//     return {
+//         canAdd: missingIngredients.length === 0,
+//         missing: missingIngredients
+//     };
+// };
+
+
 const calculateClientSideStock = (item, requestedQty) => {
+    // If inventory tracking is disabled, allow unlimited
+    if (!enableInventoryTracking.value) {
+        return { canAdd: true, missing: [] };
+    }
+
     const ingredients = item.ingredients || [];
 
     // If no ingredients, unlimited stock
@@ -1060,6 +1318,8 @@ const calculateClientSideStock = (item, requestedQty) => {
         missing: missingIngredients
     };
 };
+
+
 // ========================================
 // Fixed: Decrement cart item (in cart sidebar)
 // ========================================
@@ -2104,7 +2364,7 @@ const confirmOrder = async ({
             // }),
 
             items: (orderItems.value ?? []).map((it) => {
-                // ✅ Check if this is a deal FIRST
+                //  Check if this is a deal FIRST
                 if (it.isDeal) {
                     return {
                         product_id: it.dealId,
@@ -2130,7 +2390,7 @@ const confirmOrder = async ({
                     };
                 }
 
-                // ✅ Regular menu item handling
+                //  Regular menu item handling
                 const menuItem = menuItems.value.find(m => m.id === it.id);
                 let sourceItem = menuItem;
 
@@ -2181,7 +2441,7 @@ const confirmOrder = async ({
         console.log('📤 Sending order');
 
         const res = await axios.post("/pos/order", payload);
-        console.log('✅ Order created successfully:', res.data);
+        console.log(' Order created successfully:', res.data);
 
         if (res.data.logout === true) {
             toast.success(res.data.message || "Order created successfully. Logging out...");
@@ -2229,7 +2489,7 @@ const confirmOrder = async ({
 };
 
 const handleConfirmMissingIngredients = async () => {
-    console.log('✅ User confirmed missing ingredients');
+    console.log(' User confirmed missing ingredients');
     showMissingIngredientsModal.value = false;
 
     // Handle regular cart increment
@@ -2482,15 +2742,14 @@ watch(
     { deep: true }
 );
 
-
+const enableInventoryTracking = computed(() => {
+    return page.props.onboarding?.optional_features?.enable_inventory_tracking ?? true;
+});
 
 const handleKotStatusUpdated = ({ id, status, message }) => {
-
     kotData.value = kotData.value.map((kot) =>
         kot.id === id ? { ...kot, status } : kot
     );
-
-    // toast.success(message); // optional
 };
 
 
@@ -2618,9 +2877,9 @@ const openPromoModal = async () => {
     }
 };
 
-// ================================================
+// =======================================================
 // DISCOUNT MODAL FETCHER (similar to openPromoModal)
-// ================================================
+// =======================================================
 const openDiscountModal = async () => {
     loadingDiscounts.value = true;
     showDiscountModal.value = true;
@@ -2720,9 +2979,9 @@ const getAppliedPromosData = computed(() => {
     }));
 });
 
-/* ----------------------------
-   Tax Calculation
------------------------------*/
+//============================
+//   Tax Calculation
+//============================
 const totalTax = computed(() => {
     let tax = 0;
     const onboardingTaxRate = parseFloat(page.props.onboarding.tax_and_vat.tax_rate) || 0;
@@ -2772,9 +3031,9 @@ const getItemTaxPercentage = (item) => {
         ? parseFloat(menuItem.tax_percentage)
         : 0;
 };
-// ========================================
+// ================================================
 // Fixed: Get quantity for a product in the cart
-// ========================================
+// ================================================
 const getCardQty = (product) => {
     const variant = getSelectedVariant(product);
     const variantId = variant ? variant.id : null;
@@ -2792,9 +3051,9 @@ const getCardQty = (product) => {
     return cartItem ? cartItem.qty : 0;
 };
 
-// ========================================
+// ==============================================================
 // Fixed: Check if we can add more (with proper variant check)
-// ========================================
+// ==============================================================
 const canAddMore = (product) => {
     const variant = getSelectedVariant(product);
     const variantId = variant ? variant.id : null;
@@ -2802,7 +3061,7 @@ const canAddMore = (product) => {
     // Get ingredients for the SELECTED variant
     const variantIngredients = getVariantIngredients(product, variantId);
 
-    if (!variantIngredients.length) return true; // No ingredients = unlimited
+    if (!variantIngredients.length) return true;
 
     const currentQty = getCardQty(product);
     const menuStock = calculateMenuStock(product);
@@ -3079,9 +3338,9 @@ const decrementCardQty = (product) => {
 };
 
 
-// ========================================
+// =====================================================
 // Helper: Get all ingredients for a specific variant
-// ========================================
+// =====================================================
 const getVariantIngredients = (product, variantId) => {
     if (!variantId || !product.variants?.length) {
         return product.ingredients ?? [];
@@ -3091,9 +3350,9 @@ const getVariantIngredients = (product, variantId) => {
     return variant?.ingredients ?? product.ingredients ?? [];
 };
 
-// ========================================
+// ================================================
 // Fixed: Check if we can increment a cart item
-// ========================================
+// ================================================
 const canIncCartItem = (cartItem) => {
     if (!cartItem || !cartItem.ingredients?.length) return true;
 
@@ -3139,15 +3398,15 @@ const canIncCartItem = (cartItem) => {
 };
 
 
-/* ----------------------------
-   Addon Management Modal
------------------------------*/
+//================================
+//   Addon Management Modal
+//================================
 const selectedCartItem = ref(null);
 const selectedCartItemIndex = ref(null);
 let addonManagementModal = null;
 
 const openAddonModal = (cartItem, index) => {
-    selectedCartItem.value = JSON.parse(JSON.stringify(cartItem)); // Deep clone
+    selectedCartItem.value = JSON.parse(JSON.stringify(cartItem));
     selectedCartItemIndex.value = index;
 
     // Get the full menu item to access ALL available addons
@@ -3204,7 +3463,7 @@ const openAddonModal = (cartItem, index) => {
 const toggleAddon = (addon) => {
     addon.selected = !addon.selected;
     if (!addon.selected) {
-        addon.quantity = 1; // Reset quantity when unchecked
+        addon.quantity = 1;
     }
 };
 
@@ -3283,9 +3542,9 @@ const getSelectedAddonsCount = () => {
     return count;
 };
 
-// ================================================
+// =================================================================
 //              Customer View Screen - FIXED
-// ================================================
+// =================================================================
 import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
 import { debounce } from 'lodash';
 import DiscountModal from "./DiscountModal.vue";
@@ -3310,7 +3569,7 @@ const isCashier = computed(() => {
 const terminalId = ref(`terminal-${user.value?.id}`);
 const { broadcastCartUpdate, broadcastUIUpdate } = usePOSBroadcast(terminalId.value);
 
-// ✅ FIXED: Faster debounce timing
+//  FIXED: Faster debounce timing
 const debouncedBroadcastCart = debounce((data) => {
     console.log('📤 Broadcasting cart:', data.items.length, 'items');
     broadcastCartUpdate(data);
@@ -3321,7 +3580,7 @@ const debouncedBroadcastUI = debounce((data) => {
     broadcastUIUpdate(data);
 }, 100); // Increased from 10ms to 100ms for stability
 
-// ✅ FIXED: Watch for cart changes with proper item mapping
+//  FIXED: Watch for cart changes with proper item mapping
 watch(
     () => ({
         items: orderItems.value.map(item => ({
@@ -3365,10 +3624,10 @@ watch(
         console.log('🔔 Cart changed:', newCart.items.length, 'items, Total:', newCart.total);
         debouncedBroadcastCart(newCart);
     },
-    { deep: true, immediate: true } // ✅ Changed immediate to true
+    { deep: true, immediate: true }
 );
 
-// ✅ FIXED: Watch for UI state changes
+// Watch for UI state changes
 watch(
     () => ({
         showCategories: showCategories.value ?? true,
@@ -3421,7 +3680,7 @@ watch(
     { deep: true, immediate: true }
 );
 
-// ✅ Customer Display function
+//  Customer Display function
 const openCustomerDisplay = () => {
     if (!isCashier.value) {
         toast.error('Only cashiers can access customer display');
@@ -3432,48 +3691,6 @@ const openCustomerDisplay = () => {
     window.open(url, '_blank', 'width=1920,height=1080');
 };
 
-// ✅ OPTIONAL: Add manual refresh function for debugging
-const forceRefreshCustomerDisplay = async () => {
-    console.log('🔄 Force refreshing customer display...');
-
-    // Broadcast both cart and UI immediately (no debounce)
-    await broadcastCartUpdate({
-        items: orderItems.value.map(item => ({
-            id: item.id,
-            title: item.name || item.title,
-            img: item.image_url || item.img || '/assets/img/default.png',
-            price: parseFloat(item.total || item.price || 0),
-            qty: parseInt(item.qty || 1),
-            variant_name: item.variant?.name || null,
-            addons: item.addons || [],
-            resale_discount_per_item: parseFloat(item.resale_discount_per_item || 0)
-        })),
-        customer: customer.value || 'Walk In',
-        orderType: orderType.value || 'Dine In',
-        table: selectedTable.value,
-        subtotal: parseFloat(subTotal.value || 0),
-        tax: parseFloat(totalTax.value || 0),
-        serviceCharges: parseFloat(serviceCharges.value || 0),
-        deliveryCharges: parseFloat(deliveryCharges.value || 0),
-        saleDiscount: parseFloat(totalResaleSavings.value || 0),
-        promoDiscount: parseFloat(promoDiscount.value || 0),
-        total: parseFloat(grandTotal.value || 0),
-        note: note.value || '',
-        appliedPromos: selectedPromos.value || []
-    });
-
-    await broadcastUIUpdate({
-        showCategories: showCategories.value ?? true,
-        activeCat: activeCat.value,
-        menuCategories: menuCategories.value || [],
-        menuItems: menuItems.value || [],
-        searchQuery: searchQuery.value || '',
-        selectedCardVariant: selectedCardVariant.value || {},
-        selectedCardAddons: selectedCardAddons.value || {}
-    });
-
-    console.log('✅ Force refresh completed');
-};
 // ============================================
 // RESALE PRICE CALCULATION HELPERS
 // ============================================
@@ -3582,7 +3799,6 @@ const getModalTotalPriceWithResale = () => {
 
 const deals = ref([]);
 const dealsLoading = ref(false);
-const showDeals = ref(false);
 
 // Fetch deals function
 const fetchDeals = async () => {
@@ -3602,7 +3818,9 @@ const fetchDeals = async () => {
             img: deal.image_url || '/assets/img/product/product29.jpg',
             description: deal.description,
             menu_items: deal.menu_items || [],
-            status: deal.status
+            status: deal.status,
+            category_id: deal.category_id,
+            category: deal.category
         }));
     } catch (error) {
         console.error('Error fetching deals:', error);
@@ -3612,45 +3830,127 @@ const fetchDeals = async () => {
     }
 };
 
-const openDeals = () => {
-    showDeals.value = true;
-    showCategories.value = false;
-};
-
-const backToCategoriesFromDeals = () => {
-    showDeals.value = false;
-    showCategories.value = true;
-};
-
 // Get quantity of a deal in cart
 const getDealQty = (deal) => {
     const cartItem = orderItems.value.find(item =>
-        item.isDeal && item.dealId === deal.id
+        item.isDeal && item.dealId === (deal.dealId || deal.id)
     );
     return cartItem ? cartItem.qty : 0;
 };
 
-// Check if we can add more of this deal
-const canAddMoreDeal = (deal) => {
-    const dealQty = getDealQty(deal);
+// Get total count of items (menu items + deals) in a category
+const getCategoryItemCount = (categoryId) => {
+    const category = menuCategories.value.find(c => c.id === categoryId);
+    const menuCount = category?.menu_items_count || 0;
+    const dealsCount = getCategoryDealsCount(categoryId);
+    return menuCount + dealsCount;
+};
 
-    // Check stock for all menu items
-    for (const menuItem of deal.menu_items) {
-        const ingredients = menuItem.ingredients || [];
-        if (ingredients.length === 0) continue;
-
-        const itemStock = calculateStockForIngredients(ingredients);
-        if (itemStock <= dealQty) {
-            return false;
-        }
-    }
-
-    return true;
+// Get count of deals in a specific category
+const getCategoryDealsCount = (categoryId) => {
+    if (!deals.value || deals.value.length === 0) return 0;
+    return deals.value.filter(deal => deal.category_id === categoryId).length;
 };
 
 // Calculate client-side stock for deal
-// Calculate client-side stock for deal
+// const calculateDealStock = (deal, requestedQty) => {
+//     const missingIngredients = [];
+
+//     // Build a complete ingredient usage map from ALL cart items
+//     const ingredientUsage = {};
+
+//     // Track ALL ingredients used in the entire cart
+//     orderItems.value.forEach(cartItem => {
+//         let itemIngredients = [];
+
+//         if (cartItem.isDeal) {
+//             // For deals, collect ingredients from all menu items
+//             cartItem.menu_items?.forEach(dealMenuItem => {
+//                 itemIngredients.push(...(dealMenuItem.ingredients || []));
+//             });
+//         } else {
+//             // For regular items, use their ingredients
+//             itemIngredients = cartItem.ingredients || [];
+//         }
+
+//         // Process each ingredient
+//         itemIngredients.forEach(ing => {
+//             const id = ing.inventory_item_id || ing.id;
+//             const stock = Number(ing.inventory_stock ?? ing.stock ?? 0);
+//             const required = Number(ing.quantity ?? ing.qty ?? 1) * cartItem.qty;
+
+//             if (!ingredientUsage[id]) {
+//                 ingredientUsage[id] = {
+//                     totalStock: stock,
+//                     used: 0,
+//                     name: ing.product_name || ing.name,
+//                     unit: ing.unit || 'unit'
+//                 };
+//             }
+
+//             ingredientUsage[id].used += required;
+//         });
+//     });
+
+//     // Now check if the requested deal quantity can be fulfilled
+//     deal.menu_items.forEach(menuItem => {
+//         const ingredients = menuItem.ingredients || [];
+//         if (ingredients.length === 0) return;
+
+//         ingredients.forEach(ing => {
+//             const id = ing.inventory_item_id || ing.id; // Handle both property names
+//             const required = Number(ing.quantity ?? ing.qty ?? 1) * requestedQty;
+//             const stock = Number(ing.inventory_stock ?? ing.stock ?? 0); // ← FIX: Check both
+
+//             // Calculate available stock
+//             let available = stock;
+
+//             if (ingredientUsage[id]) {
+//                 available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+//             }
+
+//             // If this deal is already in cart, add back its current usage
+//             const existingDealItem = orderItems.value.find(ci =>
+//                 ci.isDeal && ci.dealId === deal.id
+//             );
+
+//             if (existingDealItem) {
+//                 const currentUsage = Number(ing.quantity ?? ing.qty ?? 1) * existingDealItem.qty;
+//                 available += currentUsage;
+//             }
+
+//             // Check if we have enough stock
+//             if (available < required) {
+//                 missingIngredients.push({
+//                     deal_id: deal.id,
+//                     deal_title: deal.title,
+//                     menu_item_id: menuItem.id,
+//                     menu_item_name: menuItem.name,
+//                     inventory_item_id: id,
+//                     inventory_item_name: ing.product_name || ing.name,
+//                     required_quantity: required,
+//                     available_quantity: Math.max(0, available),
+//                     shortage_quantity: required - available,
+//                     unit: ing.unit || 'unit',
+//                     order_quantity: requestedQty
+//                 });
+//             }
+//         });
+//     });
+
+//     return {
+//         canAdd: missingIngredients.length === 0,
+//         missing: missingIngredients
+//     };
+// };
+
+
 const calculateDealStock = (deal, requestedQty) => {
+    // If inventory tracking is disabled, allow unlimited
+    if (!enableInventoryTracking.value) {
+        return { canAdd: true, missing: [] };
+    }
+
     const missingIngredients = [];
 
     // Build a complete ingredient usage map from ALL cart items
@@ -3672,8 +3972,8 @@ const calculateDealStock = (deal, requestedQty) => {
 
         // Process each ingredient
         itemIngredients.forEach(ing => {
-            const id = ing.inventory_item_id || ing.id; // Handle both property names
-            const stock = Number(ing.inventory_stock ?? ing.stock ?? 0); // ← FIX: Check both
+            const id = ing.inventory_item_id || ing.id;
+            const stock = Number(ing.inventory_stock ?? ing.stock ?? 0);
             const required = Number(ing.quantity ?? ing.qty ?? 1) * cartItem.qty;
 
             if (!ingredientUsage[id]) {
@@ -3695,9 +3995,9 @@ const calculateDealStock = (deal, requestedQty) => {
         if (ingredients.length === 0) return;
 
         ingredients.forEach(ing => {
-            const id = ing.inventory_item_id || ing.id; // Handle both property names
+            const id = ing.inventory_item_id || ing.id;
             const required = Number(ing.quantity ?? ing.qty ?? 1) * requestedQty;
-            const stock = Number(ing.inventory_stock ?? ing.stock ?? 0); // ← FIX: Check both
+            const stock = Number(ing.inventory_stock ?? ing.stock ?? 0);
 
             // Calculate available stock
             let available = stock;
@@ -3849,10 +4149,10 @@ onMounted(() => {
 const selectedDeal = ref(null);
 const currentDealMenuItemIndex = ref(0);
 const currentDealStep = ref(1);
-const dealRemovedIngredients = ref({}); // { menuItemIndex: [ingredient_ids] }
-const dealSelectedAddons = ref({}); // { menuItemIndex: { groupId: [addons] } }
-const dealItemKitchenNotes = ref({}); // { menuItemIndex: 'note text' }
-const completedDealItems = ref([]); // Array of completed menu item indices
+const dealRemovedIngredients = ref({});
+const dealSelectedAddons = ref({});
+const dealItemKitchenNotes = ref({});
+const completedDealItems = ref([]);
 let customizeDealModal = null;
 
 // Computed properties for deal customization
@@ -4183,8 +4483,6 @@ const confirmDealAndAddToCart = async () => {
 
     resetDealCustomization();
 };
-
-// Add these computed properties after your existing ones
 
 // Calculate total price for current item with addons
 const currentItemTotalPrice = computed(() => {
@@ -4560,19 +4858,6 @@ const decrementModalAddon = (groupId, addonId) => {
                             </div>
                             <!-- Categories List -->
                             <template v-else>
-                                <div class="col-6 col-md-4 col-lg-4 category-cards">
-                                    <div class="cat-card" @click="openDeals" style="cursor: pointer;">
-                                        <div class="cat-icon-wrap">
-                                            <span class="cat-icon">
-                                                <i class="bi bi-gift-fill text-danger" style="font-size: 2rem;"></i>
-                                            </span>
-                                        </div>
-                                        <div class="cat-name">Deals</div>
-                                        <div class="cat-pill">
-                                            {{ deals.length }} Deal{{ deals.length !== 1 ? 's' : '' }}
-                                        </div>
-                                    </div>
-                                </div>
                                 <div v-for="c in filteredCategories" :key="c.id"
                                     class="col-6 col-md-4 col-lg-4 category-cards">
                                     <div class="cat-card" @click="openCategory(c)">
@@ -4585,7 +4870,11 @@ const decrementModalAddon = (groupId, addonId) => {
                                         </div>
                                         <div class="cat-name">{{ c.name }}</div>
                                         <div class="cat-pill">
-                                            {{ c.menu_items_count }} Menu
+                                            {{ getCategoryItemCount(c.id) }} Items
+                                            <span v-if="getCategoryDealsCount(c.id) > 0" class="text-danger ms-1">
+                                                ({{ getCategoryDealsCount(c.id) }} Deal{{ getCategoryDealsCount(c.id) >
+                                                    1 ? 's' : '' }})
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -4601,19 +4890,17 @@ const decrementModalAddon = (groupId, addonId) => {
                         <div v-else>
                             <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
                                 <!-- Back Button -->
-                                <button class="btn btn-primary rounded-pill shadow-sm px-3"
-                                    @click="showDeals ? backToCategoriesFromDeals() : backToCategories()">
+                                <button class="btn btn-primary rounded-pill shadow-sm px-3" @click="backToCategories()">
                                     <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
 
                                 <!-- Title -->
                                 <h5 class="fw-bold mb-0">
-                                    {{showDeals ? 'Deals' : (menuCategories.find((c) => c.id === activeCat)?.name ||
-                                        "Items")}}
+                                    {{menuCategories.find((c) => c.id === activeCat)?.name || "Items"}}
                                 </h5>
 
                                 <!-- Search & Filter Section (only show for menu items, not deals) -->
-                                <div v-if="!showDeals" class="d-flex gap-2 ms-auto align-items-center">
+                                <div class="d-flex gap-2 ms-auto align-items-center">
                                     <!-- Filter Button -->
                                     <FilterModal v-model="filters" title="Menu Items" modal-id="menuFilterModal"
                                         :sort-options="[
@@ -4661,126 +4948,106 @@ const decrementModalAddon = (groupId, addonId) => {
                                 </div>
                             </div>
 
-                            <!-- ✅ DEALS GRID (Show when showDeals is true) -->
-                            <div v-if="showDeals" class="row g-3">
-                                <!-- Loading State -->
-                                <div v-if="dealsLoading" class="col-12 text-center py-5">
-                                    <div class="spinner-border" role="status"
-                                        style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;"></div>
-                                    <div class="mt-2 fw-semibold text-muted">Loading deals...</div>
-                                </div>
 
-                                <!-- Deals Cards -->
-                                <template v-else>
-                                    <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"
-                                        v-for="deal in deals" :key="deal.id">
-                                        <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
-                                            style="border-color: #dc3545;">
 
-                                            <!-- Left Side (Image + Price Badge) - 40% -->
-                                            <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
-                                                <img :src="deal.img" alt="" class="w-100 h-100"
-                                                    style="object-fit: cover;" />
-
-                                                <!-- Deal Price Badge -->
-                                                <span
-                                                    class="position-absolute top-0 start-0 m-1 px-2 py-1 rounded-pill text-white fw-semibold bg-danger"
-                                                    style="font-size: 0.58rem; letter-spacing: 0.3px;">
-                                                    <i class="bi bi-gift-fill me-1"></i>
-                                                    {{ formatCurrencySymbol(deal.price) }}
-                                                </span>
-                                            </div>
-
-                                            <!-- Right Side (Details + Buttons) -->
-                                            <div class="p-3 d-flex flex-column justify-content-between"
-                                                style="flex: 1 1 60%; min-width: 0; position: relative;">
-
-                                                <div>
-                                                    <!-- Deal Title -->
-                                                    <div class="h5 fw-bold mb-2 menu-name text-danger">
-                                                        {{ deal.title }}
-                                                    </div>
-
-                                                    <!-- Included Items -->
-                                                    <div class="mb-3">
-                                                        <small class="text-muted fw-semibold d-block mb-1"
-                                                            style="font-size: 0.75rem;">
-                                                            <i class="bi bi-box-seam me-1"></i>Includes:
-                                                        </small>
-                                                        <div class="d-flex flex-wrap gap-1">
-                                                            <span v-for="item in deal.menu_items" :key="item.id"
-                                                                class="badge bg-light text-dark border"
-                                                                style="font-size: 1rem !important; font-weight: 500;">
-                                                                {{ item.name }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Action Buttons -->
-                                                <div class="mt-2">
-                                                    <!-- Customize Button -->
-                                                    <button class="btn btn-primary btn-sm w-75 mb-2"
-                                                        @click.stop="openDealCustomization(deal)">
-                                                        <i class="bi bi-sliders me-1"></i>
-                                                        Customize Deal
-                                                    </button>
-
-                                                    <!-- Quick Add Controls -->
-                                                    <div class="d-flex align-items-center justify-content-start gap-2"
-                                                        @click.stop>
-
-                                                        <!-- Minus Button -->
-                                                        <button
-                                                            class="qty-btn btn btn-outline-danger rounded-circle px-2 py-2"
-                                                            style="width: 55px; height: 36px;"
-                                                            @click.stop="decrementDealQty(deal)"
-                                                            :disabled="getDealQty(deal) <= 0">
-                                                            <strong>−</strong>
-                                                        </button>
-
-                                                        <!-- Quantity Box -->
-                                                        <div class="qty-box border rounded-pill px-2 py-2 text-center fw-semibold left-card-cntrl-btn"
-                                                            style="min-width: 55px;">
-                                                            {{ getDealQty(deal) }}
-                                                        </div>
-
-                                                        <!-- Plus Button -->
-                                                        <button
-                                                            class="qty-btn btn btn-outline-danger rounded-circle px-2 py-2"
-                                                            style="width: 55px; height: 36px;"
-                                                            @click.stop="incrementDealQty(deal)">
-                                                            <strong>+</strong>
-                                                        </button>
-
-                                                    </div>
-                                                </div>
-
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- No Deals Found -->
-                                    <div v-if="!dealsLoading && deals.length === 0" class="col-12">
-                                        <div class="alert alert-light border text-center rounded-4 py-5">
-                                            <i class="bi bi-gift"
-                                                style="font-size: 3rem; opacity: 0.3; color: #dc3545;"></i>
-                                            <h6 class="mt-3 mb-1 fw-bold">No Deals Available</h6>
-                                            <p class="text-muted mb-0 small">Check back later for exciting deals!</p>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-
-                            <!-- ✅ MENU ITEMS GRID (Show when showDeals is false - your existing code) -->
-                            <div v-else class="row g-3">
+                            <!--  MENU ITEMS GRID (Show when showDeals is false - your existing code) -->
+                            <div class="row g-3">
                                 <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"
                                     v-for="p in filteredProducts" :key="p.id">
-                                    <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
-                                        :style="{ borderColor: p.label_color || '#1B1670' }">
+
+                                    <!-- DEAL CARD -->
+                                    <div v-if="p.isDeal"
+                                        class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
+                                        style="border-color: #dc3545;">
+
                                         <!-- Left Side (Image + Price Badge) - 40% -->
                                         <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
                                             <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
+
+                                            <!-- Deal Price Badge -->
+                                            <span
+                                                class="position-absolute top-0 start-0 m-1 px-2 py-1 rounded-pill text-white fw-semibold bg-danger"
+                                                style="font-size: 0.58rem; letter-spacing: 0.3px;">
+                                                <i class="bi bi-gift-fill me-1"></i>
+                                                {{ formatCurrencySymbol(p.price) }}
+                                            </span>
+                                        </div>
+
+                                        <!-- Right Side (Details + Buttons) -->
+                                        <div class="p-3 d-flex flex-column justify-content-between"
+                                            style="flex: 1 1 60%; min-width: 0; position: relative;">
+
+                                            <div>
+                                                <!-- Deal Title -->
+                                                <div class="h5 fw-bold mb-2 menu-name text-danger">
+                                                    {{ p.title }}
+                                                </div>
+
+                                                <!-- Included Items -->
+                                                <div class="mb-3">
+                                                    <small class="text-muted fw-semibold d-block mb-1"
+                                                        style="font-size: 0.75rem;">
+                                                        <i class="bi bi-box-seam me-1"></i>Includes:
+                                                    </small>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        <span v-for="item in p.menu_items" :key="item.id"
+                                                            class="badge bg-light text-dark border"
+                                                            style="font-size: 0.7rem; font-weight: 500;">
+                                                            {{ item.name }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Action Buttons -->
+                                            <div class="mt-2">
+                                                <!-- Customize Button -->
+                                                <button class="btn btn-primary btn-sm w-75 mb-2"
+                                                    @click.stop="openDealCustomization(p)">
+                                                    <i class="bi bi-sliders me-1"></i>
+                                                    Customize Deal
+                                                </button>
+
+                                                <!-- Quick Add Controls -->
+                                                <div class="d-flex align-items-center justify-content-start gap-2"
+                                                    @click.stop>
+
+                                                    <!-- Minus Button -->
+                                                    <button
+                                                        class="qty-btn btn btn-outline-danger rounded-circle px-2 py-2"
+                                                        style="width: 55px; height: 36px;"
+                                                        @click.stop="decrementDealQty(p)"
+                                                        :disabled="getDealQty(p) <= 0">
+                                                        <strong>−</strong>
+                                                    </button>
+
+                                                    <!-- Quantity Box -->
+                                                    <div class="qty-box border rounded-pill px-2 py-2 text-center fw-semibold left-card-cntrl-btn"
+                                                        style="min-width: 55px;">
+                                                        {{ getDealQty(p) }}
+                                                    </div>
+
+                                                    <!-- Plus Button -->
+                                                    <button
+                                                        class="qty-btn btn btn-outline-danger rounded-circle px-2 py-2"
+                                                        style="width: 55px; height: 36px;"
+                                                        @click.stop="incrementDealQty(p)">
+                                                        <strong>+</strong>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!--  REGULAR MENU ITEM CARD -->
+                                    <div v-else
+                                        class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
+                                        :style="{ borderColor: p.label_color || '#1B1670' }">
+
+                                        <!-- Left Side (Image + Price Badge) - 40% -->
+                                        <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
+                                            <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
+
                                             <!--  Show Variant Price Range with Resale -->
                                             <div v-if="p.variants && p.variants.length > 0"
                                                 class="position-absolute bottom-0 start-0 end-0 text-center bg-light bg-opacity-75 fw-semibold"
@@ -4838,6 +5105,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                         <!-- Right Side (Details + Variant + Addons + Quantity Controls) -->
                                         <div class="p-3 d-flex flex-column justify-content-between"
                                             style="flex: 1 1 60%; min-width: 0; position: relative;">
+
                                             <!-- Right Section Sale Badge (top-right, slightly up & right) -->
                                             <span
                                                 v-if="(p.variants && p.variants.length > 0 && getResaleBadgeInfo(getSelectedVariant(p), true)) ||
@@ -4858,6 +5126,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                                     :style="{ color: p.label_color || '#1B1670' }">
                                                     {{ p.title }}
                                                 </div>
+
                                                 <!-- Variant Dropdown -->
                                                 <div v-if="p.variants && p.variants.length > 0" class="mb-3">
                                                     <label class="form-label small fw-semibold mb-1">
@@ -4879,6 +5148,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                                         </option>
                                                     </select>
                                                 </div>
+
                                                 <!-- Addons Selection -->
                                                 <div v-if="p.addon_groups && p.addon_groups.length > 0">
                                                     <div v-for="group in p.addon_groups" :key="group.group_id"
@@ -4929,6 +5199,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                                     Customization
                                                 </button>
                                             </div>
+
                                             <!--  Quantity Controls (ALWAYS SHOW, but disable when out of stock) -->
                                             <div class="mt-2 d-flex align-items-center justify-content-start gap-2"
                                                 @click.stop>
@@ -4974,7 +5245,6 @@ const decrementModalAddon = (groupId, addonId) => {
                                 Orders
                             < </button> -->
                             <button class="btn btn-info px-3 py-2" @click="openPendingOrdersModal">
-                                <i class="bi bi-clock-history me-1"></i>
                                 Pending
                                 <span v-if="pendingOrders.length > 0" class="badge bg-danger ms-1">
                                     {{ pendingOrders.length }}
@@ -5175,7 +5445,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -5248,7 +5518,6 @@ const decrementModalAddon = (groupId, addonId) => {
                                     Clear
                                 </button>
                                 <button class="btn btn-warning" @click="holdOrderAsPending">
-                                    <i class="bi bi-clock-history me-1"></i>
                                     Pending
                                 </button>
                                 <button class="btn btn-primary btn-place" @click="openConfirmModal">
@@ -5638,75 +5907,84 @@ const decrementModalAddon = (groupId, addonId) => {
                                         </div>
 
                                         <!-- STEP 3 : ADD-ONS -->
-                                    <!-- STEP 3 : ADD-ONS -->
-<div v-show="currentStep === 3 && hasAddons" class="step-content">
-    <div class="d-flex align-items-start mb-2">
-        <i class="bi bi-plus-circle me-2 text-success" style="font-size: 1.1rem;"></i>
-        <div>
-            <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons</h6>
-            <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your meal</p>
-        </div>
-    </div>
+                                        <!-- STEP 3 : ADD-ONS -->
+                                        <div v-show="currentStep === 3 && hasAddons" class="step-content">
+                                            <div class="d-flex align-items-start mb-2">
+                                                <i class="bi bi-plus-circle me-2 text-success"
+                                                    style="font-size: 1.1rem;"></i>
+                                                <div>
+                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons</h6>
+                                                    <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your
+                                                        meal</p>
+                                                </div>
+                                            </div>
 
-    <div v-for="group in selectedItem?.addon_groups" :key="group.group_id" class="mb-3">
-        <label class="fw-semibold mb-2 d-flex justify-content-between" style="font-size: 0.85rem;">
-            <span>{{ group.group_name }}</span>
-            <span v-if="group.max_select > 0" class="badge rounded-pill bg-primary" style="font-size: 0.7rem;">
-                Max {{ group.max_select }}
-            </span>
-        </label>
+                                            <div v-for="group in selectedItem?.addon_groups" :key="group.group_id"
+                                                class="mb-3">
+                                                <label class="fw-semibold mb-2 d-flex justify-content-between"
+                                                    style="font-size: 0.85rem;">
+                                                    <span>{{ group.group_name }}</span>
+                                                    <span v-if="group.max_select > 0"
+                                                        class="badge rounded-pill bg-primary"
+                                                        style="font-size: 0.7rem;">
+                                                        Max {{ group.max_select }}
+                                                    </span>
+                                                </label>
 
-        <div class="row g-2">
-            <div v-for="addon in group.addons" :key="addon.id" class="col-12">
-                <div class="border rounded-2 p-2 shadow-sm d-flex align-items-center justify-content-between"
-                    :class="{ 'bg-light border-success': isModalAddonSelected(group.group_id, addon.id) }">
-                    
-                    <!-- Checkbox & Name -->
-                    <div class="d-flex align-items-center flex-grow-1">
-                        <input 
-                            type="checkbox" 
-                            class="form-check-input me-2" 
-                            style="width: 18px; height: 18px; cursor: pointer;"
-                            :id="'addon-' + addon.id"
-                            :checked="isModalAddonSelected(group.group_id, addon.id)"
-                            @change="toggleModalAddon(group.group_id, addon)">
-                        
-                        <label :for="'addon-' + addon.id" class="form-check-label mb-0" 
-                            style="font-size: 0.85rem; cursor: pointer;">
-                            {{ addon.name }}
-                            <span class="text-success fw-semibold ms-1">
-                                +{{ formatCurrencySymbol(addon.price) }}
-                            </span>
-                        </label>
-                    </div>
+                                                <div class="row g-2">
+                                                    <div v-for="addon in group.addons" :key="addon.id" class="col-12">
+                                                        <div class="border rounded-2 p-2 shadow-sm d-flex align-items-center justify-content-between"
+                                                            :class="{ 'bg-light border-success': isModalAddonSelected(group.group_id, addon.id) }">
 
-                    <!-- Quantity Controls -->
-                    <div v-if="isModalAddonSelected(group.group_id, addon.id)" 
-                        class="d-flex align-items-center gap-2">
-                        <button 
-                            class="btn btn-sm btn-outline-danger rounded-circle" 
-                            style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
-                            @click="decrementModalAddon(group.group_id, addon.id)"
-                            :disabled="getModalAddonQuantity(group.group_id, addon.id) <= 1">
-                            <i class="bi bi-dash" style="font-size: 0.9rem;"></i>
-                        </button>
-                        
-                        <span class="fw-bold" style="min-width: 25px; text-align: center; font-size: 0.9rem;">
-                            {{ getModalAddonQuantity(group.group_id, addon.id) }}
-                        </span>
-                        
-                        <button 
-                            class="btn btn-sm btn-outline-success rounded-circle" 
-                            style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
-                            @click="incrementModalAddon(group.group_id, addon.id)">
-                            <i class="bi bi-plus" style="font-size: 0.9rem;"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                                                            <!-- Checkbox & Name -->
+                                                            <div class="d-flex align-items-center flex-grow-1">
+                                                                <input type="checkbox" class="form-check-input me-2"
+                                                                    style="width: 18px; height: 18px; cursor: pointer;"
+                                                                    :id="'addon-' + addon.id"
+                                                                    :checked="isModalAddonSelected(group.group_id, addon.id)"
+                                                                    @change="toggleModalAddon(group.group_id, addon)">
+
+                                                                <label :for="'addon-' + addon.id"
+                                                                    class="form-check-label mb-0"
+                                                                    style="font-size: 0.85rem; cursor: pointer;">
+                                                                    {{ addon.name }}
+                                                                    <span class="text-success fw-semibold ms-1">
+                                                                        +{{ formatCurrencySymbol(addon.price) }}
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+
+                                                            <!-- Quantity Controls -->
+                                                            <div v-if="isModalAddonSelected(group.group_id, addon.id)"
+                                                                class="d-flex align-items-center gap-2">
+                                                                <button
+                                                                    class="btn btn-sm btn-outline-danger rounded-circle"
+                                                                    style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                                                                    @click="decrementModalAddon(group.group_id, addon.id)"
+                                                                    :disabled="getModalAddonQuantity(group.group_id, addon.id) <= 1">
+                                                                    <i class="bi bi-dash"
+                                                                        style="font-size: 0.9rem;"></i>
+                                                                </button>
+
+                                                                <span class="fw-bold"
+                                                                    style="min-width: 25px; text-align: center; font-size: 0.9rem;">
+                                                                    {{ getModalAddonQuantity(group.group_id, addon.id)
+                                                                    }}
+                                                                </span>
+
+                                                                <button
+                                                                    class="btn btn-sm btn-outline-success rounded-circle"
+                                                                    style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                                                                    @click="incrementModalAddon(group.group_id, addon.id)">
+                                                                    <i class="bi bi-plus"
+                                                                        style="font-size: 0.9rem;"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         <!-- STEP 4 : REVIEW -->
                                         <div v-show="currentStep === finalStep" class="step-content">
