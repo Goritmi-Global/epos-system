@@ -499,15 +499,10 @@ const sidebarMenus = ref([
                         icon: "box", 
                         route: "menu.index" 
                     },
-                    { 
-                        label: "Deals", 
-                        icon: "gift", 
-                        route: "deals.index" 
-                    },
-                
+                    
                     {
                         label: "Addon Groups",
-                        icon: "layers",
+                        icon: "gift",
                         route: "addon-groups.index",
                     },
                     {
