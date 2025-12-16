@@ -22,6 +22,7 @@ import * as XLSX from "xlsx";
 import ImportFile from "@/Components/importFile.vue";
 import FilterModal from "@/Components/FilterModal.vue";
 import Pagination from "@/Components/Pagination.vue";
+import Dropdown from 'primevue/dropdown'
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 /* ============================================================
@@ -58,6 +59,22 @@ const perPage = ref(10);
 const totalItems = ref(0);
 const paginationLinks = ref([]);
 const loading = ref(false);
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+// 🔁 Keep function call same
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null // reset after click
+    }
+}
 
 // Discount type and status options for dropdowns
 const discountOptions = [
@@ -984,21 +1001,16 @@ const downloadExcel = (data) => {
                                                 :sampleData="sampleData" @on-import="handleImport" />
 
                                             <!-- Export Dropdown -->
-                                            <div class="dropdown">
-                                                <button
-                                                    class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
-                                                    data-bs-toggle="dropdown">
-                                                    Export
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                                    <li><a class="dropdown-item py-2" href="javascript:;"
-                                                            @click="onDownload('pdf')">Export as PDF</a></li>
-                                                    <li><a class="dropdown-item py-2" href="javascript:;"
-                                                            @click="onDownload('excel')">Export as Excel</a></li>
-                                                    <li><a class="dropdown-item py-2" href="javascript:;"
-                                                            @click="onDownload('csv')">Export as CSV</a></li>
-                                                </ul>
-                                            </div>
+                                           <Dropdown
+                                                v-model="exportOption"
+                                                :options="exportOptions"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                placeholder="Export"
+                                                class="export-dropdown"
+                                                @change="onExportChange"
+                                            />
+
                                         </div>
                                     </div>
 

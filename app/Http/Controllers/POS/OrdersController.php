@@ -24,13 +24,23 @@ class OrdersController extends Controller
     {
         return Inertia::render('Orders/Show', ['order' => $order->load([])]);
     }
-    public function fetchAllOrders()
-    {
-        $orders = $this->service->getAllOrders();
 
-        return response()->json([
-            'success' => true,
-            'data' => $orders,
-        ]);
+    public function fetchAllOrders(Request $request)
+    {
+        $filters = [
+            'q' => $request->query('q', ''),
+            'sort_by' => $request->query('sort_by', ''),
+            'order_type' => $request->query('order_type', ''),
+            'payment_type' => $request->query('payment_type', ''),
+            'status' => $request->query('status', ''),
+            'price_min' => $request->query('price_min', ''),
+            'price_max' => $request->query('price_max', ''),
+            'date_from' => $request->query('date_from', ''),
+            'date_to' => $request->query('date_to', ''),
+            'per_page' => $request->query('per_page', 10),
+        ];
+        $orders = $this->service->getAllOrders($filters);
+
+        return response()->json($orders);
     }
 }

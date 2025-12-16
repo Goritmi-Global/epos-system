@@ -14,6 +14,7 @@ import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 import ImportFile from "@/Components/importFile.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import { Head } from "@inertiajs/vue3";
+import Dropdown from 'primevue/dropdown'
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 import {
@@ -73,6 +74,21 @@ const selectedVariantForIngredients = ref(null);
 const variantIngredients = ref({});
 
 const variantResaleConfig = ref({});
+
+const exportOption = ref(null)
+
+const exportOptions = [
+    { label: 'PDF', value: 'pdf' },
+    { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' },
+]
+
+const onExportChange = (e) => {
+    if (e.value) {
+        onDownload(e.value)
+        exportOption.value = null // reset after click
+    }
+}
 const loadAddons = () => {
     if (form.value.addon_group_ids && form.value.addon_group_ids.length > 0) {
         // Collect all addons from all selected groups
@@ -122,7 +138,7 @@ const i_cart = ref([]);
 
 const fetchInventory = async () => {
     try {
-        const response = await axios.get("/inventory/api-inventories");
+        const response = await axios.get("/inventory/api-inventories?all=1");
         inventoryItems.value = response.data.data;
     } catch (error) {
         console.error("Error fetching inventory:", error);
@@ -2847,32 +2863,16 @@ function saveMenusToCart() {
                                 @on-import="handleImport" />
 
                             <!-- Download all -->
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown">
-                                    Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                           <Dropdown
+                                v-model="exportOption"
+                                :options="exportOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Export"
+                                class="export-dropdown"
+                                @change="onExportChange"
+                            />
 
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('allergens')">Export Allergen</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('pdf')">Export as PDF</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('excel')">Export as Excel</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Export as CSV
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
                         </div>
                     </div>
 

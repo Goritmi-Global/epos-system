@@ -2,10 +2,10 @@
 
 use App\Http\Controllers\AddonController;
 use App\Http\Controllers\AddonGroupController;
-use App\Http\Controllers\DiscountApprovalController;
-use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\Auth\ApiKeyController;
 use App\Http\Controllers\DealsController;
+use App\Http\Controllers\DiscountApprovalController;
+use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GeoController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MealController;
@@ -16,6 +16,7 @@ use App\Http\Controllers\POS\KotController;
 use App\Http\Controllers\POS\MenuCategoryController;
 use App\Http\Controllers\POS\MenuController;
 use App\Http\Controllers\POS\OrdersController;
+use App\Http\Controllers\POS\PaymentController;
 use App\Http\Controllers\POS\PosOrderController;
 use App\Http\Controllers\POS\PurchaseOrderController;
 use App\Http\Controllers\Printer\PrinterController;
@@ -68,6 +69,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Orders
     Route::prefix('orders')->name('api.orders.')->group(function () {
         Route::get('/all', [OrdersController::class, 'fetchAllOrders'])->name('fetchAll');
+    });
+
+    Route::prefix('payments')->name('api.payments.')->group(function () {
+        Route::get('/all', [PaymentController::class, 'getAllPayments'])->name('fetchAll');
     });
 
     // Promos
@@ -141,6 +146,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // KOT Orders
     Route::prefix('kots')->name('api.kots.')->group(function () {
         Route::get('/all-orders', [KotController::class, 'getAllKotOrders'])->name('index');
+        Route::put('/pos/kot-item/{itemId}/status', [KotController::class, 'updateItemStatus']);
     });
 
     // Notifications
@@ -260,7 +266,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Update sort order (drag & drop functionality)
         Route::post('/sort-order', [AddonController::class, 'updateSortOrder']);
     });
-
 
     Route::post('/discount-approvals/request', [DiscountApprovalController::class, 'requestApproval']);
     Route::post('/discount-approvals/check-status', [DiscountApprovalController::class, 'checkApprovalStatus']);
