@@ -38,7 +38,6 @@ class AddonController extends Controller
         return inertia('Addons/Addons');
     }
 
-   
     public function all(Request $request): JsonResponse
     {
         try {
@@ -421,6 +420,60 @@ class AddonController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to import addons: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getUniqueGroups(Request $request): JsonResponse
+    {
+        try {
+            $query = Addon::with('addonGroup')
+                ->whereHas('addonGroup');
+
+            // Apply same filters as main query
+            if ($request->filled('q')) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('name', 'like', "%{$request->q}%")
+                        ->orWhereHas('addonGroup', function ($subQ) use ($request) {
+                            $subQ->where('name', 'like', "%{$request->q}%");
+                        });
+                });
+            }
+
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->filled('price_min')) {
+                $query->where('price', '>=', (float) $request->price_min);
+            }
+
+            if ($request->filled('price_max')) {
+                $query->where('price', '<=', (float) $request->price_max);
+            }
+
+            // Get unique groups that have addons
+            $uniqueGroups = $query->get()
+                ->pluck('addonGroup')
+                ->unique('id')
+                ->filter() // Remove nulls
+                ->values()
+                ->map(function ($group) {
+                    return [
+                        'id' => $group->id,
+                        'name' => $group->name,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $uniqueGroups,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch unique groups',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

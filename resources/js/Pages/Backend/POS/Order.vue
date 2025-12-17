@@ -22,6 +22,8 @@ const orders = ref([]);
 const loading = ref(false);
 
 
+
+
 const exportOption = ref(null)
 
 const exportOptions = [
@@ -38,15 +40,20 @@ const onExportChange = (e) => {
     }
 }
 
+const stats = ref({
+    total_orders: 0,
+    completed_orders: 0,
+    cancelled_orders: 0,
+    total_revenue: 0
+});
+
 const fetchOrders = async (page = null) => {
     loading.value = true;
     try {
-        // ✅ Build params with all filters
         const params = {
             q: q.value,
             page: page || pagination.value.current_page,
             per_page: pagination.value.per_page,
-            // ✅ Add filter parameters
             sort_by: appliedFilters.value.sortBy || '',
             order_type: appliedFilters.value.orderType || '',
             payment_type: appliedFilters.value.paymentType || '',
@@ -57,7 +64,6 @@ const fetchOrders = async (page = null) => {
             date_to: appliedFilters.value.dateTo || '',
         };
 
-        // ✅ Remove empty values
         Object.keys(params).forEach(key => {
             if (params[key] === undefined || params[key] === '') {
                 delete params[key];
@@ -68,7 +74,11 @@ const fetchOrders = async (page = null) => {
 
         orders.value = response.data.data || [];
 
-        // ✅ Update pagination
+        // Update stats from API response
+        if (response.data.stats) {
+            stats.value = response.data.stats;
+        }
+
         pagination.value = {
             current_page: response.data.current_page,
             last_page: response.data.last_page,
@@ -241,19 +251,6 @@ const handleFilterClear = () => {
     fetchOrders(1);
 };
 
-/* ===================== KPIs ===================== */
-const totalOrders = computed(() => pagination.value.total || 0);
-const completedOrders = computed(
-    () => orders.value.filter((o) => o.status === "paid").length
-);
-const pendingOrders = computed(
-    () => orders.value.filter((o) => o.status === "cancelled").length
-);
-const totalOrdersAmount = computed(() => {
-    return orders.value.reduce((sum, order) => {
-        return sum + (Number(order.total_amount) || 0);
-    }, 0);
-});
 
 /* ===================== Helpers ===================== */
 function formatDate(d) {
@@ -693,51 +690,66 @@ let searchTimeout = null;
 watch(q, () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        pagination.value.current_page = 1; // ✅ Reset to page 1
+        pagination.value.current_page = 1;
         fetchOrders(1);
     }, 500);
 });
 
-// Add these imports at the top of your script (if not already present)
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import Pagination from "@/Components/Pagination.vue";
 
-// Add this export handler function
-const onDownload = (type) => {
+
+
+const onDownload = async (type) => {
     if (!orders.value || orders.value.length === 0) {
         toast.error("No orders data to download");
         return;
     }
-
-    const dataToExport = q.value.trim() ? filtered.value : orders.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No orders found to download");
-        return;
-    }
-
     try {
+        loading.value = true;
+        const params = {
+            q: q.value,
+            sort_by: appliedFilters.value.sortBy || '',
+            order_type: appliedFilters.value.orderType || '',
+            payment_type: appliedFilters.value.paymentType || '',
+            status: appliedFilters.value.status || '',
+            price_min: appliedFilters.value.priceMin || '',
+            price_max: appliedFilters.value.priceMax || '',
+            date_from: appliedFilters.value.dateFrom || '',
+            date_to: appliedFilters.value.dateTo || '',
+            export: 'all'
+        };
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
+            }
+        });
+        const response = await axios.get("/api/orders/all", { params });
+        const allOrders = response.data.data || [];
+        if (allOrders.length === 0) {
+            toast.error("No orders found to download");
+            return;
+        }
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allOrders);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allOrders);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allOrders);
         } else {
             toast.error("Invalid download type");
         }
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
-
-// CSV Download Function
 const downloadCSV = (data) => {
     try {
-        // Define headers
         const headers = [
             "Order ID",
             "Table No.",
@@ -782,14 +794,10 @@ const downloadCSV = (data) => {
             headers.join(","),
             ...rows.map((r) => r.join(","))
         ].join("\n");
-
-        // Create blob
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
-
-        // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
@@ -808,11 +816,9 @@ const downloadCSV = (data) => {
         });
     }
 };
-
-// PDF Download Function
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("l", "mm", "a4"); // Landscape mode for more columns
+        const doc = new jsPDF("l", "mm", "a4");
 
         // Title
         doc.setFontSize(18);
@@ -990,14 +996,10 @@ const downloadExcel = (data) => {
                 <div class="col-md-6 col-xl-4">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
-
-                            <!-- Left Text Section -->
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ totalOrders }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ stats.total_orders }}</h3>
                                 <p class="text-muted mb-0 small">Total Orders</p>
                             </div>
-
-                            <!-- Right Icon Section -->
                             <div class="rounded-circle p-2 d-flex align-items-center justify-content-center text-primary"
                                 style="width: 40px; height: 40px">
                                 <i class="bi bi-list-task fs-4"></i>
@@ -1010,7 +1012,7 @@ const downloadExcel = (data) => {
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ completedOrders }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ stats.completed_orders }}</h3>
                                 <p class="text-muted mb-0 small">Completed Orders</p>
                             </div>
                             <div class="rounded-circle p-3 d-flex align-items-center justify-content-center text-success"
@@ -1020,11 +1022,12 @@ const downloadExcel = (data) => {
                         </div>
                     </div>
                 </div>
+
                 <div class="col-md-6 col-xl-4">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ pendingOrders }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ stats.cancelled_orders }}</h3>
                                 <p class="text-muted mb-0 small">Cancelled Orders</p>
                             </div>
                             <div class="rounded-circle p-3 d-flex align-items-center justify-content-center text-warning"
@@ -1039,7 +1042,7 @@ const downloadExcel = (data) => {
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ formatCurrencySymbol(totalOrdersAmount) }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ formatCurrencySymbol(stats.total_revenue) }}</h3>
                                 <p class="text-muted mb-0 small">Total Revenue</p>
                             </div>
                             <div class="rounded-circle p-3 d-flex align-items-center justify-content-center text-info"
@@ -1110,15 +1113,9 @@ const downloadExcel = (data) => {
                             </FilterModal>
                             <!-- Download -->
                             <!-- Replace the existing Export dropdown in your template -->
-                           <Dropdown
-                            v-model="exportOption"
-                            :options="exportOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Export"
-                            class="export-dropdown"
-                            @change="onExportChange"
-                        />
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
 
                         </div>
                     </div>
@@ -1276,7 +1273,7 @@ const downloadExcel = (data) => {
                                             <span class="value">{{
                                                 selectedPayment?.payment_type ??
                                                 "-"
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
 
@@ -1339,7 +1336,7 @@ const downloadExcel = (data) => {
                                             <span class="label">Card Brand</span>
                                             <span class="value text-capitalize">{{
                                                 selectedPayment.brand
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
 
@@ -1360,7 +1357,7 @@ const downloadExcel = (data) => {
                                             <span class="label">Expiry</span>
                                             <span class="value">{{
                                                 selectedPayment.exp_month
-                                                }}/{{
+                                            }}/{{
                                                     selectedPayment.exp_year
                                                 }}</span>
                                         </div>
@@ -1372,7 +1369,7 @@ const downloadExcel = (data) => {
                                             <span class="label">Currency</span>
                                             <span class="value">{{
                                                 selectedPayment.currency_code
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1633,19 +1630,19 @@ const downloadExcel = (data) => {
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Customer:</span>
                                     <span class="fw-semibold">{{ selectedOrderForRefund?.customer_name || 'Walk In'
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Total Amount:</span>
                                     <span class="fw-semibold">{{
                                         formatCurrencySymbol(selectedOrderForRefund?.total_amount)
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Payment Type:</span>
                                     <span class="fw-semibold text-capitalize">{{
                                         selectedOrderForRefund?.payment?.payment_type
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div v-if="selectedOrderForRefund?.payment?.payment_type?.toLowerCase() === 'split'"
                                     class="d-flex justify-content-between mb-2">

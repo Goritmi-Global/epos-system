@@ -26,11 +26,11 @@ const listPermissionsUrl = "/permissions-list";
 const modules = [
     "allergies",
     "analytics",
-    "categories",          
-    "menu-categories",      
-    "menu",                
-    "inventory-categories", 
-    "inventory",           
+    "categories",
+    "menu-categories",
+    "menu",
+    "inventory-categories",
+    "inventory",
     "kots",
     "notifications",
     "orders",
@@ -58,7 +58,6 @@ const groupedPermissions = computed(() => {
         const description = perm.description?.toLowerCase() || "";
         let matchedModule = "General";
 
-    
         if (name.includes("menu-categories") || name.includes("menu.categories")) {
             matchedModule = "menu-categories";
         } else if (name.includes("inventory-categories") || name.includes("inventory.categories")) {
@@ -70,7 +69,6 @@ const groupedPermissions = computed(() => {
         } else if (name.includes("inventory")) {
             matchedModule = "inventory";
         } else {
-            
             for (const mod of modules) {
                 if (name.includes(mod) || description.includes(mod)) {
                     matchedModule = mod;
@@ -83,12 +81,28 @@ const groupedPermissions = computed(() => {
         groups[matchedModule].push(perm);
     });
 
+    // Sort permissions within each group: selected first, then unselected
+    const selectedIds = selectedPermissions.value.map(p => p.id);
+
+    Object.keys(groups).forEach(category => {
+        groups[category].sort((a, b) => {
+            const aSelected = selectedIds.includes(a.id);
+            const bSelected = selectedIds.includes(b.id);
+
+            // If both selected or both unselected, maintain original order
+            if (aSelected === bSelected) return 0;
+
+            // Selected items come first
+            return aSelected ? -1 : 1;
+        });
+    });
+
     return groups;
 });
 
 
 const formatCategory = (category) => {
-  
+
     const specialCases = {
         'menu-categories': 'Menu Categories',
         'inventory-categories': 'Inventory Categories',
@@ -152,7 +166,12 @@ async function openEdit(r) {
     formErrors.value = {};
 
     const { data } = await axios.get(`${baseUrl}/${r.id}`);
-    selectedPermissions.value = Array.from(data.permission_ids || []);
+    const permissionIds = data.permission_ids || [];
+
+    selectedPermissions.value = allPermissions.value.filter(p =>
+        permissionIds.includes(p.id)
+    );
+
     show.value = true;
 }
 
@@ -163,7 +182,7 @@ async function save() {
 
         const payload = {
             name: form.value.name,
-            permissions: selectedPermissions.value,
+            permissions: selectedPermissions.value.map(p => p.id),
         };
 
         if (editingId.value) {
@@ -221,9 +240,10 @@ function toggleSelectAll() {
 }
 
 watch(selectedPermissions, (newVal) => {
-    const visibleIds = filteredPermissions.value.map((p) => p.name);
-    const selectedIds = newVal.map((p) => p.name);
+    const visibleIds = filteredPermissions.value.map((p) => p.id);
+    const selectedIds = newVal.map((p) => p.id);
     selectAll.value =
+        visibleIds.length > 0 &&
         selectedIds.length === visibleIds.length &&
         visibleIds.every((id) => selectedIds.includes(id));
 });
@@ -298,13 +318,13 @@ watch(selectedPermissions, (newVal) => {
                         <label class="form-label mb-0">Permissions</label>
                         <div class="input-group" style="max-width: 260px">
                             <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                                style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
+                            <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                class="form-control search-input" placeholder="Search" type="search"
+                                autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                            <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
                         </div>
                     </div>
 

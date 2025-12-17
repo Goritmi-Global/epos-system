@@ -15,9 +15,6 @@ class OrdersController extends Controller
     public function index(Request $request)
     {
         return Inertia::render('Backend/POS/Order');
-
-        // $orders = $this->service->list($request->only('q','status'));
-        // return Inertia::render('Orders/Index', ['orders'=>$orders]);
     }
 
     public function show(Order $order)
@@ -38,9 +35,17 @@ class OrdersController extends Controller
             'date_from' => $request->query('date_from', ''),
             'date_to' => $request->query('date_to', ''),
             'per_page' => $request->query('per_page', 10),
+            'export' => $request->query('export', ''),
         ];
+
         $orders = $this->service->getAllOrders($filters);
 
-        return response()->json($orders);
+        // Get statistics based on current filters
+        $stats = $this->service->getOrderStats($filters);
+
+        return response()->json([
+            ...$orders->toArray(),
+            'stats' => $stats,
+        ]);
     }
 }

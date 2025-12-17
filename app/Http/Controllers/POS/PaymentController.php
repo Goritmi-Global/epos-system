@@ -27,11 +27,18 @@ class PaymentController extends Controller
             'price_min' => $request->query('price_min', ''),
             'price_max' => $request->query('price_max', ''),
             'per_page' => $request->query('per_page', 10),
+            'export' => $request->query('export', ''),
         ];
 
         $payments = $this->service->list($filters);
+        
+        // ✅ Get statistics based on current filters
+        $stats = $this->service->getPaymentStats($filters);
 
-        return response()->json($payments);
+        return response()->json([
+            ...$payments->toArray(),
+            'stats' => $stats
+        ]);
     }
 
     public function store(Request $request)

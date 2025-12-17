@@ -81,6 +81,7 @@ const exportOptions = [
     { label: 'PDF', value: 'pdf' },
     { label: 'Excel', value: 'excel' },
     { label: 'CSV', value: 'csv' },
+    { label: 'Allergen PDF', value: 'allergens' },
 ]
 
 const onExportChange = (e) => {
