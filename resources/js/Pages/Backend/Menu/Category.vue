@@ -56,6 +56,12 @@ const pagination = ref({
     links: []
 });
 
+const categoryStats = ref({
+    total: 0,
+    active: 0,
+    inactive: 0
+});
+
 const defaultCategoryFilters = {
     sortBy: "",
     category: "",
@@ -69,19 +75,16 @@ const fetchCategories = async (page = null) => {
     try {
         loading.value = true;
         
-        // ✅ Build params with all filters
         const params = {
             q: q.value,
             page: page || pagination.value.current_page,
             per_page: pagination.value.per_page,
-            // ✅ Add filter parameters
             sort_by: appliedFilters.value.sortBy || '',
             status: appliedFilters.value.status || '',
             category: appliedFilters.value.category || '',
             has_subcategories: appliedFilters.value.hasSubcategories || '',
         };
 
-        // ✅ Remove empty values
         Object.keys(params).forEach(key => {
             if (params[key] === undefined || params[key] === '') {
                 delete params[key];
@@ -92,7 +95,10 @@ const fetchCategories = async (page = null) => {
         
         categories.value = res.data.data || [];
         
-        // ✅ Update pagination
+        if (res.data.stats) {
+            categoryStats.value = res.data.stats;
+        }
+        
         pagination.value = {
             current_page: res.data.current_page,
             last_page: res.data.last_page,
@@ -155,21 +161,21 @@ const parentCategories = computed(() => {
 const CategoriesDetails = computed(() => [
     {
         label: "Total Categories",
-        value: parentCategories.value.length,
+        value: categoryStats.value.total,
         icon: Shapes,
         iconBg: "bg-light-primary",
         iconColor: "text-primary",
     },
     {
         label: "Active Categories",
-        value: parentCategories.value.filter((c) => c.active).length,
+        value: categoryStats.value.active,
         icon: Package,
         iconBg: "bg-light-success",
         iconColor: "text-success",
     },
     {
         label: "Inactive Categories",
-        value: parentCategories.value.filter((c) => !c.active).length,
+        value: categoryStats.value.inactive,
         icon: XCircle,
         iconBg: "bg-light-danger",
         iconColor: "text-danger",

@@ -25,6 +25,7 @@ const { formatCurrencySymbol } = useFormatters();
 // Main data stores
 const addons = ref([]);
 const addonGroups = ref([]);
+const uniqueAddonGroups = ref([]);
 
 // Form state for create/edit modal
 const addonForm = ref({
@@ -151,6 +152,22 @@ const fetchAddonGroups = async () => {
     }
 };
 
+const fetchUniqueAddonGroups = async () => {
+    try {
+        const res = await axios.get("/api/addons/unique-groups", {
+            params: {
+                q: q.value.trim() || null,
+                status: appliedFilters.value.stockStatus || null,
+                price_min: appliedFilters.value.priceMin || null,
+                price_max: appliedFilters.value.priceMax || null,
+            }
+        });
+        uniqueAddonGroups.value = res.data.data || [];
+    } catch (err) {
+        console.error("Failed to fetch unique addon groups:", err);
+    }
+};
+
 /* ============================================
    LIFECYCLE HOOKS
 ============================================ */
@@ -174,7 +191,7 @@ onMounted(async () => {
     }, 100);
 
     // Fetch initial data
-    await Promise.all([fetchAddons(), fetchAddonGroups()]);
+    await Promise.all([fetchAddons(), fetchAddonGroups(),fetchUniqueAddonGroups()]);
 
     const filterModal = document.getElementById('addonsFilterModal');
     if (filterModal) {
@@ -262,7 +279,7 @@ const isReady = ref(false);
  */
 const uniqueGroups = computed(() => {
     const groups = ["All"];
-    const groupNames = [...new Set(addons.value.map((a) => a.addon_group?.name).filter(Boolean))];
+    const groupNames = uniqueAddonGroups.value.map((g) => g.name);
     return [...groups, ...groupNames];
 });
 
@@ -276,6 +293,7 @@ const handleFilterApply = (appliedFiltersData) => {
     selectedGroupFilter.value = "all";
     filtersJustApplied.value = true;
     fetchAddons(1);
+    fetchUniqueAddonGroups(); 
 };
 
 const handleFilterClear = () => {
@@ -296,6 +314,7 @@ const handleFilterClear = () => {
     currentPage.value = 1;
     selectedGroupFilter.value = "all";
     fetchAddons(1);
+    fetchUniqueAddonGroups();
 };
 
 let searchTimeout = null;
@@ -305,6 +324,7 @@ watch(q, () => {
     searchTimeout = setTimeout(() => {
         currentPage.value = 1;
         fetchAddons(1);
+        fetchUniqueAddonGroups();
     }, 500);
 });
 

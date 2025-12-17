@@ -128,8 +128,6 @@ class MenuService
             }
         }
 
-        // Addon Group
-        // REPLACE the Addon Group section:
         // Addon Groups (Multiple)
         if (! empty($data['addon_group_ids'])) {
             foreach ($data['addon_group_ids'] as $groupId) {
@@ -157,10 +155,7 @@ class MenuService
         if (isset($data['image']) && $data['image']) {
             // Delete old image if exists
             if ($menu->upload_id) {
-                $oldUpload = Upload::find($menu->upload_id);
-                if ($oldUpload) {
-                    UploadHelper::delete($oldUpload);
-                }
+                UploadHelper::delete((int) $menu->upload_id);
             }
 
             $upload = UploadHelper::store($data['image'], 'uploads', 'public');

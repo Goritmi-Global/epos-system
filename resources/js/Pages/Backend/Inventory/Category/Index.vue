@@ -96,16 +96,15 @@ const filterOptions = computed(() => ({
 
 const handleFilterClear = () => {
     filters.value = { ...defaultCategoryFilters };
-    appliedFilters.value = { ...defaultCategoryFilters }; // ✅ ADDED
+    appliedFilters.value = { ...defaultCategoryFilters };
+    pagination.value.current_page = 1;
+    pagination.value.per_page = 10; 
+    fetchCategories(1); 
 };
 
-// ========================================
-// SECTION 3: Update the filtered computed property
-// ========================================
-// REPLACE the existing "filtered" computed property with this:
+
 
 const filtered = computed(() => {
-    // Return categories directly from API (no client-side filtering)
     return categories.value;
 });
 
@@ -147,19 +146,17 @@ const fetchAllCategories = async () => {
 const fetchCategories = async (page = null) => {
     try {
         loading.value = true;
-        
-        // Build query params including filters
+    
         const params = {
             q: q.value,
             page: page || pagination.value.current_page,
             per_page: pagination.value.per_page,
-            // Add all filter parameters
-            sort_by: filters.value.sortBy || '',
-            status: filters.value.status || '',
-            has_subcategories: filters.value.hasSubcategories || '',
-            stock_status: filters.value.stockStatus || '',
-            value_min: filters.value.valueMin || '',
-            value_max: filters.value.valueMax || '',
+            sort_by: appliedFilters.value.sortBy || '',
+            status: appliedFilters.value.status || '',
+            has_subcategories: appliedFilters.value.hasSubcategories || '',
+            stock_status: appliedFilters.value.stockStatus || '',
+            value_min: appliedFilters.value.valueMin || '',
+            value_max: appliedFilters.value.valueMax || '',
         };
 
         const { data } = await axios.get("/categories", { params });

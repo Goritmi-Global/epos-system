@@ -40,6 +40,12 @@ class OrdersController extends Controller
 
         $orders = $this->service->getAllOrders($filters);
 
-        return response()->json($orders);
+        // Get statistics based on current filters
+        $stats = $this->service->getOrderStats($filters);
+
+        return response()->json([
+            ...$orders->toArray(),
+            'stats' => $stats,
+        ]);
     }
 }

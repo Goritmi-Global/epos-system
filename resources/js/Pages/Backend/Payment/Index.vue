@@ -19,6 +19,12 @@ const orders = ref([]);
 
 const loading = ref(false);
 
+const stats = ref({
+    total_payments: 0,
+    todays_payments: 0,
+    total_amount: 0
+});
+
 const pagination = ref({
     current_page: 1,
     last_page: 1,
@@ -91,6 +97,11 @@ const fetchOrdersWithPayment = async (page = null) => {
             };
         });
 
+        // ✅ Update stats from API response
+        if (response.data.stats) {
+            stats.value = response.data.stats;
+        }
+
         // ✅ Update pagination
         pagination.value = {
             current_page: response.data.current_page,
@@ -110,6 +121,7 @@ const fetchOrdersWithPayment = async (page = null) => {
         loading.value = false;
     }
 };
+
 
 const handlePageChange = (url) => {
     if (!url) return;
@@ -616,13 +628,10 @@ const downloadPaymentsExcel = (data) => {
                 <div class="col-6 col-md-4">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
-                            <!-- Left Section (Text) -->
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ totalPayments }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ stats.total_payments }}</h3>
                                 <p class="text-muted mb-0 small">Total Payments</p>
                             </div>
-
-                            <!-- Right Section (Icon) -->
                             <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
                                 style="width: 56px; height: 56px">
                                 <i class="bi bi-list-check fs-4"></i>
@@ -636,7 +645,7 @@ const downloadPaymentsExcel = (data) => {
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ todaysPayments }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ stats.todays_payments }}</h3>
                                 <p class="text-muted mb-0 small">Today's Payments</p>
                             </div>
                             <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
@@ -652,7 +661,7 @@ const downloadPaymentsExcel = (data) => {
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ formatCurrencySymbol(totalAmount, 'GBP') }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ formatCurrencySymbol(stats.total_amount, 'GBP') }}</h3>
                                 <p class="text-muted mb-0 small">Total Amount</p>
                             </div>
                             <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"

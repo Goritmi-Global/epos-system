@@ -31,8 +31,14 @@ class PaymentController extends Controller
         ];
 
         $payments = $this->service->list($filters);
+        
+        // ✅ Get statistics based on current filters
+        $stats = $this->service->getPaymentStats($filters);
 
-        return response()->json($payments);
+        return response()->json([
+            ...$payments->toArray(),
+            'stats' => $stats
+        ]);
     }
 
     public function store(Request $request)

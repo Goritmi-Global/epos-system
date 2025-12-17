@@ -31,8 +31,27 @@ class KotController extends Controller
         ];
 
         $orders = $this->service->getAllOrders($filters);
+        $statistics = $this->service->getOrderStatistics($filters);
 
-        return response()->json($orders);
+        return response()->json([
+            ...$orders->toArray(),
+            'statistics' => $statistics, 
+        ]);
+    }
+    public function getOrderStatistics(Request $request)
+    {
+        $filters = [
+            'q' => $request->query('q', ''),
+            'sort_by' => $request->query('sort_by', ''),
+            'order_type' => $request->query('order_type', ''),
+            'status' => $request->query('status', ''),
+            'date_from' => $request->query('date_from', ''),
+            'date_to' => $request->query('date_to', ''),
+        ];
+
+        $statistics = $this->service->getOrderStatistics($filters);
+
+        return response()->json($statistics);
     }
 
     public function updateItemStatus(Request $request, $itemId)
