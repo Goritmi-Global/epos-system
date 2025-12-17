@@ -24,6 +24,8 @@ class KotOrderService
             'posOrderType.order.payment',
             'posOrderType.order.items',
         ]);
+
+        // Apply search filter
         if (! empty($filters['q'])) {
             $query->where(function ($q) use ($filters) {
                 $q->whereHas('items', function ($itemQuery) use ($filters) {
@@ -36,20 +38,28 @@ class KotOrderService
                     });
             });
         }
+
+        // Apply order type filter
         if (! empty($filters['order_type'])) {
             $query->whereHas('posOrderType', function ($q) use ($filters) {
                 $q->where('order_type', $filters['order_type']);
             });
         }
+
+        // Apply status filter
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
+
+        // Apply date range filters
         if (! empty($filters['date_from'])) {
             $query->whereDate('order_date', '>=', $filters['date_from']);
         }
         if (! empty($filters['date_to'])) {
             $query->whereDate('order_date', '<=', $filters['date_to']);
         }
+
+        // Apply sorting
         if (! empty($filters['sort_by'])) {
             switch ($filters['sort_by']) {
                 case 'date_desc':
@@ -77,6 +87,25 @@ class KotOrderService
         } else {
             $query->orderBy('id', 'desc');
         }
+
+        // ✅ CHECK IF THIS IS AN EXPORT REQUEST
+        if (! empty($filters['export']) && $filters['export'] === 'all') {
+            // Return all records without pagination
+            $allKots = $query->get();
+
+            return new \Illuminate\Pagination\LengthAwarePaginator(
+                $allKots,
+                $allKots->count(),
+                $allKots->count(),
+                1,
+                [
+                    'path' => request()->url(),
+                    'query' => request()->query(),
+                ]
+            );
+        }
+
+        // Original pagination logic
         $searchQuery = trim($filters['q'] ?? '');
         $hasSearch = ! empty($searchQuery);
         $hasOrderType = ! empty($filters['order_type']);
@@ -87,16 +116,10 @@ class KotOrderService
         $hasAnyFilter = $hasSearch || $hasOrderType || $hasStatus
                      || $hasDateRange || $hasSorting;
 
-        \Log::info('KOT Filter Debug', [
-            'hasAnyFilter' => $hasAnyFilter,
-            'filters' => $filters,
-        ]);
-
         if ($hasAnyFilter) {
             $allKots = $query->get();
             $total = $allKots->count();
 
-            \Log::info('Filter Mode (KOT)', ['total_found' => $total]);
             $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
                 $allKots,
                 $total,
@@ -108,8 +131,6 @@ class KotOrderService
                 ]
             );
         } else {
-            \Log::info('Pagination Mode (KOT)');
-
             $perPage = $filters['per_page'] ?? 10;
             $paginator = $query->paginate($perPage);
         }
