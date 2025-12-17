@@ -20,6 +20,7 @@ const orders = ref([]);
 const loading = ref(false);
 const selectedOrder = ref(null);
 const showOrderItemsModal = ref(false);
+const selectedItem = ref(null);
 
 // ==========================================
 // ADD THIS SECTION AFTER THE EXISTING REFS (around line 20)
@@ -38,6 +39,24 @@ const statusTabs = ref([
 ]);
 
 
+const statistics = ref({
+    status_counts: {
+        'All': 0,
+        'Waiting': 0,
+        'In Progress': 0,
+        'Done': 0,
+        'Cancelled': 0
+    },
+    kpis: {
+        total_tables: 0,
+        total_items: 0,
+        pending_items: 0,
+        in_progress_items: 0,
+        done_items: 0,
+        cancelled_items: 0
+    }
+});
+
 const handleStatusTabChange = (status) => {
     activeStatusTab.value = status;
 
@@ -51,6 +70,7 @@ const handleStatusTabChange = (status) => {
 
     fetchOrders(1);
 };
+
 
 const exportOption = ref(null)
 
@@ -67,23 +87,7 @@ const onExportChange = (e) => {
     }
 }
 
-const statusTabCounts = computed(() => {
-    const counts = {
-        'All': orders.value.length,
-        'Waiting': 0,
-        'In Progress': 0,
-        'Done': 0,
-        'Cancelled': 0
-    };
-
-    orders.value.forEach(order => {
-        if (order.status && counts.hasOwnProperty(order.status)) {
-            counts[order.status]++;
-        }
-    });
-
-    return counts;
-});
+const statusTabCounts = computed(() => statistics.value.status_counts);
 
 const getStatusTabBadgeClass = (status) => {
     switch (status) {
@@ -131,16 +135,21 @@ const fetchOrders = async (page = null) => {
         });
 
         const response = await axios.get("/api/kots/all-orders", { params });
-        console.log("Fetched KOT Orders:", response.data.data);
+        console.log("Fetched KOT Orders:", response.data);
 
-        // ✅ Transform to order-wise structure (not item-wise)
+        // ✅ UPDATE STATISTICS from backend
+        if (response.data.statistics) {
+            statistics.value = response.data.statistics;
+        }
+
+        // Transform to order-wise structure (not item-wise)
         orders.value = (response.data.data || []).map(ko => {
             const posOrder = ko.pos_order_type?.order;
             const posOrderItems = posOrder?.items || [];
 
             return {
                 id: posOrder?.id || ko.id,
-                kot_id: ko.id, // ✅ Kitchen order ID
+                kot_id: ko.id,
                 created_at: posOrder?.created_at || ko.created_at,
                 customer_name: posOrder?.customer_name || 'Walk In',
                 total_amount: posOrder?.total_amount || 0,
@@ -151,7 +160,6 @@ const fetchOrders = async (page = null) => {
                     table_number: ko.pos_order_type?.table_number
                 },
                 payment: posOrder?.payment,
-                // ✅ Store all items in the order
                 items: (ko.items || []).map(kotItem => {
                     const matchingPosItem = posOrderItems.find(posItem =>
                         posItem.title === kotItem.item_name ||
@@ -168,11 +176,11 @@ const fetchOrders = async (page = null) => {
                         ingredients: kotItem.ingredients || []
                     };
                 }),
-                item_count: ko.items?.length || 0 // ✅ Count of items
+                item_count: ko.items?.length || 0
             };
         });
 
-        // ✅ Update pagination
+        // Update pagination
         pagination.value = {
             current_page: response.data.current_page,
             last_page: response.data.last_page,
@@ -319,47 +327,12 @@ const filterOptions = computed(() => ({
     ],
 }));
 
-// ✅ Update KPIs to work with orders, not items
-const totalTables = computed(() => {
-    const tables = new Set(
-        orders.value
-            .map(o => o.type?.table_number)
-            .filter(t => t)
-    );
-    return tables.size;
-});
-
-const totalItems = computed(() => {
-    return orders.value.reduce((sum, order) => sum + (order.item_count || 0), 0);
-});
-
-const pendingItems = computed(() => {
-    return orders.value.reduce((sum, order) => {
-        const pending = order.items?.filter(item => item.status === "Waiting").length || 0;
-        return sum + pending;
-    }, 0);
-});
-
-const inProgressItems = computed(() => {
-    return orders.value.reduce((sum, order) => {
-        const inProgress = order.items?.filter(item => item.status === "In Progress").length || 0;
-        return sum + inProgress;
-    }, 0);
-});
-
-const doneItems = computed(() => {
-    return orders.value.reduce((sum, order) => {
-        const done = order.items?.filter(item => item.status === "Done").length || 0;
-        return sum + done;
-    }, 0);
-});
-
-const cancelledItems = computed(() => {
-    return orders.value.reduce((sum, order) => {
-        const cancelled = order.items?.filter(item => item.status === "Cancelled").length || 0;
-        return sum + cancelled;
-    }, 0);
-});
+const totalTables = computed(() => statistics.value.kpis.total_tables);
+const totalItems = computed(() => statistics.value.kpis.total_items);
+const pendingItems = computed(() => statistics.value.kpis.pending_items);
+const inProgressItems = computed(() => statistics.value.kpis.in_progress_items);
+const doneItems = computed(() => statistics.value.kpis.done_items);
+const cancelledItems = computed(() => statistics.value.kpis.cancelled_items);
 
 const getStatusBadge = (status) => {
     switch (status) {
@@ -561,6 +534,15 @@ const closeOrderItemsModal = () => {
     }
 };
 
+const viewIngredients = (item) => {
+    selectedItem.value = item;
+    const modalEl = document.getElementById('ingredientsModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+};
+
 const updateItemStatus = async (order, item, status) => {
     try {
         const response = await axios.put(`/api/kots/pos/kot-item/${item.id}/status`, { status });
@@ -573,6 +555,7 @@ const updateItemStatus = async (order, item, status) => {
                 orders.value = [...orders.value];
             }
         }
+        await fetchOrders(pagination.value.current_page);
 
         toast.success(`"${item.item_name}" marked as ${status}`);
     } catch (err) {
@@ -1170,7 +1153,6 @@ const downloadExcel = (data) => {
             </div>
         </div>
 
-        <!-- Order Items Modal -->
         <div class="modal fade" id="orderItemsModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content rounded-4 shadow border-0 dark:bg-[#212121]">
@@ -1261,9 +1243,18 @@ const downloadExcel = (data) => {
                                                 }}</small>
                                             </td>
                                             <td>
-                                                <small class="text-muted dark:text-gray-400">{{
-                                                    item.ingredients?.join(', ') ||
-                                                    '-' }}</small>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <small class="text-muted dark:text-gray-400 text-truncate"
+                                                        style="max-width: 150px;">
+                                                        {{ item.ingredients?.join(', ') || '-' }}
+                                                    </small>
+                                                    <button v-if="item.ingredients && item.ingredients.length > 0"
+                                                        @click="viewIngredients(item)"
+                                                        class="btn btn-sm p-1 text-info dark:text-blue-400 dark:hover:bg-gray-700"
+                                                        title="View Ingredients">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                             <td>
                                                 <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"
@@ -1321,6 +1312,61 @@ const downloadExcel = (data) => {
                 </div>
             </div>
         </div>
+
+        <!-- Ingredients Modal -->
+        <div class="modal fade" id="ingredientsModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content rounded-4 shadow border-0 dark:bg-[#212121]">
+                    <!-- Header -->
+                    <div class="modal-header border-0 dark:bg-[#181818]">
+                        <div class="d-flex align-items-center gap-3 dark:text-white">
+                            <div class="rounded-circle p-2 bg-white bg-opacity-25 dark:bg-white dark:bg-opacity-10">
+                                <i class="bi bi-egg-fried fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold mb-0">Ingredients</h5>
+                                <small class="opacity-75">{{ selectedItem?.item_name }}</small>
+                            </div>
+                        </div>
+                        <!-- <button type="button" class="btn-close dark:filter dark:invert" data-bs-dismiss="modal"
+                            aria-label="Close"></button> -->
+
+                        <button
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition transform hover:scale-110"
+                            data-bs-dismiss="modal" aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="modal-body p-4">
+                        <div v-if="selectedItem && selectedItem.ingredients && selectedItem.ingredients.length > 0">
+                            <ul class="list-group list-group-flush">
+                                <li v-for="(ingredient, index) in selectedItem.ingredients" :key="index"
+                                    class="list-group-item d-flex align-items-center gap-2 dark:bg-transparent dark:text-gray-200 dark:border-gray-700">
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                    <span>{{ ingredient }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div v-else class="text-center text-muted py-4 dark:text-gray-400">
+                            <i class="bi bi-info-circle fs-3 mb-2"></i>
+                            <p class="mb-0">No ingredients available</p>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer border-0 dark:bg-[#212121]">
+                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </Master>
 </template>
 
@@ -1340,6 +1386,12 @@ const downloadExcel = (data) => {
 
 :global(.dark .form-control:focus) {
     border-color: #fff !important;
+}
+
+
+.dark .list-group-item {
+    background-color: #181818 !important;
+    color: #fff !important;
 }
 
 

@@ -3,6 +3,7 @@
 namespace App\Services\POS;
 
 use App\Models\KitchenOrder;
+use Illuminate\Support\Facades\DB;
 
 class KotOrderService
 {
@@ -16,6 +17,60 @@ class KotOrderService
             'posOrderType.order.items',
         ])->whereDate('order_date', $today)->get();
     }
+    public function getOrderStatistics(array $filters = [])
+    {
+        $query = KitchenOrder::with(['items', 'posOrderType']);
+        $filtersWithoutStatus = $filters;
+        unset($filtersWithoutStatus['status']); 
+        
+        $this->applyFilters($query, $filtersWithoutStatus);
+        $allOrders = $query->get();
+        $statusCounts = [
+            'All' => $allOrders->count(),
+            'Waiting' => $allOrders->where('status', 'Waiting')->count(),
+            'In Progress' => $allOrders->where('status', 'In Progress')->count(),
+            'Done' => $allOrders->where('status', 'Done')->count(),
+            'Cancelled' => $allOrders->where('status', 'Cancelled')->count(),
+        ];
+
+        // Calculate KPI metrics from ALL records (respecting other filters)
+        $tables = $allOrders->pluck('posOrderType.table_number')
+            ->filter()
+            ->unique()
+            ->count();
+
+        $totalItems = $allOrders->sum(function ($order) {
+            return $order->items->count();
+        });
+
+        $pendingItems = $allOrders->sum(function ($order) {
+            return $order->items->where('status', 'Waiting')->count();
+        });
+
+        $inProgressItems = $allOrders->sum(function ($order) {
+            return $order->items->where('status', 'In Progress')->count();
+        });
+
+        $doneItems = $allOrders->sum(function ($order) {
+            return $order->items->where('status', 'Done')->count();
+        });
+
+        $cancelledItems = $allOrders->sum(function ($order) {
+            return $order->items->where('status', 'Cancelled')->count();
+        });
+
+        return [
+            'status_counts' => $statusCounts,
+            'kpis' => [
+                'total_tables' => $tables,
+                'total_items' => $totalItems,
+                'pending_items' => $pendingItems,
+                'in_progress_items' => $inProgressItems,
+                'done_items' => $doneItems,
+                'cancelled_items' => $cancelledItems,
+            ]
+        ];
+    }
 
     public function getAllOrders(array $filters = [])
     {
@@ -25,72 +80,14 @@ class KotOrderService
             'posOrderType.order.items',
         ]);
 
-        // Apply search filter
-        if (! empty($filters['q'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->whereHas('items', function ($itemQuery) use ($filters) {
-                    $itemQuery->where('item_name', 'like', "%{$filters['q']}%")
-                        ->orWhere('variant_name', 'like', "%{$filters['q']}%");
-                })
-                    ->orWhereHas('posOrderType.order', function ($orderQuery) use ($filters) {
-                        $orderQuery->where('customer_name', 'like', "%{$filters['q']}%")
-                            ->orWhere('id', 'like', "%{$filters['q']}%");
-                    });
-            });
-        }
-
-        // Apply order type filter
-        if (! empty($filters['order_type'])) {
-            $query->whereHas('posOrderType', function ($q) use ($filters) {
-                $q->where('order_type', $filters['order_type']);
-            });
-        }
-
-        // Apply status filter
-        if (! empty($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
-
-        // Apply date range filters
-        if (! empty($filters['date_from'])) {
-            $query->whereDate('order_date', '>=', $filters['date_from']);
-        }
-        if (! empty($filters['date_to'])) {
-            $query->whereDate('order_date', '<=', $filters['date_to']);
-        }
+        // Apply filters
+        $this->applyFilters($query, $filters);
 
         // Apply sorting
-        if (! empty($filters['sort_by'])) {
-            switch ($filters['sort_by']) {
-                case 'date_desc':
-                    $query->orderBy('order_date', 'desc');
-                    break;
-                case 'date_asc':
-                    $query->orderBy('order_date', 'asc');
-                    break;
-                case 'item_asc':
-                    $query->orderBy('id', 'asc');
-                    break;
-                case 'item_desc':
-                    $query->orderBy('id', 'desc');
-                    break;
-                case 'order_asc':
-                    $query->orderBy('id', 'asc');
-                    break;
-                case 'order_desc':
-                    $query->orderBy('id', 'desc');
-                    break;
-                default:
-                    $query->orderBy('id', 'desc');
-                    break;
-            }
-        } else {
-            $query->orderBy('id', 'desc');
-        }
+        $this->applySorting($query, $filters);
 
         // ✅ CHECK IF THIS IS AN EXPORT REQUEST
-        if (! empty($filters['export']) && $filters['export'] === 'all') {
-            // Return all records without pagination
+        if (!empty($filters['export']) && $filters['export'] === 'all') {
             $allKots = $query->get();
 
             return new \Illuminate\Pagination\LengthAwarePaginator(
@@ -105,36 +102,93 @@ class KotOrderService
             );
         }
 
-        // Original pagination logic
-        $searchQuery = trim($filters['q'] ?? '');
-        $hasSearch = ! empty($searchQuery);
-        $hasOrderType = ! empty($filters['order_type']);
-        $hasStatus = ! empty($filters['status']);
-        $hasDateRange = ! empty($filters['date_from']) || ! empty($filters['date_to']);
-        $hasSorting = ! empty($filters['sort_by']);
-
-        $hasAnyFilter = $hasSearch || $hasOrderType || $hasStatus
-                     || $hasDateRange || $hasSorting;
-
-        if ($hasAnyFilter) {
-            $allKots = $query->get();
-            $total = $allKots->count();
-
-            $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
-                $allKots,
-                $total,
-                max(1, $total),
-                1,
-                [
-                    'path' => request()->url(),
-                    'query' => request()->query(),
-                ]
-            );
-        } else {
-            $perPage = $filters['per_page'] ?? 10;
-            $paginator = $query->paginate($perPage);
-        }
+        // ✅ ALWAYS USE PROPER PAGINATION (removed the hasFilters check)
+        $perPage = $filters['per_page'] ?? 10;
+        $paginator = $query->paginate($perPage);
 
         return $paginator;
     }
+
+    /**
+     * Apply filters to query
+     */
+    private function applyFilters($query, array $filters)
+    {
+        // Apply search filter
+        if (!empty($filters['q'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->whereHas('items', function ($itemQuery) use ($filters) {
+                    $itemQuery->where('item_name', 'like', "%{$filters['q']}%")
+                        ->orWhere('variant_name', 'like', "%{$filters['q']}%");
+                })
+                    ->orWhereHas('posOrderType.order', function ($orderQuery) use ($filters) {
+                        $orderQuery->where('customer_name', 'like', "%{$filters['q']}%")
+                            ->orWhere('id', 'like', "%{$filters['q']}%");
+                    });
+            });
+        }
+
+        // Apply order type filter
+        if (!empty($filters['order_type'])) {
+            $query->whereHas('posOrderType', function ($q) use ($filters) {
+                $q->where('order_type', $filters['order_type']);
+            });
+        }
+
+        // Apply status filter
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        // Apply date range filters
+        if (!empty($filters['date_from'])) {
+            $query->whereDate('order_date', '>=', $filters['date_from']);
+        }
+        if (!empty($filters['date_to'])) {
+            $query->whereDate('order_date', '<=', $filters['date_to']);
+        }
+    }
+
+    /**
+     * Apply sorting to query
+     */
+    private function applySorting($query, array $filters)
+    {
+        if (!empty($filters['sort_by'])) {
+            switch ($filters['sort_by']) {
+                case 'date_desc':
+                    $query->orderBy('kitchen_orders.order_date', 'desc');
+                    break;
+                case 'date_asc':
+                    $query->orderBy('kitchen_orders.order_date', 'asc');
+                    break;
+                    
+                case 'order_desc':
+                    // Sort by Amount Received (High to Low)
+                    $query->leftJoin('pos_order_types', 'kitchen_orders.pos_order_type_id', '=', 'pos_order_types.id')
+                          ->leftJoin('pos_orders', 'pos_order_types.pos_order_id', '=', 'pos_orders.id')
+                          ->leftJoin('payments', 'pos_orders.id', '=', 'payments.order_id')
+                          ->orderByRaw('COALESCE(payments.amount_received, 0) DESC')
+                          ->select('kitchen_orders.*'); // Important: select only kitchen_orders columns
+                    break;
+                    
+                case 'order_asc':
+                    // Sort by Amount Received (Low to High)
+                    $query->leftJoin('pos_order_types', 'kitchen_orders.pos_order_type_id', '=', 'pos_order_types.id')
+                          ->leftJoin('pos_orders', 'pos_order_types.pos_order_id', '=', 'pos_orders.id')
+                          ->leftJoin('payments', 'pos_orders.id', '=', 'payments.order_id')
+                          ->orderByRaw('COALESCE(payments.amount_received, 0) ASC')
+                          ->select('kitchen_orders.*');
+                    break;
+                    
+                default:
+                    $query->orderBy('kitchen_orders.id', 'desc');
+                    break;
+            }
+        } else {
+            $query->orderBy('kitchen_orders.id', 'desc');
+        }
+    }
+
+
 }
