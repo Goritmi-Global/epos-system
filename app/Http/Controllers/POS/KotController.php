@@ -27,13 +27,14 @@ class KotController extends Controller
             'date_from' => $request->query('date_from', ''),
             'date_to' => $request->query('date_to', ''),
             'per_page' => $request->query('per_page', 10),
+            'export' => $request->query('export', ''),
         ];
+
         $orders = $this->service->getAllOrders($filters);
 
         return response()->json($orders);
     }
 
-  
     public function updateItemStatus(Request $request, $itemId)
     {
         $request->validate([
@@ -43,13 +44,13 @@ class KotController extends Controller
         $item = KitchenOrderItem::findOrFail($itemId);
         $item->status = $request->status;
         $item->save();
-        $kitchenOrder = $item->kitchenOrder; 
+        $kitchenOrder = $item->kitchenOrder;
         $kitchenOrder->updateStatus();
 
         return response()->json([
             'message' => 'Item status updated successfully',
             'status' => $item->status,
-            'order_status' => $kitchenOrder->status, 
+            'order_status' => $kitchenOrder->status,
         ]);
     }
 }

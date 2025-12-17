@@ -693,51 +693,66 @@ let searchTimeout = null;
 watch(q, () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        pagination.value.current_page = 1; // ✅ Reset to page 1
+        pagination.value.current_page = 1; 
         fetchOrders(1);
     }, 500);
 });
 
-// Add these imports at the top of your script (if not already present)
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import Pagination from "@/Components/Pagination.vue";
 
-// Add this export handler function
-const onDownload = (type) => {
+
+
+const onDownload = async (type) => {
     if (!orders.value || orders.value.length === 0) {
         toast.error("No orders data to download");
         return;
     }
-
-    const dataToExport = q.value.trim() ? filtered.value : orders.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No orders found to download");
-        return;
-    }
-
     try {
+        loading.value = true;
+        const params = {
+            q: q.value,
+            sort_by: appliedFilters.value.sortBy || '',
+            order_type: appliedFilters.value.orderType || '',
+            payment_type: appliedFilters.value.paymentType || '',
+            status: appliedFilters.value.status || '',
+            price_min: appliedFilters.value.priceMin || '',
+            price_max: appliedFilters.value.priceMax || '',
+            date_from: appliedFilters.value.dateFrom || '',
+            date_to: appliedFilters.value.dateTo || '',
+            export: 'all' 
+        };
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
+            }
+        });
+        const response = await axios.get("/api/orders/all", { params });
+        const allOrders = response.data.data || [];
+        if (allOrders.length === 0) {
+            toast.error("No orders found to download");
+            return;
+        }
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allOrders);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allOrders);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allOrders);
         } else {
             toast.error("Invalid download type");
         }
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
-
-// CSV Download Function
 const downloadCSV = (data) => {
     try {
-        // Define headers
         const headers = [
             "Order ID",
             "Table No.",
@@ -782,14 +797,10 @@ const downloadCSV = (data) => {
             headers.join(","),
             ...rows.map((r) => r.join(","))
         ].join("\n");
-
-        // Create blob
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
-
-        // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
@@ -808,11 +819,9 @@ const downloadCSV = (data) => {
         });
     }
 };
-
-// PDF Download Function
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("l", "mm", "a4"); // Landscape mode for more columns
+        const doc = new jsPDF("l", "mm", "a4"); 
 
         // Title
         doc.setFontSize(18);

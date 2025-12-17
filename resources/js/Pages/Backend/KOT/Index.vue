@@ -581,32 +581,92 @@ const updateItemStatus = async (order, item, status) => {
     }
 };
 
-const onDownload = (type) => {
+const onDownload = async (type) => {
     if (!orders.value || orders.value.length === 0) {
         toast.error("No kitchen orders data to download");
         return;
     }
 
-    const dataToExport = sortedOrders.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No kitchen orders found to download");
-        return;
-    }
-
     try {
+        loading.value = true;
+
+        // Fetch ALL records without pagination
+        const params = {
+            q: q.value,
+            sort_by: appliedFilters.value.sortBy || '',
+            order_type: appliedFilters.value.orderType || '',
+            status: appliedFilters.value.status || '',
+            date_from: appliedFilters.value.dateFrom || '',
+            date_to: appliedFilters.value.dateTo || '',
+            export: 'all' // Flag to tell backend to return all records
+        };
+
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
+            }
+        });
+
+        const response = await axios.get("/api/kots/all-orders", { params });
+
+        // Transform the data same way as fetchOrders
+        const allOrders = (response.data.data || []).map(ko => {
+            const posOrder = ko.pos_order_type?.order;
+            const posOrderItems = posOrder?.items || [];
+
+            return {
+                id: posOrder?.id || ko.id,
+                kot_id: ko.id,
+                created_at: posOrder?.created_at || ko.created_at,
+                customer_name: posOrder?.customer_name || 'Walk In',
+                total_amount: posOrder?.total_amount || 0,
+                sub_total: posOrder?.sub_total || 0,
+                status: ko.status || 'Waiting',
+                type: {
+                    order_type: ko.pos_order_type?.order_type,
+                    table_number: ko.pos_order_type?.table_number
+                },
+                payment: posOrder?.payment,
+                items: (ko.items || []).map(kotItem => {
+                    const matchingPosItem = posOrderItems.find(posItem =>
+                        posItem.title === kotItem.item_name ||
+                        posItem.product_id === kotItem.product_id
+                    );
+
+                    return {
+                        ...kotItem,
+                        title: kotItem.item_name,
+                        price: matchingPosItem?.price || 0,
+                        quantity: kotItem.quantity || 1,
+                        variant_name: kotItem.variant_name || '-',
+                        item_kitchen_note: kotItem.item_kitchen_note || '',
+                        ingredients: kotItem.ingredients || []
+                    };
+                }),
+                item_count: ko.items?.length || 0
+            };
+        });
+
+        if (allOrders.length === 0) {
+            toast.error("No kitchen orders found to download");
+            return;
+        }
+
+        // Now download with all records
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allOrders);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allOrders);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allOrders);
         } else {
             toast.error("Invalid download type");
         }
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -970,15 +1030,9 @@ const downloadExcel = (data) => {
                                 </template>
                             </FilterModal>
 
-                           <Dropdown
-                                v-model="exportOption"
-                                :options="exportOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="Export"
-                                class="export-dropdown"
-                                @change="onExportChange"
-                            />
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
 
                         </div>
                     </div>
@@ -1028,6 +1082,7 @@ const downloadExcel = (data) => {
                                     <th>Items Count</th>
                                     <th>Status</th>
                                     <th>Date</th>
+                                    <th>Total Amount</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -1063,6 +1118,7 @@ const downloadExcel = (data) => {
                                             </span>
                                         </td>
                                         <td>{{ dateFmt(order.created_at) }}</td>
+                                        <td>{{ order.payment.amount_received }}</td>
                                         <td>
                                             <div class="d-flex justify-content-center align-items-center gap-2">
                                                 <!-- View Items Button -->
@@ -1155,7 +1211,7 @@ const downloadExcel = (data) => {
                                 <div class="col-md-3">
                                     <small class="text-muted d-block dark:text-gray-400">Table Number</small>
                                     <strong class="dark:text-white">{{ selectedOrder.type?.table_number || '-'
-                                        }}</strong>
+                                    }}</strong>
                                 </div>
                                 <div class="col-md-3">
                                     <small class="text-muted d-block dark:text-gray-400">Order Status</small>
@@ -1202,7 +1258,7 @@ const downloadExcel = (data) => {
                                             <td>
                                                 <small class="text-muted dark:text-gray-400">{{ item.item_kitchen_note
                                                     || '-'
-                                                    }}</small>
+                                                }}</small>
                                             </td>
                                             <td>
                                                 <small class="text-muted dark:text-gray-400">{{
@@ -1354,6 +1410,7 @@ const downloadExcel = (data) => {
         opacity: 0;
         transform: scale(0.8);
     }
+
     to {
         opacity: 1;
         transform: scale(1);
