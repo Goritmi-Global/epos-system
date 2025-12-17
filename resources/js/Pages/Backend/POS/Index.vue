@@ -264,7 +264,71 @@ const getSelectedAddons = (product) => {
     return allAddons;
 };
 
-//  Get total price (variant + addons)
+// Flatten all addons from all groups into one array
+const getAllAddonsForProduct = (product) => {
+    if (!product.addon_groups || product.addon_groups.length === 0) return [];
+
+    const allAddons = [];
+    product.addon_groups.forEach(group => {
+        if (group.addons && group.addons.length > 0) {
+            group.addons.forEach(addon => {
+                allAddons.push({
+                    ...addon,
+                    group_id: group.group_id,
+                    group_name: group.group_name,
+                    max_select: group.max_select
+                });
+            });
+        }
+    });
+
+    return allAddons;
+};
+
+
+// Get all selected addons for a product (flatten from all groups)
+const getAllSelectedAddonsForProduct = (product) => {
+    const productKey = product.id;
+    if (!selectedCardAddons.value[productKey]) return [];
+
+    const allSelected = [];
+    Object.values(selectedCardAddons.value[productKey]).forEach(addons => {
+        allSelected.push(...addons);
+    });
+
+    return allSelected;
+};
+
+// Handle addon changes for unified multiselect
+const handleAllAddonsChange = (product, selectedAddons) => {
+    const productKey = product.id;
+
+    // Group the selected addons back by their group_id
+    const groupedAddons = {};
+
+    selectedAddons.forEach(addon => {
+        if (!groupedAddons[addon.group_id]) {
+            groupedAddons[addon.group_id] = [];
+        }
+        groupedAddons[addon.group_id].push(addon);
+    });
+
+    // Check max_select constraints for each group
+    product.addon_groups.forEach(group => {
+        const groupAddons = groupedAddons[group.group_id] || [];
+
+        if (group.max_select > 0 && groupAddons.length > group.max_select) {
+            toast.warning(`You can only select up to ${group.max_select} items from ${group.group_name}`);
+            // Keep only the first max_select items
+            groupedAddons[group.group_id] = groupAddons.slice(0, group.max_select);
+        }
+    });
+
+    // Update the selectedCardAddons
+    selectedCardAddons.value[productKey] = groupedAddons;
+};
+
+//  total price (variant + addons)
 const getTotalPrice = (product) => {
     const variantPrice = getSelectedVariantPrice(product);
     const addonsPrice = getAddonsPrice(product);
@@ -5150,47 +5214,42 @@ const decrementModalAddon = (groupId, addonId) => {
                                                 </div>
 
                                                 <!-- Addons Selection -->
-                                                <div v-if="p.addon_groups && p.addon_groups.length > 0">
-                                                    <div v-for="group in p.addon_groups" :key="group.group_id"
-                                                        class="mb-3">
-                                                        <label class="form-label small fw-semibold mb-2">
-                                                            {{ group.group_name }}
-                                                            <span v-if="group.max_select > 0" class="text-muted"
-                                                                style="font-size: 0.75rem;">
-                                                                (Max {{ group.max_select }})
-                                                            </span>
-                                                        </label>
-                                                        <MultiSelect
-                                                            :modelValue="selectedCardAddons[p.id]?.[group.group_id] || []"
-                                                            @update:modelValue="(val) => handleAddonChange(p, group.group_id, val)"
-                                                            :options="group.addons" optionLabel="name" dataKey="id"
-                                                            placeholder="Select addons" :maxSelectedLabels="3"
-                                                            class="w-100 addon-multiselect">
-                                                            <template #value="slotProps">
-                                                                <div v-if="slotProps.value && slotProps.value.length > 0"
-                                                                    class="d-flex flex-wrap gap-1">
-                                                                    <span v-for="addon in slotProps.value"
-                                                                        :key="addon.id" class="badge bg-primary">
-                                                                        {{ addon.name }} +{{
-                                                                            formatCurrencySymbol(addon.price) }}
-                                                                    </span>
-                                                                </div>
-                                                                <span v-else>
-                                                                    {{ slotProps.placeholder }}
+                                                <div v-if="p.addon_groups && p.addon_groups.length > 0" class="mb-3">
+                                                    <label class="form-label small fw-semibold mb-2">
+                                                        Add-ons
+                                                    </label>
+                                                    <MultiSelect :modelValue="getAllSelectedAddonsForProduct(p)"
+                                                        @update:modelValue="(val) => handleAllAddonsChange(p, val)"
+                                                        :options="getAllAddonsForProduct(p)" optionLabel="name"
+                                                        dataKey="id" placeholder="Select addons" :maxSelectedLabels="3"
+                                                        class="w-100 addon-multiselect" display="chip">
+                                                        <template #value="slotProps">
+                                                            <div v-if="slotProps.value && slotProps.value.length > 0"
+                                                                class="d-flex flex-wrap gap-1">
+                                                                <span v-for="addon in slotProps.value" :key="addon.id"
+                                                                    class="badge bg-primary">
+                                                                    {{ addon.name }} +{{
+                                                                        formatCurrencySymbol(addon.price) }}
                                                                 </span>
-                                                            </template>
-                                                            <template #option="slotProps">
-                                                                <div
-                                                                    class="d-flex justify-content-between align-items-center w-100">
-                                                                    <span>{{ slotProps.option.name }}</span>
-                                                                    <span class="fw-semibold text-success">
-                                                                        +{{ formatCurrencySymbol(slotProps.option.price)
-                                                                        }}
-                                                                    </span>
+                                                            </div>
+                                                            <span v-else>
+                                                                {{ slotProps.placeholder }}
+                                                            </span>
+                                                        </template>
+                                                        <template #option="slotProps">
+                                                            <div
+                                                                class="d-flex justify-content-between align-items-center w-100">
+                                                                <div>
+                                                                    <div>{{ slotProps.option.name }}</div>
+                                                                    <small class="text-muted">{{
+                                                                        slotProps.option.group_name }}</small>
                                                                 </div>
-                                                            </template>
-                                                        </MultiSelect>
-                                                    </div>
+                                                                <span class="fw-semibold text-success">
+                                                                    +{{ formatCurrencySymbol(slotProps.option.price) }}
+                                                                </span>
+                                                            </div>
+                                                        </template>
+                                                    </MultiSelect>
                                                 </div>
 
                                                 <!-- View Details Button -->
