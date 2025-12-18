@@ -142,7 +142,6 @@ public function getParents(Request $request): JsonResponse
     {
         try {
             $result = $this->MenuCategoryService->updateCategory($id, $request->validated());
-
             if ($result['success']) {
                 return response()->json([
                     'success' => true,

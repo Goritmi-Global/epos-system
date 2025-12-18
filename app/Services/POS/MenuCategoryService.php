@@ -116,26 +116,19 @@ class MenuCategoryService
             });
     }
 
-    /**
-     * Get only parent categories (for dropdown)
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    /**
-     * ✅ UPDATED: Get parent categories with filters and pagination
-     */
+
     public function getParentCategories(array $filters = [])
     {
         $query = MenuCategory::with(['subcategories', 'parent'])
             ->withCount('menuItems')
             ->whereNull('parent_id');
+        $totalCount = MenuCategory::whereNull('parent_id')->count();
+        $activeCount = MenuCategory::whereNull('parent_id')->where('active', 1)->count();
+        $inactiveCount = MenuCategory::whereNull('parent_id')->where('active', 0)->count();
 
-        // ✅ Search filter
         if (! empty($filters['q'])) {
             $query->where('name', 'like', "%{$filters['q']}%");
         }
-
-        // ✅ Status filter
         if (! empty($filters['status'])) {
             if ($filters['status'] === 'active') {
                 $query->where('active', 1);
@@ -143,13 +136,9 @@ class MenuCategoryService
                 $query->where('active', 0);
             }
         }
-
-        // ✅ Category filter (specific category ID)
         if (! empty($filters['category'])) {
             $query->where('id', $filters['category']);
         }
-
-        // ✅ Has Subcategories filter
         if (! empty($filters['has_subcategories'])) {
             if ($filters['has_subcategories'] === 'yes') {
                 $query->whereHas('subcategories');
@@ -157,8 +146,6 @@ class MenuCategoryService
                 $query->doesntHave('subcategories');
             }
         }
-
-        // ✅ Sorting
         if (! empty($filters['sort_by'])) {
             switch ($filters['sort_by']) {
                 case 'name_asc':
@@ -180,8 +167,6 @@ class MenuCategoryService
         } else {
             $query->orderBy('id', 'DESC');
         }
-
-        // ✅ Check if ANY filter is applied
         $searchQuery = trim($filters['q'] ?? '');
         $hasSearch = ! empty($searchQuery);
         $hasStatus = ! empty($filters['status']);
@@ -198,18 +183,13 @@ class MenuCategoryService
         ]);
 
         if ($hasAnyFilter) {
-            // ✅ FILTER MODE: Get all matching records
             $allCategories = $query->get();
             $total = $allCategories->count();
 
             Log::info('Filter Mode (Menu Categories)', ['total_found' => $total]);
-
-            // ✅ Transform data
             $transformedCategories = $allCategories->map(function ($category) {
                 return $this->transformCategory($category);
             });
-
-            // ✅ Create single-page paginator
             $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
                 $transformedCategories,
                 $total,
@@ -222,7 +202,6 @@ class MenuCategoryService
             );
 
         } else {
-            // ✅ NO FILTERS: Normal pagination
             Log::info('Pagination Mode (Menu Categories)');
 
             $perPage = $filters['per_page'] ?? 10;
@@ -232,13 +211,16 @@ class MenuCategoryService
                 return $this->transformCategory($category);
             });
         }
+        $response = $paginator->toArray();
+        $response['stats'] = [
+            'total' => $totalCount,
+            'active' => $activeCount,
+            'inactive' => $inactiveCount,
+        ];
 
-        return $paginator;
+        return $response;
     }
 
-    /**
-     * ✅ NEW: Transform category data (extracted for reusability)
-     */
     private function transformCategory($category)
     {
         $category->total_menu_items = $category->menu_items_count;
@@ -253,9 +235,6 @@ class MenuCategoryService
         return $category;
     }
 
-    /**
-     * Get category by ID with relationships
-     */
     public function getCategoryById(int $id): ?MenuCategory
     {
         return MenuCategory::with(['subcategories', 'parent'])->find($id);
@@ -384,7 +363,9 @@ class MenuCategoryService
             $category->update([
                 'name' => $data['name'] ?? $category->name,
                 'upload_id' => $uploadId,
-                'active' => $data['active'] ?? $category->active,
+                'active' => isset($data['active'])
+                    ? (int) $data['active']
+                    : (int) $category->active,
                 'parent_id' => $data['parent_id'] ?? $category->parent_id,
             ]);
 

@@ -147,6 +147,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('kots')->name('api.kots.')->group(function () {
         Route::get('/all-orders', [KotController::class, 'getAllKotOrders'])->name('index');
         Route::put('/pos/kot-item/{itemId}/status', [KotController::class, 'updateItemStatus']);
+        Route::get('/statistics', [KotController::class, 'getOrderStatistics']);
     });
 
     // Notifications
@@ -245,6 +246,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('addons')->group(function () {
 
         Route::post('/import', [AddonController::class, 'import']);
+        Route::get('/unique-groups', [AddonController::class, 'getUniqueGroups']);
         // Get all addons with their group information
         Route::get('/all', [AddonController::class, 'all']);
 

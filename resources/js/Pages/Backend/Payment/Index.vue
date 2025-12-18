@@ -19,6 +19,12 @@ const orders = ref([]);
 
 const loading = ref(false);
 
+const stats = ref({
+    total_payments: 0,
+    todays_payments: 0,
+    total_amount: 0
+});
+
 const pagination = ref({
     current_page: 1,
     last_page: 1,
@@ -40,7 +46,7 @@ const exportOptions = [
 const onExportChange = (e) => {
     if (e.value) {
         onDownload(e.value)
-        exportOption.value = null 
+        exportOption.value = null
     }
 }
 
@@ -66,7 +72,7 @@ const fetchOrdersWithPayment = async (page = null) => {
         });
 
         const response = await axios.get("/api/payments/all", { params });
-        
+
         // ✅ Map payment data to order structure
         orders.value = response.data.data.map(payment => {
             const order = payment.order || {};
@@ -91,6 +97,11 @@ const fetchOrdersWithPayment = async (page = null) => {
             };
         });
 
+        // ✅ Update stats from API response
+        if (response.data.stats) {
+            stats.value = response.data.stats;
+        }
+
         // ✅ Update pagination
         pagination.value = {
             current_page: response.data.current_page,
@@ -110,6 +121,7 @@ const fetchOrdersWithPayment = async (page = null) => {
         loading.value = false;
     }
 };
+
 
 const handlePageChange = (url) => {
     if (!url) return;
@@ -298,31 +310,78 @@ watch(q, () => {
     }, 500);
 });
 
-const onDownload = (type) => {
+const onDownload = async (type) => {
     if (!orders.value || orders.value.length === 0) {
         toast.error("No payment data to download");
         return;
     }
-    const paymentsData = orders.value;
-
-    if (paymentsData.length === 0) {
-        toast.error("No payments found to download");
-        return;
-    }
 
     try {
+        loading.value = true;
+
+        // Fetch ALL records without pagination
+        const params = {
+            q: q.value,
+            sort_by: appliedFilters.value.sortBy || '',
+            payment_type: appliedFilters.value.paymentType || '',
+            date_from: appliedFilters.value.dateFrom || '',
+            date_to: appliedFilters.value.dateTo || '',
+            price_min: appliedFilters.value.priceMin || '',
+            price_max: appliedFilters.value.priceMax || '',
+            export: 'all' // Flag to tell backend to return all records
+        };
+
+        Object.keys(params).forEach(key => {
+            if (params[key] === undefined || params[key] === '') {
+                delete params[key];
+            }
+        });
+
+        const response = await axios.get("/api/payments/all", { params });
+
+        // Transform the data same way as fetchOrdersWithPayment
+        const allPayments = response.data.data.map(payment => {
+            const order = payment.order || {};
+            return {
+                id: order.id,
+                customer_name: order.customer_name,
+                promo: order.promo,
+                service_charges: order.service_charges,
+                delivery_charges: order.delivery_charges,
+                tax: order.tax,
+                sub_total: order.sub_total,
+                sales_discount: order.sales_discount,
+                approved_discounts: order.approved_discounts,
+                total_amount: order.total_amount,
+                status: order.status,
+                type: order.type,
+                payment_type: payment.payment_type,
+                amount_received: payment.amount_received,
+                payment_date: payment.payment_date,
+                user: payment.user
+            };
+        });
+
+        if (allPayments.length === 0) {
+            toast.error("No payments found to download");
+            return;
+        }
+
+        // Now download with all records
         if (type === "pdf") {
-            downloadPaymentsPDF(paymentsData);
+            downloadPaymentsPDF(allPayments);
         } else if (type === "excel") {
-            downloadPaymentsExcel(paymentsData);
+            downloadPaymentsExcel(allPayments);
         } else if (type === "csv") {
-            downloadPaymentsCSV(paymentsData);
+            downloadPaymentsCSV(allPayments);
         } else {
             toast.error("Invalid download type");
         }
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -507,22 +566,22 @@ const downloadPaymentsExcel = (data) => {
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
         worksheet["!cols"] = [
-            { wch: 10 },  
-            { wch: 12 },  
-            { wch: 20 }, 
-            { wch: 12 }, 
-            { wch: 12 }, 
-            { wch: 15 },  
-            { wch: 20 },  
-            { wch: 15 },  
-            { wch: 15 },  
-            { wch: 15 },  
-            { wch: 10 },  
-            { wch: 15 }, 
-            { wch: 15 },  
-            { wch: 12 },  
-            { wch: 10 },  
-            { wch: 15 }  
+            { wch: 10 },
+            { wch: 12 },
+            { wch: 20 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 15 },
+            { wch: 20 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 10 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 12 },
+            { wch: 10 },
+            { wch: 15 }
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Payments");
@@ -569,13 +628,10 @@ const downloadPaymentsExcel = (data) => {
                 <div class="col-6 col-md-4">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
-                            <!-- Left Section (Text) -->
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ totalPayments }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ stats.total_payments }}</h3>
                                 <p class="text-muted mb-0 small">Total Payments</p>
                             </div>
-
-                            <!-- Right Section (Icon) -->
                             <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
                                 style="width: 56px; height: 56px">
                                 <i class="bi bi-list-check fs-4"></i>
@@ -589,7 +645,7 @@ const downloadPaymentsExcel = (data) => {
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ todaysPayments }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ stats.todays_payments }}</h3>
                                 <p class="text-muted mb-0 small">Today's Payments</p>
                             </div>
                             <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
@@ -605,7 +661,7 @@ const downloadPaymentsExcel = (data) => {
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ formatCurrencySymbol(totalAmount, 'GBP') }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ formatCurrencySymbol(stats.total_amount, 'GBP') }}</h3>
                                 <p class="text-muted mb-0 small">Total Amount</p>
                             </div>
                             <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
@@ -659,15 +715,9 @@ const downloadPaymentsExcel = (data) => {
                                 </template>
                             </FilterModal>
                             <!-- Download all -->
-                          <Dropdown
-                            v-model="exportOption"
-                            :options="exportOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Export"
-                            class="export-dropdown"
-                            @change="onExportChange"
-                        />
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
 
                         </div>
                     </div>
