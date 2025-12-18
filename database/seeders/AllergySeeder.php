@@ -7,9 +7,6 @@ use App\Models\Allergy;
 
 class AllergySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         $allergies = [
@@ -28,10 +25,10 @@ class AllergySeeder extends Seeder
         ];
 
         foreach ($allergies as $allergyName) {
-            Allergy::create([
-                'name' => $allergyName,
-                'description' => null, // optional, can add details later
-            ]);
+            Allergy::updateOrCreate(
+                ['name' => $allergyName], // search condition
+                ['description' => null]   // values to update
+            );
         }
     }
 }

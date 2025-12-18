@@ -321,10 +321,11 @@ watch(selectedPermissions, (newVal) => {
                                 style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
                                 aria-hidden="true" />
 
-                            <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                                class="form-control search-input" placeholder="Search" type="search"
-                                autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                            <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
+                            <input v-if="isReady" :id="inputId" v-model="permSearch" :key="searchKey"
+                                class="form-control search-input" placeholder="Search Permissions" type="search"
+                                autocomplete="new-password" :name="inputId" role="presentation" />
+                            <input v-else class="form-control search-input" placeholder="Search Permissions" disabled
+                                type="text" />
                         </div>
                     </div>
 

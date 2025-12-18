@@ -1071,7 +1071,7 @@ const downloadExcel = (data) => {
                             </thead>
                             <tbody>
                                 <tr v-if="loading">
-                                    <td colspan="10" class="text-center py-5">
+                                    <td colspan="11" class="text-center py-5">
                                         <div class="d-flex flex-column align-items-center justify-content-center">
                                             <div class="spinner-border mb-3" role="status"
                                                 style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;">
@@ -1101,7 +1101,7 @@ const downloadExcel = (data) => {
                                             </span>
                                         </td>
                                         <td>{{ dateFmt(order.created_at) }}</td>
-                                        <td>{{ order.payment.amount_received }}</td>
+                                        <td>{{ order?.payment?.amount_received }}</td>
                                         <td>
                                             <div class="d-flex justify-content-center align-items-center gap-2">
                                                 <!-- View Items Button -->
@@ -1120,7 +1120,7 @@ const downloadExcel = (data) => {
                                         </td>
                                     </tr>
                                     <tr v-if="!loading && sortedOrders.length === 0">
-                                        <td colspan="10" class="text-center text-muted py-4">
+                                        <td colspan="11" class="text-center text-muted py-4">
                                             <div
                                                 class="d-flex flex-column align-items-center justify-content-center py-3">
                                                 <i class="bi bi-inbox"
@@ -1223,7 +1223,6 @@ const downloadExcel = (data) => {
                                             <th>Variant</th>
                                             <th>Quantity</th>
                                             <th>Kitchen Note</th>
-                                            <th>Ingredients</th>
                                             <th>Status</th>
                                             <th class="text-center">Actions</th>
                                         </tr>
@@ -1238,23 +1237,7 @@ const downloadExcel = (data) => {
                                                 <span class="badge bg-secondary">{{ item.quantity }}</span>
                                             </td>
                                             <td>
-                                                <small class="text-muted dark:text-gray-400">{{ item.item_kitchen_note
-                                                    || '-'
-                                                }}</small>
-                                            </td>
-                                            <td>
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <small class="text-muted dark:text-gray-400 text-truncate"
-                                                        style="max-width: 150px;">
-                                                        {{ item.ingredients?.join(', ') || '-' }}
-                                                    </small>
-                                                    <button v-if="item.ingredients && item.ingredients.length > 0"
-                                                        @click="viewIngredients(item)"
-                                                        class="btn btn-sm p-1 text-info dark:text-blue-400 dark:hover:bg-gray-700"
-                                                        title="View Ingredients">
-                                                        <i class="bi bi-eye"></i>
-                                                    </button>
-                                                </div>
+                                                <small class="text-muted dark:text-gray-400">{{ item.item_kitchen_note.substring(item.item_kitchen_note.indexOf('No')) }}</small>
                                             </td>
                                             <td>
                                                 <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"

@@ -38,6 +38,39 @@ const categorySearchQuery = ref("");
 const categorySearchKey = ref(Date.now());
 const categoryInputId = `category-search-${Math.random().toString(36).substr(2, 9)}`;
 const isCategorySearchReady = ref(false);
+const currentAddonGroupIndex = ref(0);
+
+const currentAddonGroup = computed(() => {
+    if (!selectedItem.value?.addon_groups || selectedItem.value.addon_groups.length === 0) {
+        return null;
+    }
+    return selectedItem.value.addon_groups[currentAddonGroupIndex.value];
+});
+
+// Navigate to next addon group
+const nextAddonGroup = () => {
+    if (currentAddonGroupIndex.value < selectedItem.value?.addon_groups?.length - 1) {
+        currentAddonGroupIndex.value++;
+    }
+};
+
+// Navigate to previous addon group
+const previousAddonGroup = () => {
+    if (currentAddonGroupIndex.value > 0) {
+        currentAddonGroupIndex.value--;
+    }
+};
+
+// Skip to review step directly
+const skipToReview = () => {
+    currentStep.value = finalStep.value;
+};
+
+// Reset addon group index when modal opens or item changes
+const resetAddonGroupIndex = () => {
+    currentAddonGroupIndex.value = 0;
+};
+
 
 const filteredCategories = computed(() => {
     const q = categorySearchQuery.value.trim().toLowerCase();
@@ -391,6 +424,16 @@ const getRemovedIngredientsText = () => {
 };
 
 const currentStep = ref(1);
+
+const getStepNumberFor = (stepId) => {
+    return visibleSteps.value.find(s => s.id === stepId)?.stepNumber || 0;
+};
+
+const goToStep = (stepNumber) => {
+    if (stepNumber <= currentStep.value || stepNumber === currentStep.value + 1) {
+        currentStep.value = stepNumber;
+    }
+};
 // Stepper computed properties
 const hasVariants = computed(() => {
     return selectedItem.value?.variants && selectedItem.value.variants.length > 0;
@@ -405,21 +448,52 @@ const hasAddons = computed(() => {
 });
 
 const visibleSteps = computed(() => {
-    const steps = [];
+    let steps = [];
+    let displayOrder = 1; // This is what shows in the circles
+
     if (hasVariants.value) {
-        steps.push({ id: 'variants', name: 'Variant' });
+        steps.push({
+            id: 'variants',
+            name: 'Variant',
+            stepNumber: displayOrder,
+            actualStep: 1
+        });
+        displayOrder++;
     }
+
     if (hasIngredients.value) {
-        steps.push({ id: 'ingredients', name: 'Ingredients' });
+        steps.push({
+            id: 'ingredients',
+            name: 'Ingredients',
+            stepNumber: displayOrder,
+            actualStep: 2
+        });
+        displayOrder++;
     }
+
     if (hasAddons.value) {
-        steps.push({ id: 'addons', name: 'Add-ons' });
+        steps.push({
+            id: 'addons',
+            name: 'Add-ons',
+            stepNumber: displayOrder,
+            actualStep: 3
+        });
+        displayOrder++;
     }
-    steps.push({ id: 'review', name: 'Review' });
+
+    steps.push({
+        id: 'review',
+        name: 'Review',
+        stepNumber: displayOrder,
+        actualStep: 4
+    });
+
     return steps;
 });
 
-const finalStep = computed(() => visibleSteps.value.length);
+const finalStep = computed(() => {
+    return visibleSteps.value[visibleSteps.value.length - 1]?.stepNumber || 1;
+});
 
 const stepProgressWidth = computed(() => {
     if (currentStep.value === 1) return '0%';
@@ -432,67 +506,30 @@ const stepProgressWidth = computed(() => {
     return `calc(${widthPercentage}% - ${14 - (progressRatio * 28)}px)`;
 });
 // Step navigation methods
-const getStepCircleClass = (step) => {
-    if (step < currentStep.value) {
-        return 'bg-success text-white';
-    } else if (step === currentStep.value) {
-        return 'bg-primary text-white';
-    } else {
-        return 'bg-light text-muted border';
+const getStepCircleClass = (stepNumber) => {
+    if (stepNumber < currentStep.value) {
+        return 'stepper-circle-completed';
+    } else if (stepNumber === currentStep.value) {
+        return 'stepper-circle-active';
     }
+    return 'stepper-circle-inactive';
+};
+
+const initializeStep = () => {
+    currentStep.value = visibleSteps.value[0]?.stepNumber || 1;
 };
 
 const nextStep = () => {
-    let nextStepNum = currentStep.value + 1;
-
-    while (nextStepNum <= finalStep.value) {
-        const stepInfo = visibleSteps.value[nextStepNum - 1];
-
-        if (stepInfo.id === 'variants' && !hasVariants.value) {
-            nextStepNum++;
-            continue;
-        }
-        if (stepInfo.id === 'ingredients' && !hasIngredients.value) {
-            nextStepNum++;
-            continue;
-        }
-        if (stepInfo.id === 'addons' && !hasAddons.value) {
-            nextStepNum++;
-            continue;
-        }
-
-        break;
-    }
-
-    if (nextStepNum <= finalStep.value) {
-        currentStep.value = nextStepNum;
+    const currentIndex = visibleSteps.value.findIndex(s => s.stepNumber === currentStep.value);
+    if (currentIndex < visibleSteps.value.length - 1) {
+        currentStep.value = visibleSteps.value[currentIndex + 1].stepNumber;
     }
 };
 
 const previousStep = () => {
-    let prevStepNum = currentStep.value - 1;
-
-    while (prevStepNum >= 1) {
-        const stepInfo = visibleSteps.value[prevStepNum - 1];
-
-        if (stepInfo.id === 'variants' && !hasVariants.value) {
-            prevStepNum--;
-            continue;
-        }
-        if (stepInfo.id === 'ingredients' && !hasIngredients.value) {
-            prevStepNum--;
-            continue;
-        }
-        if (stepInfo.id === 'addons' && !hasAddons.value) {
-            prevStepNum--;
-            continue;
-        }
-
-        break;
-    }
-
-    if (prevStepNum >= 1) {
-        currentStep.value = prevStepNum;
+    const currentIndex = visibleSteps.value.findIndex(s => s.stepNumber === currentStep.value);
+    if (currentIndex > 0) {
+        currentStep.value = visibleSteps.value[currentIndex - 1].stepNumber;
     }
 };
 
@@ -525,6 +562,7 @@ const openDetailsModal = async (item) => {
     modalItemKitchenNote.value = "";
     modalSelectedVariant.value = null;
     modalSelectedAddons.value = {};
+    currentAddonGroupIndex.value = 0;
     modalRemovedIngredients.value = [];
 
     currentStep.value = 1;
@@ -3746,10 +3784,10 @@ watch(
 
 //  Customer Display function
 const openCustomerDisplay = () => {
-    if (!isCashier.value) {
-        toast.error('Only cashiers can access customer display');
-        return;
-    }
+    // if (!isCashier.value) {
+    //     toast.error('Only cashiers can access customer display');
+    //     return;
+    // }
 
     const url = route('customer-display.index', { terminal: terminalId.value });
     window.open(url, '_blank', 'width=1920,height=1080');
@@ -5092,9 +5130,9 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3 tablet-screen">
                             <div class="d-flex justify-content-between justify align-items-center mb-3">
-                                <h4 class="mb-0">Menu Categories</h4>
+                                <h4 class="mb-0">Categories</h4>
 
-                                <button v-if="isCashier" @click="openCustomerDisplay"
+                                <button @click="openCustomerDisplay"
                                     class="btn btn-primary d-flex align-items-center gap-2" type="button">
                                     <i class="bi bi-tv"></i>
                                     <span>Customer View</span>
@@ -5992,9 +6030,8 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
             </div> -->
 
 
-            <!-- Replace your entire modal with id="chooseItem" with this beautiful stepper modal -->
             <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content rounded-3 shadow border-0" style="max-height: 90vh;">
 
                         <!-- HEADER -->
@@ -6027,14 +6064,16 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                 <div v-for="(step, index) in visibleSteps" :key="step.id"
                                     class="stepper-step text-center">
                                     <div class="stepper-circle stepper-circle-sm"
-                                        :class="getStepCircleClass(index + 1)">
-                                        <i v-if="index + 1 < currentStep" class="bi bi-check-lg"
+                                        :class="getStepCircleClass(step.stepNumber)" @click="goToStep(step.stepNumber)"
+                                        style="cursor: pointer;">
+                                        <i v-if="step.stepNumber < currentStep" class="bi bi-check-lg"
                                             style="font-size: 0.7rem;"></i>
-                                        <span v-else style="font-size: 0.75rem;">{{ index + 1 }}</span>
+                                        <span v-else style="font-size: 0.75rem;">{{ step.stepNumber }}</span>
                                     </div>
                                     <small class="stepper-label"
-                                        :class="{ 'stepper-label-active': index + 1 === currentStep }"
-                                        style="font-size: 0.7rem; margin-top: 4px; display: block;">
+                                        :class="{ 'stepper-label-active': step.stepNumber === currentStep }"
+                                        style="font-size: 0.7rem; margin-top: 4px; display: block; cursor: pointer;"
+                                        @click="goToStep(step.stepNumber)">
                                         {{ step.name }}
                                     </small>
                                 </div>
@@ -6171,42 +6210,65 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                         </div>
 
                                         <!-- STEP 3 : ADD-ONS -->
-                                        <!-- STEP 3 : ADD-ONS -->
                                         <div v-show="currentStep === 3 && hasAddons" class="step-content">
-                                            <div class="d-flex align-items-start mb-2">
+                                            <div class="d-flex align-items-start mb-3">
                                                 <i class="bi bi-plus-circle me-2 text-success"
                                                     style="font-size: 1.1rem;"></i>
-                                                <div>
+                                                <div class="flex-grow-1">
                                                     <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons</h6>
                                                     <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your
                                                         meal</p>
                                                 </div>
                                             </div>
 
-                                            <div v-for="group in selectedItem?.addon_groups" :key="group.group_id"
-                                                class="mb-3">
-                                                <label class="fw-semibold mb-2 d-flex justify-content-between"
-                                                    style="font-size: 0.85rem;">
-                                                    <span>{{ group.group_name }}</span>
-                                                    <span v-if="group.max_select > 0"
-                                                        class="badge rounded-pill bg-primary"
-                                                        style="font-size: 0.7rem;">
-                                                        Max {{ group.max_select }}
-                                                    </span>
-                                                </label>
+                                            <!-- Addon Group Progress Indicator -->
+                                            <div v-if="selectedItem?.addon_groups?.length > 1" class="mb-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <small class="text-muted" style="font-size: 0.75rem;">
+                                                        Group {{ currentAddonGroupIndex + 1 }} of {{
+                                                            selectedItem?.addon_groups?.length }}
+                                                    </small>
+                                                    <div class="d-flex gap-1">
+                                                        <span v-for="(g, idx) in selectedItem?.addon_groups" :key="idx"
+                                                            class="rounded-circle"
+                                                            :class="idx === currentAddonGroupIndex ? 'bg-primary' : 'bg-secondary'"
+                                                            style="width: 8px; height: 8px; display: inline-block; opacity: 0.6;"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Current Addon Group -->
+                                            <div v-if="currentAddonGroup" class="mb-3">
+                                                <div class="bg-light rounded-3 p-1 mb-3">
+                                                    <div class="d-flex justify-content-between align-items-center mb-0">
+                                                        <h6 class="fw-bold mb-0" style="font-size: 0.95rem;">
+                                                            {{ currentAddonGroup.group_name }}
+                                                        </h6>
+                                                        <span v-if="currentAddonGroup.max_select > 0"
+                                                            class="badge rounded-pill bg-primary"
+                                                            style="font-size: 0.7rem;">
+                                                            Max {{ currentAddonGroup.max_select }}
+                                                        </span>
+                                                    </div>
+                                                    <p v-if="currentAddonGroup.description"
+                                                        class="text-muted small mb-0" style="font-size: 0.75rem;">
+                                                        {{ currentAddonGroup.description }}
+                                                    </p>
+                                                </div>
 
                                                 <div class="row g-2">
-                                                    <div v-for="addon in group.addons" :key="addon.id" class="col-12">
+                                                    <div v-for="addon in currentAddonGroup.addons" :key="addon.id"
+                                                        class="col-12">
                                                         <div class="border rounded-2 p-2 shadow-sm d-flex align-items-center justify-content-between"
-                                                            :class="{ 'bg-light border-success': isModalAddonSelected(group.group_id, addon.id) }">
+                                                            :class="{ 'bg-light border-success': isModalAddonSelected(currentAddonGroup.group_id, addon.id) }">
 
                                                             <!-- Checkbox & Name -->
                                                             <div class="d-flex align-items-center flex-grow-1">
                                                                 <input type="checkbox" class="form-check-input me-2"
                                                                     style="width: 18px; height: 18px; cursor: pointer;"
                                                                     :id="'addon-' + addon.id"
-                                                                    :checked="isModalAddonSelected(group.group_id, addon.id)"
-                                                                    @change="toggleModalAddon(group.group_id, addon)">
+                                                                    :checked="isModalAddonSelected(currentAddonGroup.group_id, addon.id)"
+                                                                    @change="toggleModalAddon(currentAddonGroup.group_id, addon)">
 
                                                                 <label :for="'addon-' + addon.id"
                                                                     class="form-check-label mb-0"
@@ -6219,34 +6281,64 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                             </div>
 
                                                             <!-- Quantity Controls -->
-                                                            <div v-if="isModalAddonSelected(group.group_id, addon.id)"
-                                                                class="d-flex align-items-center gap-2">
+                                                            <div v-if="isModalAddonSelected(currentAddonGroup.group_id, addon.id)"
+                                                                class="d-flex align-items-center gap-1">
+
+                                                                <!-- Minus -->
                                                                 <button
-                                                                    class="btn btn-sm btn-outline-danger rounded-circle"
-                                                                    style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
-                                                                    @click="decrementModalAddon(group.group_id, addon.id)"
-                                                                    :disabled="getModalAddonQuantity(group.group_id, addon.id) <= 1">
+                                                                    class="btn btn-primary rounded-circle p-0"
+                                                                    style="width: 35px; height: 10px;"
+                                                                    @click="decrementModalAddon(currentAddonGroup.group_id, addon.id)"
+                                                                    :disabled="getModalAddonQuantity(currentAddonGroup.group_id, addon.id) <= 1">
                                                                     <i class="bi bi-dash"
                                                                         style="font-size: 0.9rem;"></i>
                                                                 </button>
 
+                                                                <!-- Quantity -->
                                                                 <span class="fw-bold"
-                                                                    style="min-width: 25px; text-align: center; font-size: 0.9rem;">
-                                                                    {{ getModalAddonQuantity(group.group_id, addon.id)
+                                                                    style="min-width: 20px; text-align: center; font-size: 0.75rem;">
+                                                                    {{ getModalAddonQuantity(currentAddonGroup.group_id,
+                                                                    addon.id)
                                                                     }}
                                                                 </span>
 
+                                                                <!-- Plus -->
                                                                 <button
-                                                                    class="btn btn-sm btn-outline-success rounded-circle"
-                                                                    style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
-                                                                    @click="incrementModalAddon(group.group_id, addon.id)">
+                                                                    class="btn btn-primary rounded-circle p-0"
+                                                                    style="width: 35px; height: 10px;"
+                                                                    @click="incrementModalAddon(currentAddonGroup.group_id, addon.id)">
                                                                     <i class="bi bi-plus"
                                                                         style="font-size: 0.9rem;"></i>
                                                                 </button>
+
                                                             </div>
+
                                                         </div>
                                                     </div>
                                                 </div>
+                                            </div>
+
+                                            <!-- Navigation Buttons for Addon Groups -->
+                                            <div v-if="selectedItem?.addon_groups?.length > 1"
+                                                class="d-flex justify-content-between gap-2 mt-3">
+                                                <button class="btn btn-primary btn-sm px-3" @click="previousAddonGroup"
+                                                    :disabled="currentAddonGroupIndex === 0">
+                                                    <i class="bi bi-chevron-left me-1"></i>
+                                                    Previous
+                                                </button>
+
+                                                <button class="btn btn-primary btn-sm px-3" @click="nextAddonGroup"
+                                                    :disabled="currentAddonGroupIndex >= selectedItem?.addon_groups?.length - 1">
+                                                    Next
+                                                    <i class="bi bi-chevron-right ms-1"></i>
+                                                </button>
+                                            </div>
+
+                                            <!-- Skip Add-ons Button -->
+                                            <div class="text-center mt-3">
+                                                <button class="btn btn-link btn-sm text-muted" @click="skipToReview">
+                                                    <small>Skip add-ons</small>
+                                                </button>
                                             </div>
                                         </div>
 
@@ -6338,7 +6430,6 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                     </div>
                 </div>
             </div>
-
 
             <!-- Deals customization modal -->
             <div class="modal fade" id="customizeDealModal" tabindex="-1" aria-hidden="true">
