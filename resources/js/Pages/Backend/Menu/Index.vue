@@ -2863,15 +2863,9 @@ function saveMenusToCart() {
                                 @on-import="handleImport" />
 
                             <!-- Download all -->
-                           <Dropdown
-                                v-model="exportOption"
-                                :options="exportOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="Export"
-                                class="export-dropdown"
-                                @change="onExportChange"
-                            />
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
 
                         </div>
                     </div>
