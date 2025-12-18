@@ -47,28 +47,32 @@
                         <div v-for="order in pendingOrders" :key="order.id" class="col-4">
                             <div class="card shadow-sm border-warning border-2 hover-shadow">
                                 <div class="card-body p-3">
-                                    <div class="align-items-center">
+                                    <!-- Badge to show order type -->
+                                    <span v-if="order.type === 'unpaid'"
+                                        class="badge bg-danger position-absolute top-0 end-0 m-2">
+                                        <i class="bi bi-credit-card me-1"></i>
+                                        Payment Pending
+                                    </span>
 
-                                        <!-- LEFT: Order Info -->
+                                    <div class="align-items-center">
                                         <div class="col-lg-12">
                                             <div class="d-flex align-items-start gap-3">
-
                                                 <div class="flex-grow-1">
                                                     <h6 class="fw-bold mb-1">
                                                         {{ order.customer_name || 'Walk In' }}
-                                                        <span class="badge ms-2" style="background-color: #1C0D82; padding: 8px; border-radius: 6px;">
+                                                        <span class="badge ms-2"
+                                                            style="background-color: #1C0D82; padding: 8px; border-radius: 6px;">
                                                             {{ order.order_type.replace('_', ' ') }}
                                                         </span>
-
                                                         <span v-if="order.table_number" class="badge bg-info ms-1">
                                                             {{ order.table_number }}
                                                         </span>
                                                     </h6>
 
-                                                    <!-- Timestamp -->
                                                     <p class="text-muted small mb-2">
                                                         <i class="bi bi-clock me-1"></i>
-                                                        Held {{ formatRelativeTime(order.held_at) }}
+                                                        {{ order.type === 'unpaid' ? 'Created' : 'Held' }} {{
+                                                            formatRelativeTime(order.held_at) }}
                                                     </p>
 
                                                     <!-- Items Summary -->
@@ -93,22 +97,38 @@
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            <!-- Action Buttons -->
                                             <div class="d-flex gap-2 mt-2">
-                                                <button
-                                                    class="btn btn-success btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
-                                                    @click="$emit('resume', order)">
-                                                    <i class="bi bi-play-fill"></i>
-                                                    Resume
-                                                </button>
-
-                                                <button
-                                                    class="btn btn-danger btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
-                                                    @click="confirmReject(order)">
-                                                    <i class="bi bi-trash"></i>
-                                                    Reject
-                                                </button>
+                                                <!-- Show different buttons based on order type -->
+                                                <template v-if="order.type === 'unpaid'">
+                                                    <button
+                                                        class="btn btn-success btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
+                                                        @click="$emit('pay-now', order)">
+                                                        <i class="bi bi-credit-card-fill"></i>
+                                                        Pay Now
+                                                    </button>
+                                                    <button
+                                                        class="btn btn-danger btn-sm d-flex align-items-center justify-content-center"
+                                                        style="width: 40px;" @click="confirmReject(order)">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </template>
+                                                <template v-else>
+                                                    <button
+                                                        class="btn btn-success btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
+                                                        @click="$emit('resume', order)">
+                                                        <i class="bi bi-play-fill"></i>
+                                                        Resume
+                                                    </button>
+                                                    <button
+                                                        class="btn btn-danger btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
+                                                        @click="confirmReject(order)">
+                                                        <i class="bi bi-trash"></i>
+                                                        Reject
+                                                    </button>
+                                                </template>
                                             </div>
-
                                         </div>
                                     </div>
                                 </div>
@@ -146,7 +166,7 @@ const props = defineProps({
     loading: Boolean
 });
 
-const emit = defineEmits(['close', 'resume', 'reject']);
+const emit = defineEmits(['close', 'resume', 'reject', 'pay-now']);
 
 const formatRelativeTime = (date) => {
     const now = new Date();

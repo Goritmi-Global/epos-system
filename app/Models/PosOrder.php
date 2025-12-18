@@ -19,6 +19,7 @@ class PosOrder extends Model
         'sales_discount',
         'approved_discounts',
         'status',
+        'payment_status',
         'note',
         'kitchen_note',
         'order_date',
@@ -40,24 +41,59 @@ class PosOrder extends Model
     {
         return $this->hasOne(PosOrderType::class, 'pos_order_id');
     }
+
     public function payment()
     {
         return $this->hasOne(Payment::class, 'order_id');
     }
+
     public function items()
     {
         return $this->hasMany(PosOrderItem::class, 'pos_order_id');
     }
+
     public function kot()
     {
         return $this->hasOne(KitchenOrder::class, 'pos_order_type_id', 'id');
     }
+
     public function promo()
     {
         return $this->hasMany(OrderPromo::class, 'order_id');
     }
+
     public function deliveryDetail()
     {
         return $this->hasOne(PosOrderDeliveryDetail::class, 'pos_order_id');
+    }
+
+    public function isPending(): bool
+    {
+        return $this->payment_status === 'pending';
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->payment_status === 'paid';
+    }
+
+    public function isPartiallyPaid(): bool
+    {
+        return $this->payment_status === 'partial';
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'order_id');
+    }
+
+    public function getTotalPaidAmount(): float
+    {
+        return (float) $this->payments()->sum('amount_received');
+    }
+
+    public function getRemainingAmount(): float
+    {
+        return max(0, $this->total_amount - $this->getTotalPaidAmount());
     }
 }

@@ -32,11 +32,33 @@ const manualSubcategories = ref([]);
 
 const exportOption = ref(null)
 
+// Image cropper states
+const iconFile = ref(null);
+const iconUrl = ref(null);
+const showCropper = ref(false);
+const showImageModal = ref(false);
+const previewImage = ref(null);
+
 const exportOptions = [
     { label: 'PDF', value: 'pdf' },
     { label: 'Excel', value: 'excel' },
     { label: 'CSV', value: 'csv' },
 ]
+
+const commonChips = ref([
+    { label: "Hot Drinks", value: "Hot Drinks" },
+    { label: "Cold Drinks", value: "Cold Drinks" },
+    { label: "Breakfast", value: "Breakfast" },
+    { label: "Street Snacks", value: "Street Snacks" },
+    { label: "Wala Wraps", value: "Wala Wraps" },
+    { label: "Bombay Toasties", value: "Bombay Toasties" },
+    { label: "Salads", value: "Salads" },
+    { label: "Bombay Bowls", value: "Bombay Bowls" },
+    { label: "Bakery", value: "Bakery" },
+    { label: "Soup", value: "Soup" },
+    { label: "Desserts", value: "Desserts" },
+    { label: "Ice Cream", value: "Ice Cream" },
+]);
 
 // 🔁 Keep function call same
 const onExportChange = (e) => {
@@ -74,31 +96,37 @@ const appliedFilters = ref({ ...defaultCategoryFilters });
 const fetchCategories = async (page = null) => {
     try {
         loading.value = true;
-        
         const params = {
-            q: q.value,
             page: page || pagination.value.current_page,
             per_page: pagination.value.per_page,
-            sort_by: appliedFilters.value.sortBy || '',
-            status: appliedFilters.value.status || '',
-            category: appliedFilters.value.category || '',
-            has_subcategories: appliedFilters.value.hasSubcategories || '',
         };
+        const searchQuery = (q.value || '').trim();
+        if (searchQuery) {
+            params.q = searchQuery;
+        }
+        if (appliedFilters.value.sortBy) {
+            params.sort_by = appliedFilters.value.sortBy;
+        }
+        if (appliedFilters.value.status) {
+            params.status = appliedFilters.value.status;
+        }
+        if (appliedFilters.value.category) {
+            params.category = appliedFilters.value.category;
+        }
+        if (appliedFilters.value.hasSubcategories) {
+            params.has_subcategories = appliedFilters.value.hasSubcategories;
+        }
 
-        Object.keys(params).forEach(key => {
-            if (params[key] === undefined || params[key] === '') {
-                delete params[key];
-            }
-        });
+        console.log('📤 Sending params:', params); 
 
         const res = await axios.get("/api/menu-categories/parents/list", { params });
-        
+
         categories.value = res.data.data || [];
-        
+
         if (res.data.stats) {
             categoryStats.value = res.data.stats;
         }
-        
+
         pagination.value = {
             current_page: res.data.current_page,
             last_page: res.data.last_page,
@@ -108,7 +136,7 @@ const fetchCategories = async (page = null) => {
             to: res.data.to,
             links: res.data.links
         };
-        
+
         loading.value = false;
     } catch (err) {
         console.error("Failed to fetch categories:", err);
@@ -116,6 +144,10 @@ const fetchCategories = async (page = null) => {
         loading.value = false;
     }
 };
+
+const hasActiveFilters = computed(() => {
+    return Object.values(appliedFilters.value).some(value => value !== "");
+});
 
 let searchTimeout = null;
 
@@ -195,7 +227,7 @@ const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
     pagination.value.current_page = 1; // ✅ Reset to page 1
     fetchCategories(1); // ✅ Fetch with new filters
-    
+
     const modal = bootstrap.Modal.getInstance(
         document.getElementById("categoryFilterModal")
     );
@@ -236,140 +268,9 @@ onUpdated(() => window.feather?.replace());
 const isSub = ref(false);
 const manualName = ref("");
 const manualActive = ref(true);
-const selectedParentId = ref(null); // Changed to null instead of empty string
+const selectedParentId = ref(null);
 // const manualIcon = ref({ label: "Produce (Veg/Fruit)", value: "🥬" });
 
-const manualIcon = ref({
-    label: "Produce (Veg/Fruit)",
-    value: "https://wallpaperaccess.com/full/5502204.jpg",
-    file: null
-});
-
-const iconOptions = [
-    {
-        label: "Hot Drinks",
-        value: "Hot Drinks",
-        icon: "/assets/img/coffee.png",
-    },
-    {
-        label: "Cold Drinks",
-        value: "Cold Drinks",
-        icon: "/assets/img/soda.png",
-    },
-    {
-        label: "Breakfast",
-        value: "Breakfast",
-        icon: "/assets/img/english-breakfast.png",
-    },
-    {
-        label: "Street Snacks",
-        value: "Street Snacks",
-        icon: "/assets/img/food.png",
-    },
-    {
-        label: "Wala Wraps",
-        value: "Wala Wraps",
-        icon: "/assets/img/burrito.png",
-    },
-    {
-        label: "Bombay Toasties",
-        value: "Bombay Toasties",
-        icon: "/assets/img/food (1).png",
-    },
-    {
-        label: "Salads",
-        value: "Salads",
-        icon: "/assets/img/salad.png",
-    },
-    {
-        label: "Bombay Bowls",
-        value: "Bombay Bowls",
-        icon: "/assets/img/porridge.png",
-    },
-    {
-        label: "Bakery",
-        value: "Bakery",
-        icon: "/assets/img/cake.png",
-    },
-    {
-        label: "Soup",
-        value: "Soup",
-        icon: "/assets/img/bowl.png",
-    },
-    {
-        label: "Desserts",
-        value: "Desserts",
-        icon: "/assets/img/cupcake.png",
-    },
-    {
-        label: "Ice Cream",
-        value: "Ice Cream",
-        icon: "/assets/img/ice-cream.png",
-    },
-];
-
-const commonChips = ref([
-    {
-        label: "Hot Drinks",
-        value: "Hot Drinks",
-        icon: "/assets/img/coffee.png",
-    },
-    {
-        label: "Cold Drinks",
-        value: "Cold Drinks",
-        icon: "/assets/img/soda.png",
-    },
-    {
-        label: "Breakfast",
-        value: "Breakfast",
-        icon: "/assets/img/english-breakfast.png",
-    },
-    {
-        label: "Street Snacks",
-        value: "Street Snacks",
-        icon: "/assets/img/food.png",
-    },
-    {
-        label: "Wala Wraps",
-        value: "Wala Wraps",
-        icon: "/assets/img/wrap.png",
-    },
-    {
-        label: "Bombay Toasties",
-        value: "Bombay Toasties",
-        icon: "/assets/img/bombay-toasties.png",
-    },
-    {
-        label: "Salads",
-        value: "Salads",
-        icon: "/assets/img/salad.png",
-    },
-    {
-        label: "Bombay Bowls",
-        value: "Bombay Bowls",
-        icon: "/assets/img/porridge.png",
-    },
-    {
-        label: "Bakery",
-        value: "Bakery",
-        icon: "/assets/img/cake.png",
-    },
-    {
-        label: "Soup",
-        value: "Soup",
-        icon: "/assets/img/bowl.png",
-    },
-    {
-        label: "Desserts",
-        value: "Desserts",
-        icon: "/assets/img/cupcake.png",
-    },
-    {
-        label: "Ice Cream",
-        value: "Ice Cream",
-        icon: "/assets/img/ice-cream.png",
-    },
-]);
 
 /* ---------------- Submit (console + Promise then/catch) ---------------- */
 const submitting = ref(false);
@@ -379,6 +280,8 @@ import axios from "axios";
 import ImportFile from "@/Components/importFile.vue";
 import { Head } from "@inertiajs/vue3";
 import Pagination from "@/Components/Pagination.vue";
+import ImageCropperModal from "@/Components/ImageCropperModal.vue";
+import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 
 const resetFields = () => {
     isSub.value = false;
@@ -387,59 +290,34 @@ const resetFields = () => {
     manualName.value = "";
     manualActive.value = true;
     selectedParentId.value = null;
-    manualIcon.value = iconOptions[0];
+
+    if (iconUrl.value && iconUrl.value.startsWith("blob:")) {
+        URL.revokeObjectURL(iconUrl.value);
+    }
+    iconFile.value = null;
+    iconUrl.value = null;
+
     catFormErrors.value = {};
     filterText.value = "";
     currentFilterValue.value = "";
     options.value = [];
     manualSubcategoriesInput.value = "";
     editingCategory.value = null;
+    showCropper.value = false;
+    showImageModal.value = false;
 };
 
-
-// ============= Helper function to convert URL to File =============
-const urlToFile = async (url, filename) => {
-    try {
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            console.error('❌ Fetch failed:', response.status);
-            return null;
-        }
-
-        const blob = await response.blob();
-        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-
-
-        return file;
-    } catch (error) {
-        console.error("❌ Error converting URL to File:", error);
-        return null;
-    }
+const onCropped = ({ file }) => {
+    iconFile.value = file;
+    iconUrl.value = URL.createObjectURL(file);
+    showCropper.value = false;
 };
 
-// ============= Icon Selection Handler =============
-const selectIcon = async (opt) => {
-    manualIcon.value = {
-        label: opt.label,
-        value: opt.value,
-        icon: opt.icon,
-        file: null
-    };
-
-    // Convert URL to File in background
-    const filename = opt.label.toLowerCase().replace(/[^a-z0-9]/g, '-') + '.jpg';
-    const file = await urlToFile(opt.icon, filename);
-
-    if (file) {
-        manualIcon.value.file = file;
-    } else {
-        console.error('❌ Failed to convert icon to file');
-        toast.error('Failed to load icon. Please try again.');
-    }
+const openImageModal = () => {
+    previewImage.value = iconUrl.value;
+    showImageModal.value = true;
 };
 
-// ============= Updated Submit Function =============
 const submitCategory = async () => {
     // Validation for subcategory mode
     if (isSub.value && !selectedParentId.value) {
@@ -453,19 +331,6 @@ const submitCategory = async () => {
     submitting.value = true;
 
     try {
-        if (manualIcon.value.icon && !manualIcon.value.file) {
-            const filename = manualIcon.value.label
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, "-") + ".jpg";
-            const file = await urlToFile(manualIcon.value.icon, filename);
-
-            if (file) {
-                manualIcon.value.file = file;
-            } else {
-                console.warn('⚠️ Could not convert icon to file');
-            }
-        }
-
         // ==================== UPDATE MODE ====================
         if (editingCategory.value) {
             const formData = new FormData();
@@ -494,10 +359,10 @@ const submitCategory = async () => {
             formData.append("active", manualActive.value ? "1" : "0");
             formData.append("parent_id", selectedParentId.value || "");
             formData.append("_method", "PUT");
-            if (manualIcon.value.file && manualIcon.value.file instanceof File) {
-                formData.append("icon", manualIcon.value.file);
-            } else {
-                console.warn('⚠️ No icon file to attach');
+
+            // ✅ FIXED: Simple file append like Menu code
+            if (iconFile.value instanceof File) {
+                formData.append("icon", iconFile.value);
             }
 
             // Handle subcategories if not a subcategory itself
@@ -525,11 +390,6 @@ const submitCategory = async () => {
                         formData.append(`subcategories[${index}][active]`, "1");
                     }
                 });
-            }
-            for (let pair of formData.entries()) {
-                if (pair[1] instanceof File) {
-                } else {
-                }
             }
 
             await axios.post(
@@ -597,13 +457,16 @@ const submitCategory = async () => {
                 }
             });
 
-            if (manualIcon.value.file && manualIcon.value.file instanceof File) {
-                formData.append("icon", manualIcon.value.file);
-            } else {
-                console.warn('⚠️ No icon file to attach');
+            // ✅ FIXED: Simple file append like Menu code
+            if (iconFile.value instanceof File) {
+                formData.append("icon", iconFile.value);
             }
+
+            // ✅ DEBUG: Log FormData contents
+            console.log('📤 FormData Contents:');
             for (let pair of formData.entries()) {
                 if (pair[1] instanceof File) {
+                    console.log(`  ${pair[0]}: [File] ${pair[1].name} (${pair[1].type}, ${pair[1].size} bytes)`);
                 } else {
                     console.log(`  ${pair[0]}: ${pair[1]}`);
                 }
@@ -667,14 +530,17 @@ const resetModal = () => {
     manualActive.value = true;
     selectedParentId.value = null;
     manualName.value = "";
-    manualIcon.value = {
-        label: iconOptions[0].label,
-        value: iconOptions[0].value,
-        icon: iconOptions[0].icon,
-        file: null
-    };
+
+    if (iconUrl.value && iconUrl.value.startsWith("blob:")) {
+        URL.revokeObjectURL(iconUrl.value);
+    }
+    iconFile.value = null;
+    iconUrl.value = null;
     editingCategory.value = null;
     manualSubcategoriesInput.value = "";
+    showCropper.value = false;
+    showImageModal.value = false;
+    previewImage.value = null;
 };
 
 const resetErrors = () => {
@@ -692,10 +558,9 @@ const editRow = (row) => {
     isSub.value = !!row.parent_id;
     selectedParentId.value = row.parent_id || null;
 
-    // Icon
-    const iconOption = iconOptions.find((i) => i.value === row.icon);
-    manualIcon.value = iconOption || iconOptions[0];
 
+    iconFile.value = null;
+    iconUrl.value = row.image_url || null;
     // Name
     if (isSub.value) {
         manualName.value = row.name;
@@ -933,7 +798,8 @@ const onDownload = (type) => {
 watch(q, () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        pagination.value.current_page = 1; // ✅ Reset to page 1
+        pagination.value.current_page = 1;
+        pagination.value.per_page = 10; 
         fetchCategories(1);
     }, 500);
 });
@@ -1322,15 +1188,9 @@ const handleImport = (data) => {
                             ]" @on-import="handleImport" />
 
                             <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
-                          <Dropdown
-                            v-model="exportOption"
-                            :options="exportOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Export"
-                            class="export-dropdown"
-                            @change="onExportChange"
-                        />
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
 
                         </div>
                     </div>
@@ -1438,17 +1298,14 @@ const handleImport = (data) => {
                         </table>
                     </div>
 
-                    <div v-if="!loading && pagination.last_page > 1" 
-                         class="mt-4 d-flex justify-content-between align-items-center">
+                    <div v-if="!loading && !hasActiveFilters && pagination.last_page > 1"
+                        class="mt-4 d-flex justify-content-between align-items-center">
                         <div class="text-muted small">
                             Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
                         </div>
 
-                        <Pagination 
-                            :pagination="pagination.links" 
-                            :isApiDriven="true"
-                            @page-changed="handlePageChange" 
-                        />
+                        <Pagination :pagination="pagination.links" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
                     </div>
                 </div>
             </div>
@@ -1472,206 +1329,161 @@ const handleImport = (data) => {
                         </div>
 
                         <div class="modal-body">
-                            <!-- Row 1 -->
-                            <div class="row g-3">
-                                <!-- Show "Is this a subcategory?" only when creating -->
-                                <template v-if="!editingCategory">
-                                    <div class="col-lg-12">
-                                        <label class="form-label d-block mb-2">Is this a subcategory?</label>
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" :checked="isSub"
-                                                    @click="resetErrors()" @change="
-                                                        isSub = true;
-                                                    selectedParentId =
-                                                        null;
-                                                    " name="isSub" />
-                                                <label class="form-check-label">Yes</label>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" :checked="!isSub"
-                                                    @click="resetErrors()" @change="
-                                                        isSub = false;
-                                                    selectedParentId =
-                                                        null;
-                                                    " name="isSub" />
-                                                <label class="form-check-label">No</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Parent Category Dropdown - Only show when subcategory is Yes -->
-
-                                    <div class="col-lg-12" v-if="isSub">
-                                        <label class="form-label">Category</label>
-                                        <Select v-model="selectedParentId" :options="parentCategories"
-                                            optionLabel="name" optionValue="id" placeholder="Select Category"
-                                            class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000" :class="{
-                                                'is-invalid':
-                                                    catFormErrors?.parent_id,
-                                            }" />
-                                        <small v-if="catFormErrors?.parent_id" class="text-danger">
-                                            {{ catFormErrors.parent_id[0] }}
-                                        </small>
-                                    </div>
-                                    <!-- <div class="col-lg-6" v-if="isSub">
-                                            <label class="form-label d-block mb-2">Select Parent Category</label>
-                                            <select v-model="selectedParentId" class="form-select"
-                                                :class="{ 'is-invalid': catFormErrors?.parent_id }" required>
-                                                <option disabled :value="null">
-                                                    -- Choose Parent Category --
-                                                </option>
-                                                <option v-for="cat in parentCategories" :key="cat.id" :value="cat.id">
-                                                    {{ cat.name }}
-                                                </option>
-                                            </select>
-                                        </div> -->
-                                    <!-- <small v-if="catFormErrors?.parent_id" class="text-danger text-right">
-                                            {{ catFormErrors.parent_id[0] }}
-                                        </small> -->
-                                </template>
-
-                                <!-- Manual Icon (always show) -->
-                                <div class="col-lg-12">
-                                    <label class="form-label d-block mb-2">Manual Icon</label>
-                                    <div class="dropdown w-100">
-                                        <button
-                                            class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center rounded-3"
-                                            data-bs-toggle="dropdown" type="button">
-                                            <div class="d-flex align-items-center">
-                                                <img :src="manualIcon.icon" alt="icon" class="me-2 rounded" width="30"
-                                                    height="30" />
-                                                <span>{{ manualIcon.label }}</span>
-                                            </div>
-                                            <i class="bi bi-caret-down-fill"></i>
-                                        </button>
-
-                                        <ul class="dropdown-menu w-100 shadow rounded-3">
-                                            <li v-for="opt in iconOptions" :key="opt.label">
-                                                <a class="dropdown-item d-flex align-items-center"
-                                                    href="javascript:void(0)" @click="selectIcon(opt)">
-                                                    <img :src="opt.icon" alt="icon" class="me-2 rounded" width="30"
-                                                        height="30" />
-                                                    <span>{{ opt.label }}</span>
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <!-- Loading indicator removed -->
-                                </div>
-
-
-
-                                <!-- Category Name -->
-                                <div class="col-12" v-if="!isSub || editingCategory">
-                                    <label class="form-label">Category Name</label>
-
-                                    <!-- Single input when editing -->
-                                    <input v-if="editingCategory" type="text" v-model="manualCategories[0].label"
-                                        class="form-control" :class="{
-                                            'is-invalid':
-                                                catFormErrors.name,
-                                        }" placeholder="Enter category name" />
-
-                                    <!-- MultiSelect when creating -->
-                                    <MultiSelect v-else v-model="manualCategories" :options="commonChips"
-                                        optionLabel="label" optionValue="value" :filter="true" display="chip" :class="{
-                                            'is-invalid':
-                                                catFormErrors.name,
-                                        }" placeholder="Select or add categories..." class="w-100" appendTo="self"
-                                        @keydown.enter.prevent="
-                                            addCustomCategory
-                                        " @blur="addCustomCategory" @filter="
-                                            (e) => (filterText = e.value)
-                                        ">
-                                        <template #option="{ option }">
-                                            {{ option.label }}
-                                        </template>
-                                    </MultiSelect>
-                                    <small v-if="catFormErrors.name" class="text-danger">
-                                        {{ catFormErrors.name[0] }}
-                                    </small>
-                                </div>
-
-
-
-
-
-                                <!-- Subcategory Section -->
-                                <div class="col-12" v-if="isSub && !editingCategory">
-                                    <label class="form-label">Subcategory Name(s)</label>
-
-                                    <!-- CREATE: MultiSelect -->
-                                    <MultiSelect v-model="manualSubcategories" :options="options" optionLabel="label"
-                                        optionValue="value" :filter="true" display="chip" :class="{
-                                            'is-invalid':
-                                                catFormErrors?.subcategories ||
-                                                catFormErrors?.name,
-                                        }" placeholder="Select or add subcategories..." class="w-100" appendTo="self"
-                                        @filter="
-                                            (e) =>
-                                            (currentFilterValue =
-                                                e.value || '')
-                                        " @keydown.enter.prevent="
-                                            addCustomSubcategory
-                                        " @blur="addCustomSubcategory">
-                                        <template #option="{ option }">
-                                            <div>{{ option.label }}</div>
-                                        </template>
-                                        <template #footer>
-                                            <div class="p-3 d-flex justify-content-between">
-                                                <Button label="Add Custom" severity="secondary" variant="text"
-                                                    size="small" icon="pi pi-plus" @click="
-                                                        addCustomSubcategory
-                                                    " :disabled="!currentFilterValue.trim()
-                                                        " />
-                                                <div class="d-flex gap-2">
-                                                    <Button label="Select All" severity="secondary" variant="text"
-                                                        size="small" icon="pi pi-check" @click="
-                                                            selectAllSubcategories
-                                                        " />
-                                                    <Button label="Clear All" severity="danger" variant="text"
-                                                        size="small" icon="pi pi-times" @click="
-                                                            removeAllSubcategories
-                                                        " />
+                            <div class="row">
+                                <!-- LEFT COLUMN - Form Fields -->
+                                <div class="col-md-7">
+                                    <div class="row g-3">
+                                        <!-- Show "Is this a subcategory?" only when creating -->
+                                        <template v-if="!editingCategory">
+                                            <div class="col-12">
+                                                <label class="form-label d-block mb-2">Is this a subcategory?</label>
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" :checked="isSub"
+                                                            @click="resetErrors()"
+                                                            @change="isSub = true; selectedParentId = null;"
+                                                            name="isSub" />
+                                                        <label class="form-check-label">Yes</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" :checked="!isSub"
+                                                            @click="resetErrors()"
+                                                            @change="isSub = false; selectedParentId = null;"
+                                                            name="isSub" />
+                                                        <label class="form-check-label">No</label>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            <!-- Parent Category Dropdown -->
+                                            <div class="col-12" v-if="isSub">
+                                                <label class="form-label">Category</label>
+                                                <Select v-model="selectedParentId" :options="parentCategories"
+                                                    optionLabel="name" optionValue="id" placeholder="Select Category"
+                                                    class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                    :class="{ 'is-invalid': catFormErrors?.parent_id }" />
+                                                <small v-if="catFormErrors?.parent_id" class="text-danger">
+                                                    {{ catFormErrors.parent_id[0] }}
+                                                </small>
+                                            </div>
                                         </template>
-                                    </MultiSelect>
-                                    <!-- Errors -->
-                                    <div v-if="catFormErrors?.subcategories" class="text-danger">
-                                        {{ catFormErrors.subcategories[0] }}
-                                    </div>
-                                    <div v-if="catFormErrors?.name" class="text-danger">
-                                        {{ catFormErrors.name[0] }}
+
+                                        <!-- Category Name -->
+                                        <div class="col-12" v-if="!isSub || editingCategory">
+                                            <label class="form-label">Category Name</label>
+
+                                            <!-- Single input when editing -->
+                                            <input v-if="editingCategory" type="text"
+                                                v-model="manualCategories[0].label" class="form-control"
+                                                :class="{ 'is-invalid': catFormErrors.name }"
+                                                placeholder="Enter category name" />
+
+                                            <!-- MultiSelect when creating -->
+                                            <MultiSelect v-else v-model="manualCategories" :options="commonChips"
+                                                optionLabel="label" optionValue="value" :filter="true" display="chip"
+                                                :class="{ 'is-invalid': catFormErrors.name }"
+                                                placeholder="Select or add categories..." class="w-100" appendTo="self"
+                                                @keydown.enter.prevent="addCustomCategory" @blur="addCustomCategory"
+                                                @filter="(e) => (filterText = e.value)">
+                                                <template #option="{ option }">
+                                                    {{ option.label }}
+                                                </template>
+                                            </MultiSelect>
+                                            <small v-if="catFormErrors.name" class="text-danger">
+                                                {{ catFormErrors.name[0] }}
+                                            </small>
+                                        </div>
+
+                                        <!-- Subcategory Section -->
+                                        <div class="col-12" v-if="isSub && !editingCategory">
+                                            <label class="form-label">Subcategory Name(s)</label>
+
+                                            <MultiSelect v-model="manualSubcategories" :options="options"
+                                                optionLabel="label" optionValue="value" :filter="true" display="chip"
+                                                :class="{ 'is-invalid': catFormErrors?.subcategories || catFormErrors?.name }"
+                                                placeholder="Select or add subcategories..." class="w-100"
+                                                appendTo="self" @filter="(e) => (currentFilterValue = e.value || '')"
+                                                @keydown.enter.prevent="addCustomSubcategory"
+                                                @blur="addCustomSubcategory">
+                                                <template #option="{ option }">
+                                                    <div>{{ option.label }}</div>
+                                                </template>
+                                                <template #footer>
+                                                    <div class="p-3 d-flex justify-content-between">
+                                                        <Button label="Add Custom" severity="secondary" variant="text"
+                                                            size="small" icon="pi pi-plus" @click="addCustomSubcategory"
+                                                            :disabled="!currentFilterValue.trim()" />
+                                                        <div class="d-flex gap-2">
+                                                            <Button label="Select All" severity="secondary"
+                                                                variant="text" size="small" icon="pi pi-check"
+                                                                @click="selectAllSubcategories" />
+                                                            <Button label="Clear All" severity="danger" variant="text"
+                                                                size="small" icon="pi pi-times"
+                                                                @click="removeAllSubcategories" />
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </MultiSelect>
+
+                                            <div v-if="catFormErrors?.subcategories" class="text-danger">
+                                                {{ catFormErrors.subcategories[0] }}
+                                            </div>
+                                            <div v-if="catFormErrors?.name" class="text-danger">
+                                                {{ catFormErrors.name[0] }}
+                                            </div>
+                                        </div>
+
+                                        <!-- EDIT MODE: Show parent category only -->
+                                        <div class="col-12" v-if="editingCategory && parentCategory">
+                                            <label class="form-label">Parent Category</label>
+                                            <input type="text" class="form-control" :value="parentCategory.label"
+                                                disabled />
+                                        </div>
+
+                                        <!-- Active toggle -->
+                                        <div class="col-12">
+                                            <label class="form-label d-block mb-2">Active</label>
+                                            <div class="d-flex align-items-center gap-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" :checked="manualActive"
+                                                        @change="manualActive = true" name="active" />
+                                                    <label class="form-check-label">Yes</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio"
+                                                        :checked="!manualActive" @change="manualActive = false"
+                                                        name="active" />
+                                                    <label class="form-check-label">No</label>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- EDIT MODE: Show parent category only -->
-                                <div class="col-12" v-if="editingCategory && parentCategory">
-                                    <label class="form-label">Parent Category</label>
-                                    <input type="text" class="form-control" :value="parentCategory.label" disabled />
-                                </div>
+                                <!-- RIGHT COLUMN - Category Image -->
+                                <div class="col-md-5">
+                                    <label class="form-label d-block mb-2">Category Image</label>
+                                    <div class="logo-card" :class="{ 'is-invalid': catFormErrors.icon }"
+                                        style="border: 2px dashed #6c757d; border-radius: 8px; padding: 1rem; min-height: 250px;">
+                                        <div class="logo-frame d-flex flex-column align-items-center justify-content-center"
+                                            style="height: 200px; cursor: pointer;" @click="showCropper = true">
+                                            <img v-if="iconUrl" :src="iconUrl" alt="Category Image"
+                                                style="max-width: 100%; max-height: 150px; object-fit: contain;" />
+                                            <div v-else class="placeholder">
+                                                <i class="bi bi-image"></i>
+                                            </div>
 
-                                <!-- Active toggle -->
-                                <div class="col-12">
-                                    <label class="form-label d-block mb-2">Active</label>
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" :checked="manualActive"
-                                                @change="
-                                                    manualActive = true
-                                                    " name="active" />
-                                            <label class="form-check-label">Yes</label>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" :checked="!manualActive"
-                                                @change="
-                                                    manualActive = false
-                                                    " name="active" />
-                                            <label class="form-check-label">No</label>
-                                        </div>
+
+                                        <ImageCropperModal :show="showCropper" @close="showCropper = false"
+                                            @cropped="onCropped" />
+
+                                        <ImageZoomModal v-if="showImageModal" :show="showImageModal" :image="iconUrl"
+                                            @close="showImageModal = false" />
                                     </div>
+                                    <small v-if="catFormErrors.icon" class="text-danger">
+                                        {{ catFormErrors.icon[0] }}
+                                    </small>
                                 </div>
                             </div>
 
@@ -1727,7 +1539,7 @@ const handleImport = (data) => {
                                     }" />
                                 <small class="text-danger">{{
                                     subCatErrors
-                                }}</small>
+                                    }}</small>
                             </div>
                             <button type="button" class="btn btn-primary rounded-pill px-4" @click="submitSubCategory"
                                 :disabled="submittingSub">
@@ -1761,6 +1573,24 @@ const handleImport = (data) => {
 }
 
 
+
+.logo-card {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    min-height: 300px;
+}
+
+.logo-frame {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.logo-frame:hover {
+    opacity: 0.8;
+}
+
+
 .dark .side-link {
     border-radius: 55%;
     background-color: #181818 !important;
@@ -1771,6 +1601,18 @@ const handleImport = (data) => {
     /* gray-800 */
     color: #ffffff !important;
     /* gray-50 */
+}
+
+.dark .logo-card {
+    background-color: #181818 !important;
+}
+
+.dark .logo-frame {
+    background-color: #181818 !important;
+}
+
+.dark .fw-semibold {
+    color: #fff !important;
 }
 
 
