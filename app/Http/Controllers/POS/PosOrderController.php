@@ -2,17 +2,15 @@
 
 namespace App\Http\Controllers\POS;
 
-use App\Events\CartUpdated;
+use App\Exceptions\MissingIngredientsException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PosOrders\StorePosOrderRequest;
 use App\Models\KitchenOrderItem;
 use App\Models\TerminalState;
 use App\Services\POS\PosOrderService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use App\Exceptions\MissingIngredientsException;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
 class PosOrderController extends Controller
@@ -42,6 +40,7 @@ class PosOrderController extends Controller
                     'logout' => true,
                 ]);
             }
+
             // Normal response (non-cashier or auto-logout disabled)
             return response()->json([
                 'message' => 'Order created successfully',
@@ -53,12 +52,80 @@ class PosOrderController extends Controller
                 'success' => false,
                 'type' => 'missing_ingredients',
                 'message' => 'Some ingredients are not available in sufficient quantity',
-                'data' => $e->getMissingIngredients()
+                'data' => $e->getMissingIngredients(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Store order without payment (Pay Later)
+     */
+    public function storeWithoutPayment(StorePosOrderRequest $request)
+    {
+        try {
+            $validated = $request->validated();
+            $order = $this->service->createWithoutPayment($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order placed successfully. Payment pending.',
+                'order' => $order->load(['items', 'type', 'deliveryDetail']),
+                'kot' => $order->kot ? $order->kot->load('items') : null,
+            ]);
+        } catch (MissingIngredientsException $e) {
+            return response()->json([
+                'success' => false,
+                'type' => 'missing_ingredients',
+                'message' => 'Some ingredients are not available in sufficient quantity',
+                'data' => $e->getMissingIngredients(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Complete payment for pending order
+     */
+    public function completePayment(Request $request, $orderId)
+    {
+        try {
+            $validated = $request->validate([
+                'payment_method' => 'required|string',
+                'cash_received' => 'nullable|numeric',
+                'payment_type' => 'nullable|string',
+                'cash_amount' => 'nullable|numeric',
+                'card_amount' => 'nullable|numeric',
+                'order_code' => 'nullable|string',
+                'stripe_payment_intent_id' => 'nullable|string',
+                'payment_intent' => 'nullable|string',
+                'last_digits' => 'nullable|string',
+                'brand' => 'nullable|string',
+                'currency_code' => 'nullable|string',
+                'exp_month' => 'nullable|integer',
+                'exp_year' => 'nullable|integer',
+                'payment_status' => 'nullable|string',
+            ]);
+
+            $order = $this->service->completePayment($orderId, $validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment completed successfully',
+                'order' => $order,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -75,7 +142,7 @@ class PosOrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'missing_ingredients' => $missingIngredients
+            'missing_ingredients' => $missingIngredients,
         ]);
     }
 
@@ -130,7 +197,7 @@ class PosOrderController extends Controller
     {
         $amount = (float) $request->input('amount', 0);
         $currency = strtolower($request->input('currency', 'usd'));
-        $orderCode = $request->input('order_code') ?: (now()->format('Ymd-His') . rand(10, 99));
+        $orderCode = $request->input('order_code') ?: (now()->format('Ymd-His').rand(10, 99));
 
         //  Convert to cents (integers)
         $amountInCents = (int) round($amount * 100);
@@ -216,7 +283,7 @@ class PosOrderController extends Controller
 
         // ✅ Calculate total promo discount from array
         $totalPromoDiscount = 0;
-        if (!empty($appliedPromos)) {
+        if (! empty($appliedPromos)) {
             foreach ($appliedPromos as $promo) {
                 $totalPromoDiscount += (float) ($promo['discount_amount'] ?? 0);
             }
@@ -233,7 +300,7 @@ class PosOrderController extends Controller
         $expMonth = $pm->card->exp_month ?? null;
         $expYear = $pm->card->exp_year ?? null;
 
-        $code = $request->query('order_code') ?: (date('Ymd-His') . rand(10, 99));
+        $code = $request->query('order_code') ?: (date('Ymd-His').rand(10, 99));
 
         $data = [
             'customer_name' => $request->query('customer_name'),
@@ -289,7 +356,7 @@ class PosOrderController extends Controller
         $order = $this->service->create($data);
 
         // ✅ Build promo names string for receipt
-        $promoNames = !empty($appliedPromos)
+        $promoNames = ! empty($appliedPromos)
             ? implode(', ', array_column($appliedPromos, 'promo_name'))
             : null;
 
@@ -325,7 +392,7 @@ class PosOrderController extends Controller
         ];
 
         // 🔔 Flash for the frontend toast
-        $promoMsg = $totalPromoDiscount > 0 ? " with £{$totalPromoDiscount} promo discount" : "";
+        $promoMsg = $totalPromoDiscount > 0 ? " with £{$totalPromoDiscount} promo discount" : '';
         $msg = "Payment successful! Order #{$order->id} placed{$promoMsg}. Card {$brand} •••• {$last4}.";
 
         return redirect()
@@ -341,14 +408,14 @@ class PosOrderController extends Controller
         try {
             $order = \App\Models\PosOrder::with([
                 'items.menuItem.ingredients.inventoryItem.category',
-                'type'
+                'type',
             ])
                 ->findOrFail($orderId);
 
             if ($order->status === 'cancelled') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Order is already cancelled'
+                    'message' => 'Order is already cancelled',
                 ], 422);
             }
 
@@ -393,7 +460,9 @@ class PosOrderController extends Controller
             // Restore inventory stock WITH expiry dates
             foreach ($order->items as $item) {
                 $menuItem = $item->menuItem;
-                if (!$menuItem) continue;
+                if (! $menuItem) {
+                    continue;
+                }
 
                 $ingredients = [];
                 if ($item->variant_id && $menuItem->variants) {
@@ -407,7 +476,9 @@ class PosOrderController extends Controller
 
                 foreach ($ingredients as $ingredient) {
                     $inventoryItem = $ingredient->inventoryItem;
-                    if (!$inventoryItem) continue;
+                    if (! $inventoryItem) {
+                        continue;
+                    }
 
                     $requiredQty = ($ingredient->quantity ?? 1) * $item->quantity;
 
@@ -465,7 +536,7 @@ class PosOrderController extends Controller
                 'status' => 'cancelled',
                 'cancelled_at' => now(),
                 'cancelled_by' => auth()->id(),
-                'cancellation_reason' => $request->input('reason', 'Cancelled by admin')
+                'cancellation_reason' => $request->input('reason', 'Cancelled by admin'),
             ]);
 
             \DB::commit();
@@ -473,14 +544,14 @@ class PosOrderController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Order cancelled, kitchen order items updated, and inventory restored',
-                'order' => $order->fresh(['payment', 'items', 'type'])
+                'order' => $order->fresh(['payment', 'items', 'type']),
             ]);
         } catch (\Exception $e) {
             \DB::rollBack();
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to cancel order: ' . $e->getMessage()
+                'message' => 'Failed to cancel order: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -490,32 +561,32 @@ class PosOrderController extends Controller
         $request->validate([
             'amount' => 'required|numeric|min:0.01',
             'reason' => 'nullable|string|max:500',
-            'payment_type' => 'required|in:card,split'
+            'payment_type' => 'required|in:card,split',
         ]);
 
         try {
             $order = \App\Models\PosOrder::with(['payment'])->findOrFail($orderId);
 
-            if (!$order->payment) {
+            if (! $order->payment) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No payment record found for this order'
+                    'message' => 'No payment record found for this order',
                 ], 422);
             }
 
             $paymentType = strtolower($order->payment->payment_type);
 
-            if (!in_array($paymentType, ['card', 'split'])) {
+            if (! in_array($paymentType, ['card', 'split'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Only card and split payments can be refunded'
+                    'message' => 'Only card and split payments can be refunded',
                 ], 422);
             }
 
             if ($order->payment->refund_status === 'refunded') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'This payment has already been refunded'
+                    'message' => 'This payment has already been refunded',
                 ], 422);
             }
 
@@ -526,7 +597,7 @@ class PosOrderController extends Controller
             if ($request->amount > $maxRefundAmount) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Refund amount exceeds maximum refundable amount'
+                    'message' => 'Refund amount exceeds maximum refundable amount',
                 ], 422);
             }
 
@@ -539,13 +610,13 @@ class PosOrderController extends Controller
 
                     $refund = $stripe->refunds->create([
                         'payment_intent' => $order->payment->stripe_payment_intent_id,
-                        'amount' => (int)round($request->amount * 100),
+                        'amount' => (int) round($request->amount * 100),
                         'reason' => 'requested_by_customer',
                         'metadata' => [
                             'order_id' => $order->id,
                             'refund_reason' => $request->reason ?? 'Customer requested refund',
-                            'refunded_by' => auth()->id()
-                        ]
+                            'refunded_by' => auth()->id(),
+                        ],
                     ]);
 
                     $order->payment->update([
@@ -554,12 +625,12 @@ class PosOrderController extends Controller
                         'refund_date' => now(),
                         'refund_id' => $refund->id,
                         'refund_reason' => $request->reason,
-                        'refunded_by' => auth()->id()
+                        'refunded_by' => auth()->id(),
                     ]);
 
                     $order->update([
                         'status' => 'refunded',
-                        'refund_amount' => $request->amount
+                        'refund_amount' => $request->amount,
                     ]);
 
                     \DB::commit();
@@ -571,16 +642,16 @@ class PosOrderController extends Controller
                         'refund' => [
                             'id' => $refund->id,
                             'amount' => $request->amount,
-                            'status' => $refund->status
-                        ]
+                            'status' => $refund->status,
+                        ],
                     ]);
                 } catch (\Stripe\Exception\ApiErrorException $e) {
                     \DB::rollBack();
-                    \Log::error('Stripe refund failed: ' . $e->getMessage());
+                    \Log::error('Stripe refund failed: '.$e->getMessage());
 
                     return response()->json([
                         'success' => false,
-                        'message' => 'Stripe refund failed: ' . $e->getMessage()
+                        'message' => 'Stripe refund failed: '.$e->getMessage(),
                     ], 500);
                 }
             } else {
@@ -590,12 +661,12 @@ class PosOrderController extends Controller
                     'refund_amount' => $request->amount,
                     'refund_date' => now(),
                     'refund_reason' => $request->reason,
-                    'refunded_by' => auth()->id()
+                    'refunded_by' => auth()->id(),
                 ]);
 
                 $order->update([
                     'status' => 'refunded',
-                    'refund_amount' => $request->amount
+                    'refund_amount' => $request->amount,
                 ]);
 
                 \DB::commit();
@@ -603,21 +674,19 @@ class PosOrderController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Refund recorded successfully',
-                    'order' => $order->fresh(['payment'])
+                    'order' => $order->fresh(['payment']),
                 ]);
             }
         } catch (\Exception $e) {
             \DB::rollBack();
-            \Log::error('Refund processing failed: ' . $e->getMessage());
+            \Log::error('Refund processing failed: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to process refund: ' . $e->getMessage()
+                'message' => 'Failed to process refund: '.$e->getMessage(),
             ], 500);
         }
     }
-
-
 
     /**
      * OPTIMIZED: Lightweight version check endpoint
@@ -629,18 +698,18 @@ class PosOrderController extends Controller
 
             return response()->json([
                 'version' => $version,
-                'timestamp' => now()->toIso8601String()
+                'timestamp' => now()->toIso8601String(),
             ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
         } catch (\Exception $e) {
             Log::error('Failed to get terminal version', [
                 'terminal_id' => $terminalId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             // Return 0 version instead of error to keep display functional
             return response()->json([
                 'version' => 0,
-                'timestamp' => now()->toIso8601String()
+                'timestamp' => now()->toIso8601String(),
             ], 200);
         }
     }
@@ -660,7 +729,7 @@ class PosOrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid data',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -675,7 +744,7 @@ class PosOrderController extends Controller
                     'version' => 0,
                     'cart_data' => [],
                     'ui_data' => [],
-                    'last_updated' => now()
+                    'last_updated' => now(),
                 ]
             );
 
@@ -685,18 +754,18 @@ class PosOrderController extends Controller
                 'success' => true,
                 'message' => 'Cart updated',
                 'version' => $terminal->version,
-                'timestamp' => now()->toIso8601String()
+                'timestamp' => now()->toIso8601String(),
             ])->header('Cache-Control', 'no-cache');
         } catch (\Exception $e) {
             Log::error('Failed to update terminal cart', [
                 'terminal_id' => $validated['terminal_id'],
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update cart'
+                'message' => 'Failed to update cart',
             ], 500);
         }
     }
@@ -715,7 +784,7 @@ class PosOrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid data',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -729,7 +798,7 @@ class PosOrderController extends Controller
                     'version' => 0,
                     'cart_data' => [],
                     'ui_data' => [],
-                    'last_updated' => now()
+                    'last_updated' => now(),
                 ]
             );
 
@@ -739,18 +808,18 @@ class PosOrderController extends Controller
                 'success' => true,
                 'message' => 'UI updated',
                 'version' => $terminal->version,
-                'timestamp' => now()->toIso8601String()
+                'timestamp' => now()->toIso8601String(),
             ])->header('Cache-Control', 'no-cache');
         } catch (\Exception $e) {
             Log::error('Failed to update terminal UI', [
                 'terminal_id' => $validated['terminal_id'],
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update UI'
+                'message' => 'Failed to update UI',
             ], 500);
         }
     }
@@ -770,7 +839,7 @@ class PosOrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid data',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -784,7 +853,7 @@ class PosOrderController extends Controller
                     'version' => 0,
                     'cart_data' => [],
                     'ui_data' => [],
-                    'last_updated' => now()
+                    'last_updated' => now(),
                 ]
             );
 
@@ -795,18 +864,18 @@ class PosOrderController extends Controller
                 'success' => true,
                 'message' => 'State updated',
                 'version' => $terminal->version,
-                'timestamp' => now()->toIso8601String()
+                'timestamp' => now()->toIso8601String(),
             ])->header('Cache-Control', 'no-cache');
         } catch (\Exception $e) {
             Log::error('Failed to update terminal state', [
                 'terminal_id' => $validated['terminal_id'],
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update state'
+                'message' => 'Failed to update state',
             ], 500);
         }
     }
@@ -824,12 +893,12 @@ class PosOrderController extends Controller
                 'cart' => $state['cart'] ?? $this->getDefaultCartData(),
                 'ui' => $state['ui'] ?? $this->getDefaultUIData(),
                 'version' => $state['version'],
-                'timestamp' => $state['timestamp']
+                'timestamp' => $state['timestamp'],
             ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
         } catch (\Exception $e) {
             Log::error('Failed to get terminal state', [
                 'terminal_id' => $terminalId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             // Return default state instead of error
@@ -838,7 +907,7 @@ class PosOrderController extends Controller
                 'cart' => $this->getDefaultCartData(),
                 'ui' => $this->getDefaultUIData(),
                 'version' => 0,
-                'timestamp' => now()->toIso8601String()
+                'timestamp' => now()->toIso8601String(),
             ], 200);
         }
     }
@@ -853,17 +922,17 @@ class PosOrderController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cache cleared'
+                'message' => 'Cache cleared',
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to clear terminal cache', [
                 'terminal_id' => $terminalId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to clear cache'
+                'message' => 'Failed to clear cache',
             ], 500);
         }
     }
@@ -886,7 +955,7 @@ class PosOrderController extends Controller
             'promoDiscount' => 0,
             'total' => 0,
             'note' => '',
-            'appliedPromos' => []
+            'appliedPromos' => [],
         ];
     }
 
@@ -902,7 +971,7 @@ class PosOrderController extends Controller
             'menuItems' => [],
             'searchQuery' => '',
             'selectedCardVariant' => [],
-            'selectedCardAddons' => []
+            'selectedCardAddons' => [],
         ];
     }
 }
