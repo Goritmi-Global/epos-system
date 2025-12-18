@@ -1918,7 +1918,7 @@ const handleImport = (data) => {
 
                                 <!-- Tags -->
                                 <div class="col-md-6">
-                                    <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                    <label class="form-label d-block">Tags</label>
                                     <MultiSelect v-model="form.tags" :options="props.tags" optionLabel="name"
                                         optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80 select"
                                         appendTo="self" display="chip" :class="{

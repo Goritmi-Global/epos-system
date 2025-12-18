@@ -13,6 +13,8 @@ class MenuCategoryService
 {
     public function createCategories(array $data): array
     {
+
+        // dd($data);
         try {
             DB::beginTransaction();
 
@@ -116,36 +118,39 @@ class MenuCategoryService
             });
     }
 
-
     public function getParentCategories(array $filters = [])
     {
         $query = MenuCategory::with(['subcategories', 'parent'])
             ->withCount('menuItems')
             ->whereNull('parent_id');
+
         $totalCount = MenuCategory::whereNull('parent_id')->count();
         $activeCount = MenuCategory::whereNull('parent_id')->where('active', 1)->count();
         $inactiveCount = MenuCategory::whereNull('parent_id')->where('active', 0)->count();
 
-        if (! empty($filters['q'])) {
-            $query->where('name', 'like', "%{$filters['q']}%");
+        // Apply all your filters here...
+        $searchQuery = isset($filters['q']) ? trim($filters['q']) : '';
+        if (! empty($searchQuery)) {
+            $query->where('name', 'like', "%{$searchQuery}%");
         }
-        if (! empty($filters['status'])) {
-            if ($filters['status'] === 'active') {
-                $query->where('active', 1);
-            } elseif ($filters['status'] === 'inactive') {
-                $query->where('active', 0);
-            }
+
+        if (! empty($filters['status']) && in_array($filters['status'], ['active', 'inactive'])) {
+            $query->where('active', $filters['status'] === 'active' ? 1 : 0);
         }
-        if (! empty($filters['category'])) {
+
+        if (! empty($filters['category']) && is_numeric($filters['category'])) {
             $query->where('id', $filters['category']);
         }
-        if (! empty($filters['has_subcategories'])) {
+
+        if (! empty($filters['has_subcategories']) && in_array($filters['has_subcategories'], ['yes', 'no'])) {
             if ($filters['has_subcategories'] === 'yes') {
                 $query->whereHas('subcategories');
-            } elseif ($filters['has_subcategories'] === 'no') {
+            } else {
                 $query->doesntHave('subcategories');
             }
         }
+
+        // Apply sorting
         if (! empty($filters['sort_by'])) {
             switch ($filters['sort_by']) {
                 case 'name_asc':
@@ -167,18 +172,19 @@ class MenuCategoryService
         } else {
             $query->orderBy('id', 'DESC');
         }
-        $searchQuery = trim($filters['q'] ?? '');
-        $hasSearch = ! empty($searchQuery);
-        $hasStatus = ! empty($filters['status']);
-        $hasCategory = ! empty($filters['category']);
-        $hasSubcategoriesFilter = ! empty($filters['has_subcategories']);
-        $hasSorting = ! empty($filters['sort_by']);
 
-        $hasAnyFilter = $hasSearch || $hasStatus || $hasCategory
-                     || $hasSubcategoriesFilter || $hasSorting;
+        // Determine if ANY meaningful filter is applied
+        $hasSearch = ! empty($searchQuery);
+        $hasStatus = ! empty($filters['status']) && in_array($filters['status'], ['active', 'inactive']);
+        $hasCategory = ! empty($filters['category']) && is_numeric($filters['category']);
+        $hasSubcategoriesFilter = ! empty($filters['has_subcategories']) && in_array($filters['has_subcategories'], ['yes', 'no']);
+        $hasSorting = ! empty($filters['sort_by']) && $filters['sort_by'] !== 'default';
+
+        $hasAnyFilter = $hasSearch || $hasStatus || $hasCategory || $hasSubcategoriesFilter || $hasSorting;
 
         Log::info('Menu Category Filter Debug', [
             'hasAnyFilter' => $hasAnyFilter,
+            'hasSearch' => $hasSearch,
             'filters' => $filters,
         ]);
 
@@ -187,13 +193,18 @@ class MenuCategoryService
             $total = $allCategories->count();
 
             Log::info('Filter Mode (Menu Categories)', ['total_found' => $total]);
+
             $transformedCategories = $allCategories->map(function ($category) {
                 return $this->transformCategory($category);
             });
+
+            // ✅ FIX: Use a consistent per_page value (10) instead of total
+            $perPage = 10;
+
             $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
                 $transformedCategories,
                 $total,
-                $total > 0 ? $total : 1,
+                $perPage,  // ✅ Fixed: Always use 10 instead of total
                 1,
                 [
                     'path' => request()->url(),
@@ -211,6 +222,7 @@ class MenuCategoryService
                 return $this->transformCategory($category);
             });
         }
+
         $response = $paginator->toArray();
         $response['stats'] = [
             'total' => $totalCount,
