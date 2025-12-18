@@ -41,8 +41,9 @@ class RolesTableSeeder extends Seeder
             ->where(function ($query) {
                 $query->where('name', 'like', 'pos%')
                     //   ->orWhere('name', 'like', 'dashboard%')
-                      ->orWhere('name', 'like', 'logout%');
+                      ->orWhere('name', 'like', 'logout%')
                     //   ->orWhere('name', 'like', 'shift%');
+                    ->orWhere('name', 'like', 'pending-orders%');
             })
             ->get();
 

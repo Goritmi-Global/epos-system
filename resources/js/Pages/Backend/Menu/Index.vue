@@ -146,42 +146,7 @@ const fetchInventory = async () => {
     }
 };
 
-// Fetch Deals
-const fetchDeals = async (page = 1) => {
-    isLoading.value = true;
-    try {
-        const res = await axios.get("/api/deals", {
-            params: {
-                page: page,
-                per_page: perPage.value,
-                search: q.value.trim() || null,
-                status: filters.value.status !== "" ? filters.value.status : null,
-                sort_by: filters.value.sortBy || null,
-                price_min: filters.value.priceMin || null,
-                price_max: filters.value.priceMax || null,
-            }
-        });
-        console.log('Response', res.data.data);
 
-        deals.value = res.data.data || [];
-
-        if (res.data.pagination) {
-            currentPage.value = res.data.pagination.current_page;
-            totalItems.value = res.data.pagination.total;
-            paginationLinks.value = res.data.pagination.links;
-        }
-
-        if (res.data.counts) {
-            counts.value = res.data.counts;
-        }
-
-    } catch (err) {
-        console.error("❌ Error fetching deals:", err);
-        toast.error("Failed to fetch deals");
-    } finally {
-        isLoading.value = false;
-    }
-};
 
 function saveSelectedAllergies() {
     selectedAllergies.value = Object.keys(selectedTypes.value)
@@ -348,7 +313,7 @@ onMounted(async () => {
         }
     }, 100);
     fetchInventory();
-    fetchDeals();
+    fetchMenus(1);
     const filterModal = document.getElementById('menuFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
@@ -412,65 +377,33 @@ const counts = ref({
 const fetchMenus = async (page = 1) => {
     isLoading.value = true;
     try {
-        // Fetch both menu items and deals in parallel
-        const [menusRes, dealsRes] = await Promise.all([
-            axios.get("/api/menu/items", {
-                params: {
-                    page: page,
-                    per_page: perPage.value,
-                    search: q.value.trim() || null,
-                    category: filters.value.category || null,
-                    status: filters.value.status !== "" ? filters.value.status : null,
-                    sort_by: filters.value.sortBy || null,
-                    price_min: filters.value.priceMin || null,
-                    price_max: filters.value.priceMax || null,
-                    date_from: filters.value.dateFrom || null,
-                    date_to: filters.value.dateTo || null,
-                }
-            }),
-            axios.get("/api/deals", {
-                params: {
-                    page: page,
-                    per_page: perPage.value,
-                    search: q.value.trim() || null,
-                    status: filters.value.status !== "" ? filters.value.status : null,
-                    sort_by: filters.value.sortBy || null,
-                    price_min: filters.value.priceMin || null,
-                    price_max: filters.value.priceMax || null,
-                }
-            })
-        ]);
-        console.log('dealsRes.data.data ', dealsRes.data.data);
-        // Combine both datasets with a type indicator
-        const menus = (menusRes.data.data || []).map(item => ({
-            ...item,
-            type: 'menu',
-            display_name: item.name
-        }));
+        // Single API call that returns both menus and deals
+        const res = await axios.get("/api/menu/items", {
+            params: {
+                page: page,
+                per_page: perPage.value,
+                search: q.value.trim() || null,
+                category: filters.value.category || null,
+                status: filters.value.status !== "" ? filters.value.status : null,
+                sort_by: filters.value.sortBy || null,
+                price_min: filters.value.priceMin || null,
+                price_max: filters.value.priceMax || null,
+                date_from: filters.value.dateFrom || null,
+                date_to: filters.value.dateTo || null,
+            }
+        });
 
-        const deals = (dealsRes.data.data || []).map(item => ({
-            ...item,
-            type: 'deal',
-            display_name: item.name
-        }));
+        // Data is already combined on the backend
+        menuItems.value = res.data.data || [];
 
-        // Merge both arrays
-        menuItems.value = [...menus, ...deals];
-
-        // Update pagination (you might need to adjust this based on your needs)
-        if (menusRes.data.pagination) {
-            currentPage.value = menusRes.data.pagination.current_page;
-            totalItems.value = menusRes.data.pagination.total + (dealsRes.data.pagination?.total || 0);
-            paginationLinks.value = menusRes.data.pagination.links;
+        if (res.data.pagination) {
+            currentPage.value = res.data.pagination.current_page;
+            totalItems.value = res.data.pagination.total;
+            paginationLinks.value = res.data.pagination.links;
         }
 
-        // Update counts
-        if (menusRes.data.counts && dealsRes.data.counts) {
-            counts.value = {
-                total: menusRes.data.counts.total + dealsRes.data.counts.total,
-                active: menusRes.data.counts.active + dealsRes.data.counts.active,
-                inactive: menusRes.data.counts.inactive + dealsRes.data.counts.inactive,
-            };
+        if (res.data.counts) {
+            counts.value = res.data.counts;
         }
 
     } catch (err) {
@@ -480,7 +413,6 @@ const fetchMenus = async (page = 1) => {
         isLoading.value = false;
     }
 };
-
 
 const handlePageChange = (url) => {
     if (!url || isLoading.value) return;
@@ -496,7 +428,7 @@ const handlePageChange = (url) => {
 onMounted(() => {
     fetchInventories();
     fetchMenus();
-    fetchDeals();
+    // fetchDeals();
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -585,21 +517,21 @@ const deactiveMenuItems = computed(() => counts.value.inactive);
 
 const kpis = computed(() => [
     {
-        label: "Total Menus",
+        label: "Total Items",
         value: totalMenuItems.value ?? 0,
         icon: Package,
         iconBg: "bg-soft-success",
         iconColor: "text-success",
     },
     {
-        label: "Active Menus",
+        label: "Active Items",
         value: activeMenuItems.value ?? 0,
         icon: CheckCircle,
         iconBg: "bg-soft-danger",
         iconColor: "text-success",
     },
     {
-        label: "Inactive Menus",
+        label: "Inactive Items",
         value: deactiveMenuItems.value ?? 0,
         icon: XCircle,
         iconBg: "bg-soft-warning",
@@ -1230,6 +1162,7 @@ const editItem = (item) => {
     // Set the active tab based on menu type
     activeTab.value = hasVariants ? 'variant' : 'simple';
 
+    console.log("Item data: " , itemData);
     form.value = {
         id: itemData.id,
         name: itemData.name,
@@ -2798,7 +2731,7 @@ function saveMenusToCart() {
         <Head title="Menus" />
         <div class="page-wrapper">
             <!-- Title -->
-            <h4 class="mb-3">Menus</h4>
+            <h4 class="mb-3">Items</h4>
             <!-- KPI Cards -->
             <div class="row g-3">
                 <div v-for="c in kpis" :key="c.label" class="col-md-6 col-xl-4">
@@ -2827,7 +2760,7 @@ function saveMenusToCart() {
                 <div class="card-body">
                     <!-- Toolbar -->
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-                        <h4 class="mb-0">Menu</h4>
+                        <h4 class="mb-0">Items</h4>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
@@ -2857,7 +2790,7 @@ function saveMenusToCart() {
                             <!-- Add Item -->
                             <button data-bs-toggle="modal" @click="openAddMenuModal" data-bs-target="#addItemModal"
                                 class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn btn-primary text-white">
-                                <Plus class="w-4 h-4" /> Add Menu
+                                <Plus class="w-4 h-4" /> Add Item
                             </button>
 
                             <ImportFile label="Import" :sampleHeaders="sampleMenuHeaders" :sampleData="sampleMenuData"
@@ -2878,7 +2811,7 @@ function saveMenusToCart() {
                                 <tr>
                                     <th>S.#</th>
                                     <th>Image</th>
-                                    <th>Menu Name</th>
+                                    <th>Item Name</th>
                                     <th>Category</th>
                                     <th>Price</th>
                                     <th>Status</th>
@@ -2893,7 +2826,7 @@ function saveMenusToCart() {
                                             <div class="spinner-border text-primary mb-3" role="status">
                                                 <span class="visually-hidden">Loading...</span>
                                             </div>
-                                            <p class="text-muted mb-0">Loading items...</p>
+                                            <p class="text-muted mb-0">Loading Items...</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -2993,7 +2926,7 @@ function saveMenusToCart() {
                     <div class="modal-content rounded-4">
                         <div class="modal-header">
                             <h5 class="modal-title fw-semibold">
-                                {{ isEditMode == true ? "Edit Menu" : "Add Menu" }}
+                                {{ isEditMode == true ? "Edit Item" : "Add Item" }}
                             </h5>
                             <button @click="resetForm"
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
@@ -3011,13 +2944,13 @@ function saveMenusToCart() {
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link" :class="{ active: activeTab === 'simple' }"
                                         @click="activeTab = 'simple'" type="button">
-                                        Simple Menu
+                                        Simple Item
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link" :class="{ active: activeTab === 'variant' }"
                                         @click="activeTab = 'variant'" type="button">
-                                        Variant Menu
+                                        Variant Item
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
@@ -3035,7 +2968,7 @@ function saveMenusToCart() {
                                     <!-- top row -->
                                     <div class="row g-3">
                                         <div class="col-md-6">
-                                            <label class="form-label">Menu Name</label>
+                                            <label class="form-label">Item Name</label>
                                             <input v-model="form.name" type="text" class="form-control" :class="{
                                                 'is-invalid': formErrors.name,
                                             }" placeholder="e.g., Chicken Breast" />
@@ -3055,7 +2988,7 @@ function saveMenusToCart() {
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label class="form-label">Is this Taxable Menu?</label>
+                                            <label class="form-label">Is this Taxable Item?</label>
                                             <Select v-model="form.is_taxable" :options="taxableOptions"
                                                 optionLabel="label" optionValue="value" placeholder="Select Option"
                                                 class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
@@ -3066,7 +2999,7 @@ function saveMenusToCart() {
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label class="form-label">Is this Saleable Menu?</label>
+                                            <label class="form-label">Is this Saleable Item?</label>
                                             <div class="d-flex gap-3">
                                                 <div class="form-check">
                                                     <input v-model="form.is_saleable" :value="true" type="radio"
@@ -3218,7 +3151,7 @@ function saveMenusToCart() {
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                            <label class="form-label d-block">Tags</label>
                                             <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
                                                 optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
                                                 appendTo="self" :class="{
@@ -3306,7 +3239,7 @@ function saveMenusToCart() {
                                                 <div class="card border rounded-4 mb-3">
                                                     <div class="p-3 fw-semibold">
                                                         <div class="mb-2">
-                                                            Total Nutrition (Menu)
+                                                            Total Nutrition (Item)
                                                         </div>
                                                         <div class="d-flex flex-wrap gap-2">
                                                             <span class="badge bg-primary px-3 py-2 rounded-pill">
@@ -3358,7 +3291,7 @@ function saveMenusToCart() {
                                     <!-- Same form fields as Simple Menu -->
                                     <div class="row g-3">
                                         <div class="col-md-6">
-                                            <label class="form-label">Menu Name</label>
+                                            <label class="form-label">Item Name</label>
                                             <input v-model="form.name" type="text" class="form-control" :class="{
                                                 'is-invalid': formErrors.name,
                                             }" placeholder="e.g., Chicken Breast" />
@@ -3368,7 +3301,7 @@ function saveMenusToCart() {
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label class="form-label">Is this Taxable Menu?</label>
+                                            <label class="form-label">Is this Taxable Item?</label>
                                             <Select v-model="form.is_taxable" :options="taxableOptions"
                                                 optionLabel="label" optionValue="value" placeholder="Select Option"
                                                 class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
@@ -3447,7 +3380,7 @@ function saveMenusToCart() {
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                            <label class="form-label d-block">Tags</label>
                                             <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
                                                 optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
                                                 appendTo="self" :class="{
@@ -3624,7 +3557,7 @@ function saveMenusToCart() {
                                     <!-- Image Upload for Variant Menu -->
                                     <div class="row g-3 mt-3 align-items-center">
                                         <div class="col-md-4">
-                                            <label class="form-label fw-semibold">Menu Image</label>
+                                            <label class="form-label fw-semibold">Item Image</label>
                                             <div class="logo-card" :class="{ 'is-invalid': formErrors.image }">
                                                 <div class="logo-frame"
                                                     @click="form.imageUrl ? openImageModal() : (showCropper = true)">
@@ -3849,7 +3782,7 @@ function saveMenusToCart() {
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                            <label class="form-label d-block">Tags</label>
                                             <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
                                                 optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
                                                 appendTo="self" :class="{ 'is-invalid': formErrors.tags }" />
@@ -3958,7 +3891,7 @@ function saveMenusToCart() {
                                                         <table class="table align-middle mb-0">
                                                             <thead>
                                                                 <tr>
-                                                                    <th>Menu Name</th>
+                                                                    <th>Item Name</th>
                                                                     <th>Qty</th>
                                                                     <th>Price</th>
                                                                     <th>Total</th>

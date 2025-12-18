@@ -21,7 +21,7 @@ class StoreMenuCategoryRequest extends FormRequest
             // Categories array validation
             'categories' => 'required|array|min:1',
             'categories.*.name' => 'required|string|max:255',
-            'icon' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'icon' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'categories.*.upload_id' => 'nullable',
             'categories.*.active' => 'sometimes|boolean',
             'categories.*.parent_id' => 'nullable|integer|exists:menu_categories,id',

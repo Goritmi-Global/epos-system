@@ -8,6 +8,7 @@ use App\Http\Requests\Menu\StoreMenuRequest;
 use App\Http\Requests\Menu\UpdateMenuRequest;
 use App\Models\AddonGroup;
 use App\Models\Allergy;
+use App\Models\Deal;
 use App\Models\Meal;
 use App\Models\MenuCategory;
 use App\Models\MenuItem;
@@ -99,108 +100,164 @@ class MenuController extends Controller
     public function apiIndex(Request $request)
     {
         $perPage = $request->get('per_page', 10);
+        $page = $request->get('page', 1);
 
-        // Start building the query
-        $query = MenuItem::with([
-            'category',
-            'ingredients',
-            'variants.ingredients',
-            'allergies',
-            'tags',
-            'nutrition',
-            'addonGroupRelations.addonGroup',
-            'meals',
-        ]);
+        // Build query for Menu Items
+        $menuQuery = MenuItem::query()
+            ->select('id', 'name', 'price', 'description', 'status', 'category_id', 'upload_id', 'is_taxable', 'label_color', 'is_saleable', 'resale_type', 'resale_value', 'created_at');
 
-        // ✅ Search functionality
+        // Build query for Deals
+        $dealQuery = Deal::query()
+            ->select('id', 'name', 'price', 'description', 'status', 'category_id', 'upload_id', 'is_taxable', 'label_color', 'created_at');
+
+        // Apply search filter to both
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
+
+            $menuQuery->where(function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
-                    ->orWhere('description', 'LIKE', "%{$search}%")
-                    ->orWhereHas('category', function ($q) use ($search) {
-                        $q->where('name', 'LIKE', "%{$search}%");
-                    })
-                    ->orWhereHas('tags', function ($q) use ($search) {
-                        $q->where('name', 'LIKE', "%{$search}%");
-                    });
+                    ->orWhere('description', 'LIKE', "%{$search}%");
+            });
+
+            $dealQuery->where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('description', 'LIKE', "%{$search}%");
             });
         }
 
-        // ✅ Category filter
-        if ($request->filled('category')) {
-            $query->where('category_id', $request->category);
-        }
-
-        // ✅ Status filter
+        // Apply status filter to both
         if ($request->has('status') && $request->status !== null && $request->status !== '') {
-            $query->where('status', $request->status);
+            $menuQuery->where('status', $request->status);
+            $dealQuery->where('status', $request->status);
         }
 
-        // ✅ Price range filters
+        // Apply price range filters to both
         if ($request->filled('price_min')) {
-            $query->where('price', '>=', $request->price_min);
+            $menuQuery->where('price', '>=', $request->price_min);
+            $dealQuery->where('price', '>=', $request->price_min);
         }
         if ($request->filled('price_max')) {
-            $query->where('price', '<=', $request->price_max);
+            $menuQuery->where('price', '<=', $request->price_max);
+            $dealQuery->where('price', '<=', $request->price_max);
         }
 
-        // ✅ Date range filters
+        // Apply date range filters to both
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $menuQuery->whereDate('created_at', '>=', $request->date_from);
+            $dealQuery->whereDate('created_at', '>=', $request->date_from);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $menuQuery->whereDate('created_at', '<=', $request->date_to);
+            $dealQuery->whereDate('created_at', '<=', $request->date_to);
         }
 
-        // ✅ Sorting
+        // Get filtered items from both tables
+        $menus = $menuQuery->get()->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'type' => 'menu',
+                'name' => $item->name,
+                'price' => $item->price,
+                'description' => $item->description,
+                'status' => $item->status,
+                'category_id' => $item->category_id,
+                'upload_id' => $item->upload_id,
+                'is_taxable' => $item->is_taxable,
+                'label_color' => $item->label_color,
+                'is_saleable' => $item->is_saleable,
+                'resale_type' => $item->resale_type,
+                'resale_value' => $item->resale_value,
+                'created_at' => $item->created_at,
+            ];
+        });
+
+        $deals = $dealQuery->get()->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'type' => 'deal',
+                'name' => $item->name,
+                'price' => $item->price,
+                'description' => $item->description,
+                'status' => $item->status,
+                'category_id' => $item->category_id,
+                'upload_id' => $item->upload_id,
+                'is_taxable' => $item->is_taxable,
+                'label_color' => $item->label_color,
+                'is_saleable' => null,
+                'resale_type' => null,
+                'resale_value' => null,
+                'created_at' => $item->created_at,
+            ];
+        });
+
+        // Merge collections
+        $allItems = $menus->merge($deals);
+
+        // Apply sorting
         if ($request->filled('sort_by')) {
             switch ($request->sort_by) {
                 case 'price_desc':
-                    $query->orderBy('price', 'desc');
+                    $allItems = $allItems->sortByDesc('price');
                     break;
                 case 'price_asc':
-                    $query->orderBy('price', 'asc');
+                    $allItems = $allItems->sortBy('price');
                     break;
                 case 'name_asc':
-                    $query->orderBy('name', 'asc');
+                    $allItems = $allItems->sortBy('name');
                     break;
                 case 'name_desc':
-                    $query->orderBy('name', 'desc');
+                    $allItems = $allItems->sortByDesc('name');
                     break;
                 default:
-                    $query->latest();
+                    $allItems = $allItems->sortByDesc('created_at');
             }
         } else {
-            $query->latest();
+            $allItems = $allItems->sortByDesc('created_at');
         }
 
-        // ✅ NEW: Check if this is an export request (return all records without pagination)
-        if ($request->has('export') && $request->export === 'all') {
-            $allItems = $query->get()->map(function ($item) {
+        // Manual pagination
+        $total = $allItems->count();
+        $items = $allItems->forPage($page, $perPage)->values();
+
+        // Load full relationships and format
+        $formattedItems = $items->map(function ($item) {
+            if ($item['type'] === 'menu') {
+                $menuItem = MenuItem::with([
+                    'category',
+                    'ingredients',
+                    'variants.ingredients',
+                    'allergies',
+                    'tags',
+                    'nutrition',
+                    'addonGroupRelations.addonGroup',
+                    'meals',
+                ])->find($item['id']);
+
                 return [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'price' => $item->price,
-                    'description' => $item->description,
-                    'is_taxable' => $item->is_taxable,
-                    'label_color' => $item->label_color,
-                    'status' => $item->status == '1' ? 1 : 0,
-                    'category' => $item->category,
-                    'meals' => $item->meals,
-                    'ingredients' => $item->ingredients,
-                    'nutrition' => $item->nutrition,
-                    'allergies' => $item->allergies,
-                    'tags' => $item->tags,
-                    'image_url' => UploadHelper::url($item->upload_id),
-                    'addon_group_ids' => $item->addonGroupRelations->pluck('addon_group_id')->toArray(),
-                    'addon_group_relations' => $item->addonGroupRelations,
-                    'is_saleable' => $item->is_saleable,
-                    'resale_type' => $item->resale_type,
-                    'resale_value' => $item->resale_value,
-                    'resale_price' => $item->resale_price,
-                    'created_at' => $item->created_at,
-                    'variants' => $item->variants->map(function ($variant) {
+                    'id' => $menuItem->id,
+                    'name' => $menuItem->name,
+                    'type' => 'menu',
+                    'display_name' => $menuItem->name,
+                    'price' => $menuItem->price,
+                    'description' => $menuItem->description,
+                    'is_taxable' => $menuItem->is_taxable,
+                    'label_color' => $menuItem->label_color,
+                    'status' => $menuItem->status == '1' ? 1 : 0,
+                    'category' => $menuItem->category,
+                    'meals' => $menuItem->meals,
+                    'ingredients' => $menuItem->ingredients,
+                    'nutrition' => $menuItem->nutrition,
+                    'allergies' => $menuItem->allergies,
+                    'tags' => $menuItem->tags,
+                    'image_url' => UploadHelper::url($menuItem->upload_id),
+                    'addon_group_ids' => $menuItem->addonGroupRelations->pluck('addon_group_id')->toArray(),
+                    'addon_group_relations' => $menuItem->addonGroupRelations,
+                    'is_saleable' => $menuItem->is_saleable,
+                    'resale_type' => $menuItem->resale_type,
+                    'resale_value' => $menuItem->resale_value,
+                    'resale_price' => $menuItem->resale_price,
+                    'created_at' => $menuItem->created_at,
+                    'variants' => $menuItem->variants->map(function ($variant) {
                         return [
                             'id' => $variant->id,
                             'name' => $variant->name,
@@ -221,86 +278,113 @@ class MenuController extends Controller
                         ];
                     }),
                 ];
-            });
+            } else {
+                $deal = Deal::with([
+                    'category',
+                    'menuItems',
+                    'allergies',
+                    'tags',
+                    'meals',
+                    'addonGroups.addons',
+                ])->find($item['id']);
 
-            return response()->json([
-                'message' => 'All menu items fetched for export',
-                'data' => $allItems,
-                'total' => $allItems->count(),
-            ]);
-        }
-
-        // Normal paginated request
-        $menus = $query->paginate($perPage)
-            ->through(function ($item) {
                 return [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'price' => $item->price,
-                    'description' => $item->description,
-                    'is_taxable' => $item->is_taxable,
-                    'label_color' => $item->label_color,
-                    'status' => $item->status == '1' ? 1 : 0,
-                    'category' => $item->category,
-                    'meals' => $item->meals,
-                    'ingredients' => $item->ingredients,
-                    'nutrition' => $item->nutrition,
-                    'allergies' => $item->allergies,
-                    'tags' => $item->tags,
-                    'image_url' => UploadHelper::url($item->upload_id),
-                    'addon_group_ids' => $item->addonGroupRelations->pluck('addon_group_id')->toArray(),
-                    'addon_group_relations' => $item->addonGroupRelations,
-                    'is_saleable' => $item->is_saleable,
-                    'resale_type' => $item->resale_type,
-                    'resale_value' => $item->resale_value,
-                    'resale_price' => $item->resale_price,
-                    'created_at' => $item->created_at,
-                    'variants' => $item->variants->map(function ($variant) {
-                        return [
-                            'id' => $variant->id,
-                            'name' => $variant->name,
-                            'price' => $variant->price,
-                            'is_saleable' => $variant->is_saleable,
-                            'resale_type' => $variant->resale_type,
-                            'resale_value' => $variant->resale_value,
-                            'resale_price' => $variant->resale_price,
-                            'display_name' => $variant->display_name,
-                            'ingredients' => $variant->ingredients->map(function ($ing) {
-                                return [
-                                    'inventory_item_id' => $ing->inventory_item_id,
-                                    'product_name' => $ing->product_name,
-                                    'quantity' => $ing->quantity,
-                                    'cost' => $ing->cost,
-                                ];
-                            }),
-                        ];
-                    }),
+                    'id' => $deal->id,
+                    'name' => $deal->name,
+                    'type' => 'deal',
+                    'display_name' => $deal->name,
+                    'price' => $deal->price,
+                    'description' => $deal->description,
+                    'status' => (int) $deal->status,
+                    'image_url' => UploadHelper::url($deal->upload_id),
+                    'is_taxable' => $deal->is_taxable,
+                    'label_color' => $deal->label_color,
+                    'category_id' => $deal->category_id,
+                    'category' => $deal->category,
+                    'menu_items' => $deal->menuItems->map(fn ($mi) => [
+                        'id' => $mi->id,
+                        'name' => $mi->name,
+                        'qty' => $mi->pivot->quantity ?? 1,
+                    ]),
+                    'deal_addon_groups' => $deal->addonGroups->map(fn ($group) => [
+                        'group_id' => $group->id,
+                        'addons' => $group->addons->map(fn ($addon) => [
+                            'id' => $addon->id,
+                            'name' => $addon->name,
+                            'price' => $addon->price,
+                        ]),
+                    ]),
+                    'allergies' => $deal->allergies,
+                    'tags' => $deal->tags,
+                    'meals' => $deal->meals,
+                    'created_at' => $deal->created_at,
                 ];
-            });
+            }
+        });
 
-        // ✅ Get counts (these remain the same for KPIs)
-        $totalCount = MenuItem::count();
-        $activeCount = MenuItem::where('status', 1)->count();
-        $inactiveCount = MenuItem::where('status', 0)->count();
+        // Calculate counts
+        $totalMenuCount = MenuItem::count();
+        $totalDealCount = Deal::count();
+        $activeMenuCount = MenuItem::where('status', 1)->count();
+        $activeDealCount = Deal::where('status', 1)->count();
+        $inactiveMenuCount = MenuItem::where('status', 0)->count();
+        $inactiveDealCount = Deal::where('status', 0)->count();
+
+        // Build pagination links
+        $lastPage = (int) ceil($total / $perPage);
+        $links = $this->buildPaginationLinks($page, $lastPage, $request);
 
         return response()->json([
-            'message' => 'Menu items fetched successfully',
-            'data' => $menus->items(),
+            'message' => 'Items fetched successfully',
+            'data' => $formattedItems,
             'pagination' => [
-                'current_page' => $menus->currentPage(),
-                'last_page' => $menus->lastPage(),
-                'per_page' => $menus->perPage(),
-                'total' => $menus->total(),
-                'from' => $menus->firstItem(),
-                'to' => $menus->lastItem(),
-                'links' => $menus->linkCollection()->toArray(),
+                'current_page' => $page,
+                'last_page' => $lastPage,
+                'per_page' => $perPage,
+                'total' => $total,
+                'from' => ($page - 1) * $perPage + 1,
+                'to' => min($page * $perPage, $total),
+                'links' => $links,
             ],
             'counts' => [
-                'total' => $totalCount,
-                'active' => $activeCount,
-                'inactive' => $inactiveCount,
+                'total' => $totalMenuCount + $totalDealCount,
+                'active' => $activeMenuCount + $activeDealCount,
+                'inactive' => $inactiveMenuCount + $inactiveDealCount,
             ],
         ]);
+    }
+
+    private function buildPaginationLinks($currentPage, $lastPage, $request)
+    {
+        $links = [];
+        $baseUrl = $request->url();
+        $params = $request->except('page');
+
+        // Previous link
+        $links[] = [
+            'url' => $currentPage > 1 ? $baseUrl.'?'.http_build_query(array_merge($params, ['page' => $currentPage - 1])) : null,
+            'label' => '&laquo; Previous',
+            'active' => false,
+        ];
+
+        // Page links
+        for ($i = 1; $i <= $lastPage; $i++) {
+            $links[] = [
+                'url' => $baseUrl.'?'.http_build_query(array_merge($params, ['page' => $i])),
+                'label' => (string) $i,
+                'active' => $i === $currentPage,
+            ];
+        }
+
+        // Next link
+        $links[] = [
+            'url' => $currentPage < $lastPage ? $baseUrl.'?'.http_build_query(array_merge($params, ['page' => $currentPage + 1])) : null,
+            'label' => 'Next &raquo;',
+            'label' => 'Next &raquo;',
+            'active' => false,
+        ];
+
+        return $links;
     }
 
     private function calculateResalePrice($item)
