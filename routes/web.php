@@ -51,9 +51,9 @@ use Inertia\Inertia;
 |  Public / Guest
 |========================================================= */
 
-Route::get('/test-helper', fn() => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
-Route::get('/login', fn() => Inertia::render('Auth/Login'))->name('login');
-Route::get('/', fn() => Inertia::render('Auth/Login'))->name('login');
+Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
+Route::get('/login', fn () => Inertia::render('Auth/Login'))->name('login');
+Route::get('/', fn () => Inertia::render('Auth/Login'))->name('login');
 // Route::get('/', [ProfileController::class, 'frontPage'])->name('front-page');
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
@@ -249,9 +249,9 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::post('/order', [PosOrderController::class, 'store'])->name('pos-order.store');
         Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])->name('place-stripe-order');
         Route::post('/check-ingredients', [PosOrderController::class, 'checkIngredients']);
+        Route::post('/order-without-payment', [PosOrderController::class, 'storeWithoutPayment']);
+        Route::post('/orders/{orderId}/complete-payment', [PosOrderController::class, 'completePayment']);
     });
-
-
 
     /* -------- Pending Orders -------- */
     Route::prefix('pending-orders')->name('pending-orders.')->group(function () {
@@ -396,7 +396,4 @@ Route::get('/api/shift/{shift}/z-report', [ShiftManagementController::class, 'ge
 Route::get('/api/shift/{shift}/z-report/pdf', [ShiftManagementController::class, 'downloadZReportPdf'])
     ->name('shift.z-report.pdf');
 
-
-
-
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

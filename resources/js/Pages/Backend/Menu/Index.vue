@@ -1244,7 +1244,10 @@ const editItem = (item) => {
         tags: itemData.tags?.map((t) => t.id) || [],
         imageFile: null,
         imageUrl: itemData.image_url || null,
-        addon_group_ids: itemData.addon_group_relations?.map(rel => rel.addon_group_id) || [],
+        addon_group_ids: itemData.addon_group_relations?.map(
+            rel => Number(rel.addon_group_id)
+        ) || [],
+
         addon_ids: itemData.addons?.map(a => a.id) || [],
 
         is_saleable: itemData.is_saleable === 1 || itemData.is_saleable === true ? true : false,
