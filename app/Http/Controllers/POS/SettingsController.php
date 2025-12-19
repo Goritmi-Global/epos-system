@@ -263,13 +263,12 @@ class SettingsController extends Controller
         }
 
         if ($step === 9) {
-            // Map form fields to database columns
             $data = [
-                'enable_loyalty_system' => $data['feat_loyalty'] === 'yes',
-                'enable_inventory_tracking' => $data['feat_inventory'] === 'yes',
-                'enable_cloud_backup' => $data['feat_backup'] === 'yes',
-                'enable_multi_location' => $data['feat_multilocation'] === 'yes',
-                'theme_preference' => $data['feat_theme'] === 'yes' ? 'default_theme' : null,
+                'enable_inventory_tracking' => ($data['feat_inventory'] ?? 'no') === 'yes',
+                'logout_after_order' => (bool) ($data['logout_after_order'] ?? false),
+                'logout_after_time' => (bool) ($data['logout_after_time'] ?? false),
+                'logout_manual_only' => (bool) ($data['logout_manual_only'] ?? false),
+                'logout_time_minutes' => (int) ($data['logout_time_minutes'] ?? null),
             ];
         }
 
@@ -310,13 +309,13 @@ class SettingsController extends Controller
         return match ($step) {
             1 => $request->validate([
                 'country_code' => 'required|string|exists:countries,iso2',
-                'timezone_id' => 'required|integer|exists:timezones,id', // FIXED: Changed from string to integer with exists check
+                'timezone_id' => 'required|integer|exists:timezones,id',
                 'language' => 'required|string|max:10',
             ], [
                 'country_code.required' => 'Country field is required',
                 'country_code.exists' => 'Selected country is invalid',
                 'timezone_id.required' => 'Timezone field is required',
-                'timezone_id.exists' => 'Selected timezone is invalid', // FIXED: Added error message
+                'timezone_id.exists' => 'Selected timezone is invalid',
                 'language.required' => 'Language field is required',
             ]),
 
@@ -396,23 +395,6 @@ class SettingsController extends Controller
                     'table_details.*.required' => 'Please Enter Tables Details. Click on Enter Names.',
                 ]
             ),
-
-            // 6 => $request->validate([
-            //     'receipt_header' => 'required|string|max:2000',
-            //     'receipt_footer' => 'required|string|max:2000',
-            //     'receipt_logo' => 'nullable',
-            //     // FIXED: Check existing data properly
-            //     'receipt_logo_file' => (! empty($existingData['upload_id']) || ! empty($existingData['receipt_logo_url']))
-            //         ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
-            //         : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
-            //     'show_qr_on_receipt' => 'required|boolean',
-            //     'customer_printer' => 'nullable|string|max:255',
-            //     'kot_printer' => 'nullable|string|max:255',
-            //     'tax_breakdown_on_receipt' => 'required|boolean',
-            //     'printers' => 'nullable|array',
-            // ], [
-            //     'receipt_logo_file.required' => 'Please upload a receipt logo.',
-            // ]),
             6 => $request->validate([
                 'receipt_header' => 'required|string|filled|max:2000',
                 'receipt_footer' => 'required|string|filled|max:2000',
@@ -420,7 +402,7 @@ class SettingsController extends Controller
                 // Check existing data - if already has logo, file is optional
                 'receipt_logo_file' => (! empty($existingData['upload_id']) || ! empty($existingData['receipt_logo_url']))
                     ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
-                    : 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048', // CHANGED: Made nullable for settings
+                    : 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'show_qr_on_receipt' => 'required|boolean',
                 'customer_printer' => 'nullable|string|max:255',
                 'kot_printer' => 'nullable|string|max:255',
@@ -433,15 +415,6 @@ class SettingsController extends Controller
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
-                'logout_after_order' => 'required|boolean',
-                'logout_after_time' => 'required|boolean',
-                'logout_manual_only' => 'required|boolean',
-                // Time in minutes is required if logout_after_time is true
-                'logout_time_minutes' => 'required_if:logout_after_time,1|nullable|integer|min:1|max:1440',
-            ], [
-                'logout_time_minutes.required_if' => 'Please enter logout time in minutes when "After Selected Time" is enabled.',
-                'logout_time_minutes.min' => 'Logout time must be at least 1 minute.',
-                'logout_time_minutes.max' => 'Logout time cannot exceed 1440 minutes (24 hours).',
             ]),
 
             8 => $request->validate([
@@ -455,13 +428,17 @@ class SettingsController extends Controller
                 'hours.*.breaks.*.start' => 'required_with:hours.*.breaks|date_format:H:i',
                 'hours.*.breaks.*.end' => 'required_with:hours.*.breaks|date_format:H:i|after:hours.*.breaks.*.start',
             ]),
-
             9 => $request->validate([
-                'feat_loyalty' => 'required|in:yes,no',
                 'feat_inventory' => 'required|in:yes,no',
-                'feat_backup' => 'required|in:yes,no',
-                'feat_multilocation' => 'required|in:yes,no',
-                'feat_theme' => 'required|in:yes,no',
+                'logout_after_order' => 'required|boolean',
+                'logout_after_time' => 'required|boolean',
+                'logout_manual_only' => 'required|boolean',
+
+                'logout_time_minutes' => 'exclude_unless:logout_after_time,1|required|integer|min:1|max:1440',
+            ], [
+                'logout_time_minutes.required_if' => 'Please enter logout time in minutes when "After Selected Time" is enabled.',
+                'logout_time_minutes.min' => 'Logout time must be at least 1 minute.',
+                'logout_time_minutes.max' => 'Logout time cannot exceed 1440 minutes (24 hours).',
             ]),
 
             default => []
@@ -616,15 +593,15 @@ class SettingsController extends Controller
                 }
 
                 // Step 7: Logout options
-                if ($i === 7 && $stepData) {
-                    $data['step7'] = $stepData->toArray();
+                // if ($i === 7 && $stepData) {
+                //     $data['step7'] = $stepData->toArray();
 
-                    // Ensure all logout option booleans are properly cast
-                    $data['step7']['logout_after_order'] = (bool) ($data['step7']['logout_after_order'] ?? false);
-                    $data['step7']['logout_after_time'] = (bool) ($data['step7']['logout_after_time'] ?? false);
-                    $data['step7']['logout_manual_only'] = (bool) ($data['step7']['logout_manual_only'] ?? false);
-                    $data['step7']['logout_time_minutes'] = (int) ($data['step7']['logout_time_minutes'] ?? 30);
-                }
+                //     // Ensure all logout option booleans are properly cast
+                //     $data['step7']['logout_after_order'] = (bool) ($data['step7']['logout_after_order'] ?? false);
+                //     $data['step7']['logout_after_time'] = (bool) ($data['step7']['logout_after_time'] ?? false);
+                //     $data['step7']['logout_manual_only'] = (bool) ($data['step7']['logout_manual_only'] ?? false);
+                //     $data['step7']['logout_time_minutes'] = (int) ($data['step7']['logout_time_minutes'] ?? 30);
+                // }
 
                 // Step 8: Business hours
                 if ($i === 8 && $stepData) {
@@ -645,14 +622,24 @@ class SettingsController extends Controller
                 }
 
                 // Step 9: Features mapping
+                // if ($i === 9 && ! empty($data['step9'])) {
+                //     // Map database columns back to form fields
+                //     $data['step9']['feat_loyalty'] = ($data['step9']['enable_loyalty_system'] ?? false) ? 'yes' : 'no';
+                //     $data['step9']['feat_inventory'] = ($data['step9']['enable_inventory_tracking'] ?? false) ? 'yes' : 'no';
+                //     $data['step9']['feat_backup'] = ($data['step9']['enable_cloud_backup'] ?? false) ? 'yes' : 'no';
+                //     $data['step9']['feat_multilocation'] = ($data['step9']['enable_multi_location'] ?? false) ? 'yes' : 'no';
+                //     $data['step9']['feat_theme'] = ! empty($data['step9']['theme_preference']) ? 'yes' : 'no';
+                // }
+
+                // Step 9: Features + Logout settings
                 if ($i === 9 && ! empty($data['step9'])) {
-                    // Map database columns back to form fields
-                    $data['step9']['feat_loyalty'] = ($data['step9']['enable_loyalty_system'] ?? false) ? 'yes' : 'no';
                     $data['step9']['feat_inventory'] = ($data['step9']['enable_inventory_tracking'] ?? false) ? 'yes' : 'no';
-                    $data['step9']['feat_backup'] = ($data['step9']['enable_cloud_backup'] ?? false) ? 'yes' : 'no';
-                    $data['step9']['feat_multilocation'] = ($data['step9']['enable_multi_location'] ?? false) ? 'yes' : 'no';
-                    $data['step9']['feat_theme'] = ! empty($data['step9']['theme_preference']) ? 'yes' : 'no';
+                    $data['step9']['logout_after_order'] = (bool) ($data['step9']['logout_after_order'] ?? false);
+                    $data['step9']['logout_after_time'] = (bool) ($data['step9']['logout_after_time'] ?? false);
+                    $data['step9']['logout_manual_only'] = (bool) ($data['step9']['logout_manual_only'] ?? false);
+                    $data['step9']['logout_time_minutes'] = (int) ($data['step9']['logout_time_minutes'] ?? null);
                 }
+
             }
         }
 

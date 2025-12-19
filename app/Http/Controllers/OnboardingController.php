@@ -250,7 +250,7 @@ class OnboardingController extends Controller
                 //     ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
                 //     : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'receipt_logo_file' => (
-                    ! empty($tempData[6]['upload_id']) 
+                    ! empty($tempData[6]['upload_id'])
                     || ! empty($tempData[6]['receipt_logo_url'])
                     || ! empty($tempData['logo_url'])  // Business logo from Step 2
                     || ! empty($tempData['receipt_logo_url'])  // Existing receipt logo
@@ -270,15 +270,6 @@ class OnboardingController extends Controller
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
-                'logout_after_order' => 'required|boolean',
-                'logout_after_time' => 'required|boolean',
-                'logout_manual_only' => 'required|boolean',
-                // Time in minutes is required if logout_after_time is true
-                'logout_time_minutes' => 'required_if:logout_after_time,1|nullable|integer|min:1|max:1440',
-            ], [
-                'logout_time_minutes.required_if' => 'Please enter logout time in minutes when "After Selected Time" is enabled.',
-                'logout_time_minutes.min' => 'Logout time must be at least 1 minute.',
-                'logout_time_minutes.max' => 'Logout time cannot exceed 1440 minutes (24 hours).',
             ]),
 
             8 => $request->validate([
@@ -294,12 +285,21 @@ class OnboardingController extends Controller
             ]),
 
             9 => $request->validate([
-                'feat_loyalty' => 'required|in:yes,no',
+                // 'feat_loyalty' => 'required|in:yes,no',
                 'feat_inventory' => 'required|in:yes,no',
-                'feat_backup' => 'required|in:yes,no',
-                'feat_multilocation' => 'required|in:yes,no',
-                'feat_theme' => 'required|in:yes,no',
-            ]),
+                'logout_after_order' => 'required|boolean',
+                'logout_after_time' => 'required|boolean',
+                'logout_manual_only' => 'required|boolean',
+                'logout_time_minutes' => 'required_if:logout_after_time,1|nullable|integer|min:1|max:1440',
+                // 'feat_backup' => 'required|in:yes,no',
+                // 'feat_multilocation' => 'required|in:yes,no',
+                // 'feat_theme' => 'required|in:yes,no',
+            ],
+                [
+                    'logout_time_minutes.required_if' => 'Please enter logout time in minutes when "After Selected Time" is enabled.',
+                    'logout_time_minutes.min' => 'Logout time must be at least 1 minute.',
+                    'logout_time_minutes.max' => 'Logout time cannot exceed 1440 minutes (24 hours).',
+                ]),
 
             default => []
         };
@@ -523,14 +523,27 @@ class OnboardingController extends Controller
         if (! empty($stepData[9])) {
             $step9 = $stepData[9];
 
+            // ProfileStep9::updateOrCreate(
+            //     ['user_id' => $user->id],
+            //     [
+            //         'enable_loyalty_system' => $step9['feat_loyalty'] === 'yes',
+            //         'enable_inventory_tracking' => $step9['feat_inventory'] === 'yes',
+            //         'enable_cloud_backup' => $step9['feat_backup'] === 'yes',
+            //         'enable_multi_location' => $step9['feat_multilocation'] === 'yes',
+            //         'theme_preference' => $step9['feat_theme'] === 'yes',
+            //     ]
+            // );
+
             ProfileStep9::updateOrCreate(
                 ['user_id' => $user->id],
                 [
-                    'enable_loyalty_system' => $step9['feat_loyalty'] === 'yes',
                     'enable_inventory_tracking' => $step9['feat_inventory'] === 'yes',
-                    'enable_cloud_backup' => $step9['feat_backup'] === 'yes',
-                    'enable_multi_location' => $step9['feat_multilocation'] === 'yes',
-                    'theme_preference' => $step9['feat_theme'] === 'yes',
+                    'logout_after_order' => $step9['logout_after_order'] ?? false,
+                    'logout_after_time' => $step9['logout_after_time'] ?? false,
+                    'logout_manual_only' => $step9['logout_manual_only'] ?? false,
+                    'logout_time_minutes' => $step9['logout_after_time']
+                        ? ($step9['logout_time_minutes'] ?? null)
+                        : null,
                 ]
             );
         }
@@ -593,14 +606,61 @@ class OnboardingController extends Controller
     {
         $stepFields = [
             1 => ['country_id', 'timezone_id', 'language', 'languages_supported', 'country_code'],
+
             2 => ['business_name', 'business_type', 'legal_name', 'phone', 'phone_local', 'email', 'address', 'website', 'upload_id', 'logo_path', 'logo_url'],
+
             3 => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
-            4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax', 'has_service_charges', 'service_charge_flat', 'service_charge_percentage', 'has_delivery_charges', 'delivery_charge_flat', 'delivery_charge_percentage'],
-            5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details', 'profile_table_id'],
-            6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'upload_id', 'receipt_logo_url', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'customer_printer', 'kot_printer', 'printers','receipt_logo'],
-            7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method', 'logout_after_order', 'logout_after_time', 'logout_manual_only', 'logout_time_minutes'],
+
+            4 => [
+                'is_tax_registered',
+                'tax_type',
+                'tax_id',
+                'tax_rate',
+                'extra_tax_rates',
+                'price_includes_tax',
+                'has_service_charges',
+                'service_charge_flat',
+                'service_charge_percentage',
+                'has_delivery_charges',
+                'delivery_charge_flat',
+                'delivery_charge_percentage',
+            ],
+
+            5 => [
+                'order_types',
+                'table_management_enabled',
+                'online_ordering_enabled',
+                'number_of_tables',
+                'table_details',
+                'profile_table_id',
+            ],
+
+            6 => [
+                'receipt_header',
+                'receipt_footer',
+                'receipt_logo_path',
+                'upload_id',
+                'receipt_logo_url',
+                'show_qr_on_receipt',
+                'tax_breakdown_on_receipt',
+                'printers',
+                'receipt_logo',
+            ],
+            7 => [
+                'cash_enabled',
+                'card_enabled',
+                'integrated_terminal',
+                'custom_payment_options',
+                'default_payment_method',
+            ],
             8 => ['auto_disable', 'hours'],
-            9 => ['feat_loyalty', 'feat_inventory', 'feat_backup', 'feat_multilocation', 'feat_theme'],
+            9 => [
+                'feat_inventory',
+                'logout_after_order',
+                'logout_after_time',
+                'logout_manual_only',
+                'logout_time_minutes',
+            ],
         ];
 
         $stepData = [];
@@ -608,7 +668,7 @@ class OnboardingController extends Controller
         foreach ($stepFields as $stepNumber => $fields) {
             $stepData[$stepNumber] = [];
 
-            // Check nested format first
+            // Prefer nested step data
             if (isset($tempData[$stepNumber]) && is_array($tempData[$stepNumber])) {
                 foreach ($fields as $field) {
                     if (array_key_exists($field, $tempData[$stepNumber])) {
