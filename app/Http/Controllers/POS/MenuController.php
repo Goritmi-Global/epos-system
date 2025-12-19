@@ -372,7 +372,7 @@ class MenuController extends Controller
             $links[] = [
                 'url' => $baseUrl.'?'.http_build_query(array_merge($params, ['page' => $i])),
                 'label' => (string) $i,
-                'active' => $i === $currentPage,
+                'active' => $i == $currentPage,
             ];
         }
 

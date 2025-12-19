@@ -439,7 +439,7 @@ const handleFilterClear = () => {
         dateTo: null
     };
     currentPage.value = 1;
-    fetchPromos(1);
+    // fetchPromos(1);
 };
 /* ---------------- Form State ---------------- */
 const promoForm = ref({

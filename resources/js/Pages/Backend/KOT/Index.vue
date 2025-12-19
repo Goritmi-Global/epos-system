@@ -308,8 +308,8 @@ const sortedOrders = computed(() => {
 
 const filterOptions = computed(() => ({
     sortOptions: [
-        { value: "order_desc", label: "Order ID: High to Low" },
-        { value: "order_asc", label: "Order ID: Low to High" },
+        { value: "order_desc", label: "Total Amount: High to Low" },
+        { value: "order_asc", label: "Total Amount: Low to High" },
         { value: "date_desc", label: "Date: Newest First" },
         { value: "date_asc", label: "Date: Oldest First" },
     ],

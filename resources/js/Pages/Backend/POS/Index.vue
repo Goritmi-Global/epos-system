@@ -398,11 +398,6 @@ const toggleIngredient = (ingredientId) => {
     }
 };
 
-const getRemainingIngredientsCount = () => {
-    return getModalIngredients().filter(
-        ing => !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
-    ).length;
-};
 
 
 // Get formatted text for removed ingredients
@@ -2569,11 +2564,11 @@ const confirmOrder = async ({
         console.log('🧾 Last order data prepared:', lastOrder.value);
 
         if (autoPrintKot) {
+              printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
+        }
             kotData.value = await openPosOrdersModal();
             printKot(JSON.parse(JSON.stringify(lastOrder.value)));
-        }
-
-        printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
+     
 
         selectedPromos.value = [];
         selectedDiscounts.value = [];
@@ -2881,7 +2876,7 @@ const posOrdersData = ref([]);
 const loading = ref(false);
 
 const openPosOrdersModal = async () => {
-    showPosOrdersModal.value = true;
+    showPosOrdersModal.value = false;
     posOrdersData.value = [];
     loading.value = true;
 
@@ -3657,9 +3652,12 @@ import { Eye, Pencil } from "lucide-vue-next";
 const user = computed(() => page.props.current_user);
 
 const categoriesWithMenus = computed(() => {
-    return menuCategories.value.filter(category =>
-        category.menu_items_count && category.menu_items_count > 0
-    );
+    return menuCategories.value.filter(category => {
+        const hasMenuItems = category.menu_items_count && category.menu_items_count > 0;
+        const hasDeals = category.deals_count && category.deals_count > 0;
+        
+        return hasMenuItems || hasDeals;
+    });
 });
 
 const isCashier = computed(() => {
@@ -3943,6 +3941,11 @@ const getDealQty = (deal) => {
 // Get total count of items (menu items + deals) in a category
 const getCategoryItemCount = (categoryId) => {
     const category = menuCategories.value.find(c => c.id === categoryId);
+    // Use total_items_count if available, otherwise calculate
+    if (category?.total_items_count !== undefined) {
+        return category.total_items_count;
+    }
+
     const menuCount = category?.menu_items_count || 0;
     const dealsCount = getCategoryDealsCount(categoryId);
     return menuCount + dealsCount;
