@@ -71,6 +71,10 @@ const subTotal = computed(() =>
 );
 
 const isLoading = ref(false);
+const handleOrderAndPrint = async () => {
+    autoPrintKot.value = true;
+    await handleConfirm();
+};
 
 const handleConfirm = async () => {
 
@@ -114,7 +118,7 @@ const formattedOrderType = computed(() => {
 
 <template>
     <div v-if="show" class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.5)">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content rounded-4 s border-0">
                 <!-- Header -->
                 <div class="modal-header brand-gradient text-white py-3 position-sticky top-0 z-3">
@@ -366,14 +370,13 @@ const formattedOrderType = computed(() => {
                                                 </span>
                                             </div>
                                             <!-- Auto Print KOT CheckBox -->
-                                            <div class="form-check mt-3">
+                                            <!-- <div class="form-check mt-3">
                                                 <input class="form-check-input" type="checkbox" id="autoPrintKot"
                                                     v-model="autoPrintKot" />
                                                 <label class="form-check-label" for="autoPrintKot">
-                                                    Auto Print KOT
+                                                    Auto Print Customer Receipt
                                                 </label>
-                                            </div>
-
+                                            </div> -->
 
                                             <div class="d-flex gap-2 mt-3">
                                                 <button class="btn btn-secondary btn-sm rounded-pill px-3 py-2"
@@ -381,15 +384,28 @@ const formattedOrderType = computed(() => {
                                                     Cancel
                                                 </button>
                                                 <button
-                                                    class="btn btn-primary brand-btn rounded-pill btn-sm px-3 py-2 d-flex align-items-center gap-2"
+                                                    class="btn btn-primary brand-btn rounded-pill btn-sm px-2 py-2 d-flex align-items-center gap-2"
                                                     @click="handleConfirm" :disabled="isLoading">
                                                     <span v-if="isLoading" class="spinner-border spinner-border-sm"
                                                         role="status" aria-hidden="true"></span>
                                                     <i v-else class="bi bi-check2-circle"></i>
-                                                    <span>{{ isLoading ? 'Processing...' : 'Confirm & Place' }}</span>
+                                                    <span>{{ isLoading ? 'Processing...' : 'Confirm' }}</span>
                                                 </button>
 
+                                                <!-- ORDER & PRINT BUTTON -->
+                                                <button
+                                                    class="btn btn-primary rounded-pill btn-sm d-flex align-items-center justify-content-center text-nowrap"
+                                                    style="font-size: 0.75rem; padding: 6px 10px;"
+                                                    @click="handleOrderAndPrint" :disabled="isLoading">
+                                                    Order &amp; Print
+                                                </button>
+
+
+
+                                                <!-- CONFIRM BUTTON -->
+
                                             </div>
+
                                         </div>
 
                                         <!-- Card -->

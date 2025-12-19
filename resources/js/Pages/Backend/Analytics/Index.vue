@@ -346,6 +346,12 @@ onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
 
 onMounted(async () => {
+    // Set default month and year to current
+    const now = new Date();
+    filters.value.selectedMonth = String(now.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+    filters.value.selectedYear = now.getFullYear();
+
+    // Your existing onMounted code
     searchQuery.value = "";
     searchKey.value = Date.now();
     await nextTick();

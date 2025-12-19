@@ -236,7 +236,7 @@ const handleFilterClear = () => {
         priceMax: null,
     };
     currentPage.value = 1;
-    fetchAddonGroups(1);
+    // fetchAddonGroups(1);
 };
 
 /**

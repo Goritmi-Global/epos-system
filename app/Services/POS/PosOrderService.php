@@ -590,11 +590,15 @@ class PosOrderService
         $order->save();
     }
 
-    public function getMenuCategories(bool $onlyActive = true)
+  public function getMenuCategories(bool $onlyActive = true)
     {
         $query = MenuCategory::with('children')
             ->withCount([
                 'menuItems as menu_items_count' => function ($q) {
+                    $q->where('status', 1);
+                },
+                // Add deals count
+                'deals as deals_count' => function ($q) {
                     $q->where('status', 1);
                 },
             ])
@@ -607,12 +611,17 @@ class PosOrderService
         return $query->get()->map(function ($cat) {
             $cat->image_url = UploadHelper::url($cat->upload_id);
 
+            // Calculate total items (menu items + deals)
+            $totalItems = ($cat->menu_items_count ?? 0) + ($cat->deals_count ?? 0);
+
             return [
                 'id' => $cat->id,
                 'name' => $cat->name,
                 'image_url' => $cat->image_url,
                 'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
                 'menu_items_count' => $cat->menu_items_count,
+                'deals_count' => $cat->deals_count ?? 0,
+                'total_items_count' => $totalItems, // Add this
                 'children' => $cat->children,
             ];
         });

@@ -428,7 +428,9 @@ class AddonController extends Controller
     {
         try {
             $query = Addon::with('addonGroup')
-                ->whereHas('addonGroup');
+                ->whereHas('addonGroup', function ($q) {
+                    $q->where('status', 1);
+                });
 
             // Apply same filters as main query
             if ($request->filled('q')) {
@@ -452,7 +454,6 @@ class AddonController extends Controller
                 $query->where('price', '<=', (float) $request->price_max);
             }
 
-            // Get unique groups that have addons
             $uniqueGroups = $query->get()
                 ->pluck('addonGroup')
                 ->unique('id')
