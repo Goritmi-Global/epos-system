@@ -151,7 +151,7 @@ const handleFilterClear = () => {
         dateTo: null
     };
     currentPage.value = 1;
-    fetchDiscounts(1);
+    // fetchDiscounts(1);
 };
 
 

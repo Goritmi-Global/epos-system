@@ -392,8 +392,6 @@ const fetchMenus = async (page = 1) => {
                 date_to: filters.value.dateTo || null,
             }
         });
-
-        // Data is already combined on the backend
         menuItems.value = res.data.data || [];
 
         if (res.data.pagination) {
@@ -428,7 +426,6 @@ const handlePageChange = (url) => {
 onMounted(() => {
     fetchInventories();
     fetchMenus();
-    // fetchDeals();
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -700,7 +697,8 @@ const submitDeal = async () => {
 
         toast.success("Deal created successfully");
         resetForm();
-        await fetchDeals();
+        // await fetchDeals();
+        await fetchMenus();
         bootstrap.Modal.getInstance(document.getElementById("addItemModal"))?.hide();
     } catch (err) {
         console.error("❌ Error saving:", err.response?.data);
@@ -887,7 +885,7 @@ const submitEditDeal = async () => {
 
         toast.success("Deal updated successfully");
         resetForm();
-        await fetchDeals();
+        // await fetchDeals();
         await fetchMenus();
 
         const modal = bootstrap.Modal.getInstance(document.getElementById("addItemModal"));
@@ -925,7 +923,7 @@ const toggleDealStatus = async (deal) => {
     } catch (err) {
         console.error("Failed to toggle status", err);
         toast.error("Failed to update status");
-        await fetchDeals(currentPage.value);
+        // await fetchDeals(currentPage.value);
     }
 };
 
@@ -1554,29 +1552,45 @@ const openAddMenuModal = () => {
 };
 
 
-
 const fetchAllMenusForExport = async () => {
     try {
         isLoading.value = true;
+        let allData = [];
+        let currentExportPage = 1;
+        let lastPage = 1;
 
-        console.log('🔄 Fetching all menu items for export...');
+        console.log('🔄 Fetching all menu items and deals for export...');
 
-        const res = await axios.get("/api/menu/items", {
-            params: {
-                export: 'all',
-                search: q.value.trim() || null,
-                category: filters.value.category || null,
-                status: filters.value.status !== "" ? filters.value.status : null,
-                sort_by: filters.value.sortBy || null,
-                price_min: filters.value.priceMin || null,
-                price_max: filters.value.priceMax || null,
-                date_from: filters.value.dateFrom || null,
-                date_to: filters.value.dateTo || null,
+        do {
+            const res = await axios.get("/api/menu/items", {
+                params: {
+                    page: currentExportPage,
+                    per_page: 999999, 
+                    search: q.value.trim() || null,
+                    category: appliedFilters.value.category || null,
+                    status: appliedFilters.value.status !== "" ? appliedFilters.value.status : null,
+                    sort_by: appliedFilters.value.sortBy || null,
+                    price_min: appliedFilters.value.priceMin || null,
+                    price_max: appliedFilters.value.priceMax || null,
+                    date_from: appliedFilters.value.dateFrom || null,
+                    date_to: appliedFilters.value.dateTo || null,
+                }
+            });
+
+            const pageData = res.data.data || [];
+            allData = [...allData, ...pageData];
+            
+            if (res.data.pagination) {
+                lastPage = res.data.pagination.last_page;
             }
-        });
-        const allData = res.data.data || [];
-        console.log(`✅ Fetched ${allData.length} menu items for export`);
+            
+            currentExportPage++;
+            
+        } while (currentExportPage <= lastPage);
+
+        console.log(`✅ Fetched ${allData.length} items (menu + deals) for export`);
         return allData;
+        
     } catch (err) {
         console.error('❌ Error fetching export data:', err);
         toast.error("Failed to load data for export");
@@ -2641,8 +2655,23 @@ function removeMenuFromCart(idx) {
         found.qty = null;
     }
 }
+const fetchAllMenusForDeals = async () => {
+    try {
+        const res = await axios.get("/api/menu/items", {
+            params: {
+                per_page: 99999, 
+                status: 1 
+            }
+        });
+        
+        // Filter to only include menu items (exclude deals)
+        menuItems.value = (res.data.data || []).filter(item => item.type !== 'deal');
+    } catch (err) {
+        console.error("❌ Error fetching all menus:", err);
+        toast.error("Failed to fetch menu items");
+    }
+};
 
-// Open Menu Selection Modal
 const openMenuSelectionModal = () => {
     const mainModal = bootstrap.Modal.getInstance(
         document.getElementById("addItemModal")
@@ -2651,6 +2680,7 @@ const openMenuSelectionModal = () => {
         mainModal.hide();
     }
 
+    fetchAllMenusForDeals();
     console.log('menuItems', menuItems.value);
     console.log('menu_item_ids', form.value.menu_item_ids);
 
@@ -2661,13 +2691,10 @@ const openMenuSelectionModal = () => {
     ) {
         m_cart.value = form.value.menu_item_ids
             .map((item) => {
-                // ✅ Handle both formats
                 const menuId = typeof item === 'object' ? item.id : item;
                 const qty = typeof item === 'object' ? item.qty || 1 : 1;
 
                 const menu = menuItems.value.find(m => m.id === menuId);
-
-                // ✅ SAFETY CHECK
                 if (!menu) return null;
 
                 return {
@@ -2678,7 +2705,7 @@ const openMenuSelectionModal = () => {
                     qty,
                 };
             })
-            .filter(Boolean); // remove nulls
+            .filter(Boolean); 
     }
 
     setTimeout(() => {
@@ -2693,29 +2720,20 @@ const openMenuSelectionModal = () => {
     }, 300);
 };
 
-
-// Save selected menus
 function saveMenusToCart() {
     if (m_cart.value.length === 0) {
         toast.error("Please add at least one menu item");
         return;
     }
-
-    // Store menu IDs in form
     form.value.menu_item_ids = m_cart.value.map(item => ({
         id: item.id,
         qty: item.qty
     }));
-
     toast.success("Menu items saved successfully!");
-
-    // Close menu modal
     const menuModal = bootstrap.Modal.getInstance(
         document.getElementById("addMenuSelectionModal")
     );
     menuModal.hide();
-
-    // Reopen main modal
     setTimeout(() => {
         const mainModal = new bootstrap.Modal(
             document.getElementById("addItemModal")
@@ -2905,12 +2923,11 @@ function saveMenusToCart() {
                         </table>
                     </div>
                     <div v-if="paginationLinks.length > 0 && !isLoading" class="mt-4 d-flex justify-between">
-                        <div class="text-center mt-3 text-sm text-gray-600">
+                        <div class="text-center mt-3 text-sm">
                             Showing {{ (currentPage - 1) * perPage + 1 }} to
                             {{ Math.min(currentPage * perPage, totalItems) }} of
                             {{ totalItems }} results
                         </div>
-
                         <Pagination :pagination="paginationLinks" :isApiDriven="true"
                             @page-changed="handlePageChange" />
 
