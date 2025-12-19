@@ -23,7 +23,7 @@ const form = reactive({
   kot_printer: props.model?.kot_printer ?? "",
 });
 
-watch(form, () => emit("save", { step: 6, data: toRaw(form) }), { deep: true, immediate:true });
+watch(form, () => emit("save", { step: 6, data: toRaw(form) }), { deep: true, immediate: true });
 
 /* --- Image crop/zoom like Step 2 --- */
 const showCropper = ref(false);
@@ -37,31 +37,6 @@ function onCropped({ file }) {
   form.receipt_logo = URL.createObjectURL(file); // Update preview immediately
   showCropper.value = false;
 }
-
-// Get All Connected Printers
-const printers = ref([]);
-const loadingPrinters = ref(false);
-
-const fetchPrinters = async () => {
-  loadingPrinters.value = true;
-  try {
-    const res = await axios.get("/api/printers");
-    printers.value = res.data.data
-      .filter(p => p.is_connected === true || p.status === "OK")
-      .map(p => ({
-        label: `${p.name}`,
-        value: p.name,
-        driver: p.driver,
-        port: p.port,
-      }));
-  } catch (err) {
-    console.error("Failed to fetch printers:", err);
-  } finally {
-    loadingPrinters.value = false;
-  }
-};
-
-onMounted(fetchPrinters);
 
 
 </script>
@@ -87,7 +62,8 @@ onMounted(fetchPrinters);
             <small class="text-muted mt-2">Upload Receipt Logo</small>
             <div class="logo-card">
               <div class="logo-frame" @click="openCropper()">
-                <img v-if="form.receipt_logo" :src="form.receipt_logo" alt="Receipt Logo" class="receipt-logo-preview" />
+                <img v-if="form.receipt_logo" :src="form.receipt_logo" alt="Receipt Logo"
+                  class="receipt-logo-preview" />
                 <div v-else class="placeholder">
                   <i class="bi bi-image"></i>
                 </div>
@@ -144,52 +120,20 @@ onMounted(fetchPrinters);
               </div>
             </div>
 
-
-            <div class="mt-3">
-              <!-- Header with refresh button -->
-              <div class="d-flex align-items-center justify-content-end mb-1">
-                <button type="button"
-                  class="btn btn-sm btn-outline-primary custom-refresh-btn d-flex align-items-center rounded-pill"
-                  @click="fetchPrinters" :disabled="loadingPrinters">
-                  <i class="pi pi-refresh me-1 px-1" :class="{ 'pi-spin': loadingPrinters }"></i>
-                  {{ loadingPrinters ? "Refreshing..." : "Refresh Printers" }}
-                </button>
-              </div>
-
-              <!-- Show loading message -->
-              <div v-if="loadingPrinters" class="text-center py-3">
-                <div class="fw-semibold text-secondary mb-2">
-                  Scanning for printers, please wait...
+            <div class="mt-4">
+              <div class="alert alert-primary d-flex align-items-start rounded-3 border-0"
+                style="background-color: #FFF3CD; color: #0c5460;">
+                <i class="bi bi-info-circle-fill me-3 mt-1" style="font-size: 1.2rem !important;"></i>
+                <div>
+                  <h6 class="mb-2 fw-semibold printer-setup">Printer Setup</h6>
+                  <p class="mb-0 small printer-setup-text">
+                    To connect your printers (Customer & KOT), please log in to your POS Agent after completing
+                    onboarding.
+                    to configure your <strong>Printers.</strong>
+                  </p>
                 </div>
-                <div class="spinner-border" role="status" style="color: #1c0d82; width: 2rem; height: 2rem;">
-                  <span class="visually-hidden">Loading...</span>
-                </div>
-              </div>
-
-              <!-- If no printers detected -->
-              <div v-else-if="printers.length === 0" class="alert alert-warning py-2 px-3 rounded-3 mt-3">
-                <i class="pi pi-exclamation-triangle me-2"></i>
-                No printers detected. Please connect a printer and click "Refresh Printers".
-              </div>
-
-              <!-- If printers are available -->
-              <div v-else>
-                <!-- POS Printer -->
-                <label class="form-label d-block mb-2">Customer Printer</label>
-                <Select v-model="form.customer_printer" :options="printers" optionLabel="label" optionValue="value"
-                  placeholder="Select POS Printer" :loading="loadingPrinters" class="w-100" />
-
-                <!-- KOT Printer -->
-                <label class="form-label d-block mt-3 mb-2">KOT Printer</label>
-                <Select v-model="form.kot_printer" :options="printers" optionLabel="label" optionValue="value"
-                  placeholder="Select KOT Printer" :loading="loadingPrinters" class="w-100" />
               </div>
             </div>
-
-            <!-- Printers error -->
-            <small v-if="formErrors?.printers" class="text-danger">
-              {{ formErrors.printers[0] }}
-            </small>
           </div>
         </div>
       </div>
@@ -202,7 +146,7 @@ onMounted(fetchPrinters);
             <div v-if="form.receipt_logo" class="mb-3 receipt-logo-container">
               <img :src="form.receipt_logo" alt="Receipt Logo" class="receipt-logo-display" />
             </div>
-         
+
             <h6 class="mb-1">{{ form.receipt_header }}</h6>
             <div class="text-center my-2">
               <div class="text-muted small">{{ form.store_phone }}</div>
@@ -263,6 +207,14 @@ onMounted(fetchPrinters);
 .dark .logo-frame {
   background-color: #121212;
   color: #fff !important;
+}
+
+.printer-setup-text {
+  font-size: 14px !important;
+}
+
+.dark .printer-setup {
+  color: #121212 !important;
 }
 
 /* -------- Segmented style -------- */
@@ -464,11 +416,11 @@ onMounted(fetchPrinters);
 
 /* For screens between 1024px and 1366px */
 @media only screen and (min-width: 1024px) and (max-width: 1366px) {
-    .upload-image-area,
-    .right-side-receipt-area {
-        flex: 0 0 50% !important;
-        max-width: 50% !important;
-    }
-}
 
+  .upload-image-area,
+  .right-side-receipt-area {
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+}
 </style>

@@ -12,6 +12,10 @@ import PosOrdersModal from "./PosOrdersModal.vue";
 import FilterModal from "@/Components/FilterModal.vue";
 import MultiSelect from 'primevue/multiselect';
 
+import Accordion from 'primevue/accordion';
+import AccordionPanel from 'primevue/accordionpanel';
+import AccordionHeader from 'primevue/accordionheader';
+import AccordionContent from 'primevue/accordioncontent';
 
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
@@ -5801,18 +5805,38 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                         <b>{{ formatCurrencySymbol(grandTotal) }}</b>
                                     </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="frontNote" class="form-label small fw-semibold">Front Note</label>
-                                    <textarea id="frontNote" v-model="note" rows="3"
-                                        class="form-control form-control-sm rounded-3"
-                                        placeholder="Enter front note..."></textarea>
+
+
+
+                                <div class="">
+                                    <Accordion value="0">
+                                        <AccordionPanel value="0">
+                                            <AccordionHeader>Front Note</AccordionHeader>
+                                            <AccordionContent>
+                                                <div class="mb-3">
+                                                    <textarea id="frontNote" v-model="note" rows="3"
+                                                        class="form-control form-control-sm rounded-3"
+                                                        placeholder="Enter front note..."></textarea>
+                                                </div>
+
+                                            </AccordionContent>
+                                        </AccordionPanel>
+                                        <AccordionPanel value="1">
+                                            <AccordionHeader>Kitchen Note</AccordionHeader>
+                                            <AccordionContent>
+                                                <div class="mb-3">
+                                                    <textarea id="kitchenNote" v-model="kitchenNote" rows="3"
+                                                        class="form-control form-control-sm rounded-3"
+                                                        placeholder="Enter kitchen note..."></textarea>
+                                                </div>
+                                            </AccordionContent>
+                                        </AccordionPanel>
+                                    </Accordion>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="kitchenNote" class="form-label small fw-semibold">Kitchen Note</label>
-                                    <textarea id="kitchenNote" v-model="kitchenNote" rows="3"
-                                        class="form-control form-control-sm rounded-3"
-                                        placeholder="Enter kitchen note..."></textarea>
-                                </div>
+
+
+
+
                             </div>
                             <div class="cart-footer">
                                 <button class="btn btn-secondary btn-clear" @click="resetCart()">
@@ -6288,8 +6312,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                                 class="d-flex align-items-center gap-1">
 
                                                                 <!-- Minus -->
-                                                                <button
-                                                                    class="btn btn-primary rounded-circle p-0"
+                                                                <button class="btn btn-primary rounded-circle p-0"
                                                                     style="width: 35px; height: 10px;"
                                                                     @click="decrementModalAddon(currentAddonGroup.group_id, addon.id)"
                                                                     :disabled="getModalAddonQuantity(currentAddonGroup.group_id, addon.id) <= 1">
@@ -6301,13 +6324,12 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                                 <span class="fw-bold"
                                                                     style="min-width: 20px; text-align: center; font-size: 0.75rem;">
                                                                     {{ getModalAddonQuantity(currentAddonGroup.group_id,
-                                                                    addon.id)
+                                                                        addon.id)
                                                                     }}
                                                                 </span>
 
                                                                 <!-- Plus -->
-                                                                <button
-                                                                    class="btn btn-primary rounded-circle p-0"
+                                                                <button class="btn btn-primary rounded-circle p-0"
                                                                     style="width: 35px; height: 10px;"
                                                                     @click="incrementModalAddon(currentAddonGroup.group_id, addon.id)">
                                                                     <i class="bi bi-plus"
@@ -7020,6 +7042,17 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
     border-bottom: 1px solid #fff !important;
 }
 
+:global(.dark .p-accordionheader) {
+    background-color: #1A1A1A !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-accordioncontent-content) {
+    background-color: #1A1A1A !important;
+    color: #fff !important;
+    padding: 0px !important;
+}
+
 .dark .stepper-circle {
     background-color: #1B1670 !important;
 }
@@ -7033,6 +7066,8 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
     background: #dee2e6;
     z-index: 0;
 }
+
+
 
 .stepper-progress-fill {
     position: absolute;
@@ -8062,10 +8097,15 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
 .cart-footer {
     background: #f7f8ff;
     padding: 0.75rem;
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.6rem;
     border-bottom-left-radius: 1rem;
     border-bottom-right-radius: 1rem;
+}
+
+.cart-footer .btn {
+    width: 100%;
 }
 
 .btn-clear {
