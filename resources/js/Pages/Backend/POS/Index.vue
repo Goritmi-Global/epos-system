@@ -152,7 +152,7 @@ const productsByCat = computed(() => {
         if (!grouped[catId]) grouped[catId] = [];
 
         const dealProduct = {
-            id: `deal-${deal.id}`,
+            id: deal.id,
             dealId: deal.id,
             title: deal.title,
             img: deal.img,
@@ -2651,7 +2651,7 @@ const handleConfirmMissingIngredients = async () => {
             });
 
             const dealItem = {
-                id: `deal-${deal.id}`,
+                id: deal.id,
                 title: deal.title,
                 price: totalDealPriceWithAddons.value,
                 unit_price: parseFloat(deal.price),
@@ -4195,7 +4195,7 @@ const incrementDealQty = async (deal) => {
         });
 
         const dealItem = {
-            id: `deal-${deal.id}`,
+            id: deal.id,
             title: deal.title,
             price: parseFloat(deal.price),
             unit_price: parseFloat(deal.price),
@@ -4561,7 +4561,7 @@ const confirmDealAndAddToCart = async () => {
     } else {
         // Add new customized deal
         const dealItem = {
-            id: `deal-${selectedDeal.value.id}`,
+            id: selectedDeal.value.id,
             title: selectedDeal.value.title,
             price: totalDealPriceWithAddons.value,
             unit_price: parseFloat(selectedDeal.value.price),
@@ -4763,6 +4763,25 @@ const holdOrderAsPending = async () => {
 };
 
 // Fetch pending orders
+// const fetchPendingOrders = async () => {
+//     pendingOrdersLoading.value = true;
+//     try {
+//         const response = await axios.get('/pending-orders');
+
+//         if (response.data.success) {
+//             pendingOrders.value = response.data.data;
+//         } else {
+//             pendingOrders.value = [];
+//         }
+//     } catch (error) {
+//         toast.error('Failed to load pending orders');
+//         pendingOrders.value = [];
+//     } finally {
+//         pendingOrdersLoading.value = false;
+//     }
+// };
+
+
 const fetchPendingOrders = async () => {
     pendingOrdersLoading.value = true;
     try {
@@ -4774,6 +4793,7 @@ const fetchPendingOrders = async () => {
             pendingOrders.value = [];
         }
     } catch (error) {
+        console.error('Error fetching pending orders:', error);
         toast.error('Failed to load pending orders');
         pendingOrders.value = [];
     } finally {
@@ -4848,12 +4868,40 @@ const resumePendingOrder = async (pendingOrder) => {
 };
 
 // Reject (delete) pending order
-const rejectPendingOrder = async (pendingOrder) => {
+// const rejectPendingOrder = async (pendingOrder) => {
+//     try {
+//         await axios.delete(`/pending-orders/${pendingOrder.id}`);
+//         toast.success('Pending order rejected');
+//         await fetchPendingOrders();
+//     } catch (error) {
+//         toast.error('Failed to reject order');
+//     }
+// };
+
+const rejectPendingOrder = async (order) => {
     try {
-        await axios.delete(`/pending-orders/${pendingOrder.id}`);
-        toast.success('Pending order rejected');
+        // Determine which endpoint to use based on order type
+        let endpoint = '';
+        let payload = {};
+
+        if (order.type === 'unpaid') {
+            // Unpaid POS order
+            endpoint = `/pending-orders/${order.id}`;
+            payload = { order_type: 'unpaid' };
+        } else {
+            // Held order
+            endpoint = `/pending-orders/${order.id}`;
+            payload = { order_type: 'held' };
+        }
+
+        await axios.delete(endpoint, {
+            data: payload
+        });
+
+        toast.success('Order rejected successfully');
         await fetchPendingOrders();
     } catch (error) {
+        console.error('Error rejecting order:', error);
         toast.error('Failed to reject order');
     }
 };
@@ -4914,6 +4962,159 @@ const decrementModalAddon = (groupId, addonId) => {
     const addon = modalSelectedAddons.value[groupId]?.find(a => a.id === addonId);
     if (addon && addon.quantity > 1) {
         addon.quantity--;
+    }
+};
+
+
+
+// ========================================================
+//                Pending Orders without payment
+// ========================================================
+const showPaymentModal = ref(false);
+const selectedUnpaidOrder = ref(null);
+
+const placeOrderWithoutPayment = async () => {
+    if (orderItems.value.length === 0) {
+        toast.error("Please add at least one item to the cart.");
+        return;
+    }
+
+    // Same validations as openConfirmModal
+    if (orderType.value === "Eat_in" && !selectedTable.value) {
+        toast.error("Please select a table number for Dine In orders.");
+        return;
+    }
+    if ((orderType.value === "Delivery" || orderType.value === "Takeaway") && !customer.value) {
+        toast.error("Customer name is required.");
+        return;
+    }
+    if (orderType.value === "Delivery" && !phoneNumber.value) {
+        toast.error("Phone number is required for delivery.");
+        return;
+    }
+    if (orderType.value === "Delivery" && !deliveryLocation.value) {
+        toast.error("Delivery location is required.");
+        return;
+    }
+
+    try {
+        const payload = {
+            customer_name: customer.value,
+            phone_number: phoneNumber.value,
+            delivery_location: deliveryLocation.value,
+            sub_total: subTotal.value,
+            tax: totalTax.value,
+            service_charges: serviceCharges.value,
+            delivery_charges: deliveryCharges.value,
+            sales_discount: totalResaleSavings.value,
+            approved_discounts: approvedDiscountTotal.value,
+            approved_discount_details: selectedDiscounts.value.map(discount => ({
+                discount_id: discount.id,
+                discount_name: discount.name,
+                discount_percentage: discount.percentage,
+                discount_amount: getDiscountAmount(discount.percentage),
+                approval_id: discount.approval_id
+            })),
+            promo_discount: promoDiscount.value,
+            applied_promos: selectedPromos.value.map(promo => ({
+                promo_id: promo.id,
+                promo_name: promo.name,
+                promo_type: promo.type,
+                discount_amount: promo.applied_discount || 0,
+                applied_to_items: promo.applied_to_items || []
+            })),
+            total_amount: grandTotal.value,
+            note: note.value,
+            kitchen_note: kitchenNote.value,
+            order_date: new Date().toISOString().split("T")[0],
+            order_time: new Date().toTimeString().split(" ")[0],
+            order_type: orderType.value === "Eat_in" ? "Eat In" : orderType.value,
+            table_number: selectedTable.value?.name || null,
+            items: orderItems.value.map((it) => ({
+                product_id: it.id,
+                title: it.title,
+                quantity: it.qty,
+                price: it.price,
+                note: it.note ?? "",
+                kitchen_note: kitchenNote.value ?? "",
+                unit_price: it.unit_price,
+                item_kitchen_note: it.item_kitchen_note ?? "",
+                tax_percentage: getItemTaxPercentage(it),
+                tax_amount: getItemTax(it),
+                variant_id: it.variant_id || null,
+                variant_name: it.variant_name || null,
+                addons: it.addons || [],
+                sale_discount_per_item: it.resale_discount_per_item || 0,
+                removed_ingredients: it.removed_ingredients || [],
+                is_deal: it.isDeal || false,
+                deal_id: it.dealId || null,
+                menu_items: it.menu_items || []
+            })),
+            confirm_missing_ingredients: true
+        };
+
+        const response = await axios.post('/pos/order-without-payment', payload);
+
+        if (response.data.success) {
+            toast.success('Order placed successfully! Payment pending.');
+
+            // // Print KOT
+            // if (response.data.kot) {
+            //     printKot(JSON.parse(JSON.stringify(response.data.order)));
+            // }
+
+            // Reset cart
+            resetCart();
+
+            // Refresh pending orders
+            await fetchPendingOrders();
+        }
+    } catch (error) {
+        console.error('Error placing order:', error);
+        toast.error(error.response?.data?.message || 'Failed to place order');
+    }
+};
+
+// Handle payment for unpaid order
+const handlePayUnpaidOrder = (order) => {
+    selectedUnpaidOrder.value = order;
+    cashReceived.value = parseFloat(order.total_amount).toFixed(2);
+    showPaymentModal.value = true;
+};
+
+// Complete payment
+const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, changeAmount, done }) => {
+    try {
+        const payload = {
+            payment_method: paymentMethod,
+            cash_received: cashReceived,
+            payment_type: paymentMethod === 'Split' ? 'split' : paymentMethod.toLowerCase(),
+            cash_amount: paymentMethod === 'Split' ? cashReceived : null,
+            card_amount: paymentMethod === 'Split' ? cardAmount : null,
+        };
+
+        const response = await axios.post(
+            `/pos/orders/${selectedUnpaidOrder.value.pos_order_id}/complete-payment`,
+            payload
+        );
+
+        if (response.data.success) {
+            toast.success('Payment completed successfully!');
+
+            // Print receipt
+            printReceipt(JSON.parse(JSON.stringify(response.data.order)));
+
+            showPaymentModal.value = false;
+            selectedUnpaidOrder.value = null;
+
+            // Refresh pending orders
+            await fetchPendingOrders();
+        }
+    } catch (error) {
+        console.error('Payment error:', error);
+        toast.error(error.response?.data?.message || 'Failed to complete payment');
+    } finally {
+        if (done) done();
     }
 };
 
@@ -5623,6 +5824,10 @@ const decrementModalAddon = (groupId, addonId) => {
                                 <button class="btn btn-primary btn-place" @click="openConfirmModal">
                                     Place Order
                                 </button>
+                                <button class="btn btn-info" @click="placeOrderWithoutPayment">
+                                    <i class="bi bi-clock me-1"></i>
+                                    Pay Later
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -5916,7 +6121,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                            }}</strong>
+                                                }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -5954,7 +6159,7 @@ const decrementModalAddon = (groupId, addonId) => {
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                }}</h6>
+                                                                    }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">
@@ -6745,8 +6950,19 @@ const decrementModalAddon = (groupId, addonId) => {
 
             <PendingOrdersModal :show="showPendingOrdersModal" :pending-orders="pendingOrders"
                 :loading="pendingOrdersLoading" @close="showPendingOrdersModal = false" @resume="resumePendingOrder"
-                @reject="rejectPendingOrder" />
-
+                @reject="rejectPendingOrder" @pay-now="handlePayUnpaidOrder" />
+            <ConfirmOrderModal v-if="selectedUnpaidOrder" :show="showPaymentModal"
+                :customer="selectedUnpaidOrder.customer_name" :delivery-location="selectedUnpaidOrder.delivery_location"
+                :phone="selectedUnpaidOrder.phone_number" :order-type="selectedUnpaidOrder.order_type"
+                :selected-table="{ name: selectedUnpaidOrder.table_number }"
+                :order-items="selectedUnpaidOrder.order_items" :grand-total="selectedUnpaidOrder.total_amount"
+                :sub-total="selectedUnpaidOrder.sub_total" :tax="selectedUnpaidOrder.tax"
+                :service-charges="selectedUnpaidOrder.service_charges"
+                :delivery-charges="selectedUnpaidOrder.delivery_charges"
+                :promo-discount="selectedUnpaidOrder.promo_discount" :note="selectedUnpaidOrder.note"
+                :kitchen-note="selectedUnpaidOrder.kitchen_note" v-model:cashReceived="cashReceived" :money="money"
+                @close="showPaymentModal = false; selectedUnpaidOrder = null" @confirm="completeOrderPayment"
+                :is-payment-only="true" />
         </div>
     </Master>
 </template>
