@@ -2098,7 +2098,7 @@ const incCartWithWarning = async (i) => {
 
 async function printReceipt(order) {
     try {
-        
+
         const res = await axios.post(
             'http://localhost:8085/print',
             { order, type: 'customer' },
@@ -2575,11 +2575,11 @@ const confirmOrder = async ({
         console.log('🧾 Last order data prepared:', lastOrder.value);
 
         if (autoPrintKot) {
-              printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
+            printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
         }
-            kotData.value = await openPosOrdersModal();
-            printKot(JSON.parse(JSON.stringify(lastOrder.value)));
-     
+        kotData.value = await openPosOrdersModal();
+        printKot(JSON.parse(JSON.stringify(lastOrder.value)));
+
 
         selectedPromos.value = [];
         selectedDiscounts.value = [];
@@ -3666,7 +3666,7 @@ const categoriesWithMenus = computed(() => {
     return menuCategories.value.filter(category => {
         const hasMenuItems = category.menu_items_count && category.menu_items_count > 0;
         const hasDeals = category.deals_count && category.deals_count > 0;
-        
+
         return hasMenuItems || hasDeals;
     });
 });
@@ -4346,6 +4346,15 @@ const toggleDealIngredient = (ingredientId) => {
 // Get remaining ingredients count
 const getRemainingDealIngredientsCount = () => {
     const ingredients = getCurrentDealIngredients();
+    console.log('ingredients:', ingredients);
+    console.log('Type:', typeof ingredients);
+    console.log('Is Array:', Array.isArray(ingredients));
+
+    // Check if ingredients is valid and is an array
+    if (!ingredients || !Array.isArray(ingredients)) {
+        console.error('getCurrentDealIngredients() did not return an array:', ingredients);
+        return 0;
+    }
     const removed = dealRemovedIngredients.value[currentDealMenuItemIndex.value] || [];
     return ingredients.filter(ing => !removed.includes(ing.id)).length;
 };
@@ -5752,7 +5761,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -5798,7 +5807,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
                                     </div>
                                     <!-- Total After All Discounts -->
@@ -6147,7 +6156,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                                }}</strong>
+                                            }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -6185,7 +6194,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                    }}</h6>
+                                                                }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">
