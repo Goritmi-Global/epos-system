@@ -6233,7 +6233,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                             style="width: 16px; height: 16px;"
                                                             :id="'ingredient-' + (ingredient.id || ingredient.inventory_item_id)"
                                                             :checked="!isIngredientRemoved(ingredient.id || ingredient.inventory_item_id)"
-                                                            :disabled="!isIngredientRemoved(ingredient.id || ingredient.inventory_item_id) && getRemainingIngredientsCount() === 1"
+                                                            :disabled="!isIngredientRemoved(ingredient.id || ingredient.inventory_item_id)"
                                                             @change="toggleIngredient(ingredient.id || ingredient.inventory_item_id)">
 
                                                         <label
