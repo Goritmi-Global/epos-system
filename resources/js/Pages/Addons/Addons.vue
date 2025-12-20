@@ -313,7 +313,7 @@ const handleFilterClear = () => {
     };
     currentPage.value = 1;
     selectedGroupFilter.value = "all";
-    fetchAddons(1);
+    // fetchAddons(1);
     fetchUniqueAddonGroups();
 };
 

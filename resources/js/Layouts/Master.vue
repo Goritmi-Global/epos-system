@@ -1372,7 +1372,7 @@ onMounted(fetchNotifications);
 
     <!-- Quick Order Type Modal -->
     <div class="modal fade" id="quickOrderModal" tabindex="-1" aria-hidden="true" ref="quickOrderModalRef">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content rounded-4">
                 <div class="modal-header border-0">
                     <h5 class="modal-title fw-bold">Select Order Type</h5>
@@ -1387,14 +1387,16 @@ onMounted(fetchNotifications);
                 </div>
 
                 <div class="modal-body">
-                    <p class="text-muted mb-4">Please select how the customer will receive their order:</p>
+                    <p class="text-muted mb-1">Please select how the customer will receive their order:</p>
                     <div class="row g-3">
                         <!-- Dynamic Order Types -->
-                        <div v-for="orderType in orderTypes" :key="orderType" class="col-md-6">
+                        <div class="row g-3">
+                        <!-- Dynamic Order Types -->
+                        <div v-for="orderType in orderTypes" :key="orderType" class="col-md-4 mb-3">
                             <button
                                 class="card-option w-100 p-4 border rounded-3 cursor-pointer transition d-flex align-items-center justify-content-center gap-3"
                                 :class="{ 'border-primary bg-light': !isDark && quickOrderType === orderType, 'border-primary dark-selected': isDark && quickOrderType === orderType }"
-                                @click="quickOrderType = orderType">
+                                @click="quickOrderType = orderType; proceedToQuickOrder();">
                                 <i :data-feather="getOrderTypeIcon(orderType)" class="flex-shrink-0"
                                     style="width: 28px; height: 28px;"></i>
                                 <div class="text-start">
@@ -1404,16 +1406,7 @@ onMounted(fetchNotifications);
                             </button>
                         </div>
                     </div>
-                </div>
-
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal"
-                        @click="showQuickOrderModal = false">
-                        Cancel
-                    </button>
-                    <button type="button" class="btn btn-primary rounded-pill px-4 py-2" @click="proceedToQuickOrder">
-                        Quick Order
-                    </button>
+                    </div>
                 </div>
             </div>
         </div>

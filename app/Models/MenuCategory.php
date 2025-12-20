@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MenuCategory extends Model
@@ -13,7 +13,7 @@ class MenuCategory extends Model
     protected $table = 'menu_categories';
 
     protected $fillable = [
-        'name', 
+        'name',
         'upload_id',
         'active',
         'parent_id',
@@ -55,13 +55,19 @@ class MenuCategory extends Model
     {
         return $query->where('active', true);
     }
+
     public function menuItems()
     {
         return $this->hasMany(MenuItem::class, 'category_id', 'id');
     }
+
     public function upload(): BelongsTo
     {
         return $this->belongsTo(\App\Models\Upload::class, 'upload_id');
     }
 
+    public function deals()
+    {
+        return $this->hasMany(Deal::class, 'category_id');
+    }
 }

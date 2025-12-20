@@ -84,9 +84,9 @@ const sections = [
     },
     {
         id: 9,
-        title: "Optional Features",
+        title: "Advanced Features",
         icon: "bi-gear",
-        description: "Additional features and settings",
+        description: "Advanced features and settings",
     },
 ];
 
@@ -172,7 +172,7 @@ async function updateSection() {
 }
 
 function changeSection(sectionId) {
-    formErrors.value = {}; 
+    formErrors.value = {};
     currentSection.value = sectionId;
 }
 </script>
@@ -198,13 +198,9 @@ function changeSection(sectionId) {
                 <div class="nav-horizontal-container">
                     <ul class="nav nav-pills nav-horizontal gap-2">
                         <li class="nav-item" v-for="section in sections" :key="section.id">
-                            <a
-                                class="nav-link-horizontal d-flex align-items-center gap-2 py-2 px-4"
+                            <a class="nav-link-horizontal d-flex align-items-center gap-2 py-2 px-4"
                                 :class="{ active: currentSection === section.id }"
-                                @click.prevent="changeSection(section.id)"
-                                href="#"
-                                role="button"
-                            >
+                                @click.prevent="changeSection(section.id)" href="#" role="button">
                                 <i :class="section.icon"></i>
                                 <span class="fw-semibold small">{{ section.title }}</span>
                             </a>
@@ -232,13 +228,8 @@ function changeSection(sectionId) {
                         </div>
                     </div>
                     <div class="card-body p-4 settings-content">
-                        <component
-                            :is="currentComponent"
-                            :key="currentSection"
-                            :model="profile"
-                            :form-errors="formErrors"
-                            @save="saveStep"
-                        />
+                        <component :is="currentComponent" :key="currentSection" :model="profile"
+                            :form-errors="formErrors" @save="saveStep" />
                     </div>
                     <div class="card-footer bg-light border-0 p-4">
                         <div class="d-flex justify-content-between align-items-center">
@@ -246,11 +237,8 @@ function changeSection(sectionId) {
                                 <i class="bi bi-info-circle me-1"></i>
                                 Changes will be saved immediately
                             </small>
-                            <button
-                                class="btn btn-primary px-4 rounded-pill"
-                                @click="updateSection"
-                                :disabled="isSaving"
-                            >
+                            <button class="btn btn-primary px-4 rounded-pill" @click="updateSection"
+                                :disabled="isSaving">
                                 <span v-if="isSaving">
                                     <span class="spinner-border spinner-border-sm me-2"></span>
                                     Saving...
@@ -285,6 +273,7 @@ function changeSection(sectionId) {
     background: #212121;
     color: #fff;
 }
+
 .dark .card-header {
     background: linear-gradient(135deg, #181818 0%, #181818 100%);
 }
@@ -298,6 +287,7 @@ function changeSection(sectionId) {
     backdrop-filter: blur(10px);
     border: 1px solid rgba(250, 250, 250, 0.3);
 }
+
 .dark .settings-nav-horizontal {
     background: #181818;
     color: #fff !important;
@@ -324,7 +314,7 @@ function changeSection(sectionId) {
     background-color: #1C0D82;
     color: #fff;
     box-shadow: 0 4px 12px rgba(28, 13, 130, 0.3);
-     border-radius: 7px;
+    border-radius: 7px;
     border-color: #1c0d82;
 }
 
@@ -340,11 +330,9 @@ function changeSection(sectionId) {
 }
 
 .card-header.bg-gradient {
-    background: linear-gradient(
-        135deg,
-        rgba(28, 13, 130, 0.03) 0%,
-        rgba(28, 13, 130, 0.08) 100%
-    );
+    background: linear-gradient(135deg,
+            rgba(28, 13, 130, 0.03) 0%,
+            rgba(28, 13, 130, 0.08) 100%);
     border-bottom: 2px solid #edf0f6;
 }
 
@@ -365,29 +353,32 @@ function changeSection(sectionId) {
     max-height: 800px;
     overflow-y: auto;
 }
+
 .settings-content::-webkit-scrollbar {
     width: 8px;
 }
+
 .settings-content::-webkit-scrollbar-track {
     background: #f1f3f5;
     border-radius: 10px;
 }
+
 .settings-content::-webkit-scrollbar-thumb {
     background: #cbd5e0;
     border-radius: 10px;
 }
+
 .settings-content::-webkit-scrollbar-thumb:hover {
     background: #a0aec0;
 }
 
 .card-footer {
-    background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.5) 0%,
-        #f8f9fa 100%
-    );
+    background: linear-gradient(180deg,
+            rgba(255, 255, 255, 0.5) 0%,
+            #f8f9fa 100%);
     border-top: 1px solid #edf0f6;
 }
+
 .dark .card-footer {
     background: linear-gradient(180deg, #181818 0%, #181818 100%);
 }
@@ -398,6 +389,7 @@ function changeSection(sectionId) {
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -441,9 +433,11 @@ function changeSection(sectionId) {
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
 }
@@ -457,10 +451,12 @@ function changeSection(sectionId) {
     .nav-horizontal {
         gap: 8px;
     }
+
     .nav-link-horizontal {
         padding: 8px 12px !important;
         font-size: 0.85rem;
     }
+
     .settings-content {
         min-height: 300px;
         max-height: 600px;
@@ -471,21 +467,26 @@ function changeSection(sectionId) {
     .settings-wrapper {
         padding: 20px 15px;
     }
+
     .settings-header h3 {
         font-size: 1.3rem;
     }
+
     .nav-link-horizontal {
         padding: 7px 10px !important;
         font-size: 0.8rem;
     }
+
     .nav-link-horizontal i {
         display: none;
     }
+
     .icon-wrapper {
         width: 40px;
         height: 40px;
         font-size: 1.5rem;
     }
+
     .card-body,
     .card-header,
     .card-footer {
@@ -498,13 +499,16 @@ function changeSection(sectionId) {
         padding-left: 0px;
         padding-right: 0px;
     }
+
     .settings-header h3 {
         font-size: 1.3rem;
     }
+
     .nav-link-horizontal {
         padding: 8px 16px !important;
         font-size: 0.9rem;
     }
+
     .settings-content {
         max-height: 700px;
     }

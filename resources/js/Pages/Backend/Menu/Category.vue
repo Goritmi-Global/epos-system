@@ -763,29 +763,55 @@ const submitSubCategory = async () => {
     }
 };
 
-const onDownload = (type) => {
-    if (!categories.value || categories.value.length === 0) {
-        toast.error("No Units data to download");
-        return;
-    }
-
-    // Use filtered data if there's a search query, otherwise use all suppliers
-    const dataToExport = q.value.trim()
-        ? filtered.value
-        : categories.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No Units found to download");
-        return;
-    }
-
+const fetchAllCategories = async () => {
     try {
+        const params = {
+            per_page: 999999, 
+        };
+        
+        const searchQuery = (q.value || '').trim();
+        if (searchQuery) {
+            params.q = searchQuery;
+        }
+        if (appliedFilters.value.sortBy) {
+            params.sort_by = appliedFilters.value.sortBy;
+        }
+        if (appliedFilters.value.status) {
+            params.status = appliedFilters.value.status;
+        }
+        if (appliedFilters.value.category) {
+            params.category = appliedFilters.value.category;
+        }
+        if (appliedFilters.value.hasSubcategories) {
+            params.has_subcategories = appliedFilters.value.hasSubcategories;
+        }
+
+        const res = await axios.get("/api/menu-categories/parents/list", { params });
+        return res.data.data || [];
+    } catch (err) {
+        console.error("Failed to fetch all categories:", err);
+        toast.error("Failed to load all categories for export");
+        return [];
+    }
+};
+const onDownload = async (type) => {
+    try {
+        toast.info("Preparing download...");
+        
+        // Fetch all categories for export
+        const allCategories = await fetchAllCategories();
+        
+        if (!allCategories || allCategories.length === 0) {
+            toast.error("No categories data to download");
+            return;
+        }
+
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allCategories);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allCategories);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allCategories);
         } else {
             toast.error("Invalid download type");
         }
