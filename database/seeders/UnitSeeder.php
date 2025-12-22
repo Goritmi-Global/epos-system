@@ -40,7 +40,7 @@ class UnitSeeder extends Seeder
 
         // Create all base units
         foreach ($baseUnits as $unitName) {
-            $unit = Unit::create([
+            $unit = Unit::updateOrCreate([
                 'name' => $unitName,
                 'base_unit_id' => null,
                 'conversion_factor' => 1,
@@ -58,7 +58,7 @@ class UnitSeeder extends Seeder
         ];
 
         foreach ($derivedUnits as $d) {
-            Unit::create([
+            Unit::updateOrCreate([
                 'name' => $d['name'],
                 'base_unit_id' => $baseUnitModels[$d['base']]->id,
                 'conversion_factor' => $d['factor'],

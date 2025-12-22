@@ -962,19 +962,6 @@ const downloadExcel = (data) => {
                                         <h5 class="mb-0 fw-semibold">Discounts</h5>
 
                                         <div class="d-flex flex-wrap gap-2 align-items-center">
-                                            <FilterModal v-model="filters" title="Discounts"
-                                                modalId="discountsFilterModal" modalSize="modal-lg" :sortOptions="[
-                                                    { value: 'name_asc', label: 'Name: A to Z' },
-                                                    { value: 'name_desc', label: 'Name: Z to A' },
-                                                    // { value: 'discount_asc', label: 'Discount: Low to High' },
-                                                    // { value: 'discount_desc', label: 'Discount: High to Low' },
-                                                    // { value: 'date_asc', label: 'Start Date: Oldest First' },
-                                                    // { value: 'date_desc', label: 'Start Date: Newest First' },
-                                                ]" :showStockStatus="false" categoryLabel="Discount Type"
-                                                statusLabel="Discount Status" :showPriceRange="true"
-                                                priceRangeLabel="Discount Percent Range" :showDateRange="true"
-                                                @apply="handleFilterApply" @clear="handleFilterClear" />
-
                                             <!-- Search Input -->
                                             <div class="search-wrap">
                                                 <i class="bi bi-search"></i>
@@ -990,6 +977,16 @@ const downloadExcel = (data) => {
                                                 <input v-else class="form-control search-input"
                                                     placeholder="Search discounts" disabled type="text" />
                                             </div>
+
+                                            <FilterModal v-model="filters" title="Discounts"
+                                                modalId="discountsFilterModal" modalSize="modal-lg" :sortOptions="[
+                                                    { value: 'name_asc', label: 'Name: A to Z' },
+                                                    { value: 'name_desc', label: 'Name: Z to A' },
+                                                ]" :showStockStatus="false" categoryLabel="Discount Type"
+                                                statusLabel="Discount Status" :showPriceRange="true"
+                                                priceRangeLabel="Discount Percent Range" :showDateRange="true"
+                                                @apply="handleFilterApply" @clear="handleFilterClear" />
+
                                             <!-- Add New Button -->
                                             <button data-bs-toggle="modal" data-bs-target="#discountModal"
                                                 @click="resetModal"
@@ -1001,15 +998,9 @@ const downloadExcel = (data) => {
                                                 :sampleData="sampleData" @on-import="handleImport" />
 
                                             <!-- Export Dropdown -->
-                                           <Dropdown
-                                                v-model="exportOption"
-                                                :options="exportOptions"
-                                                optionLabel="label"
-                                                optionValue="value"
-                                                placeholder="Export"
-                                                class="export-dropdown"
-                                                @change="onExportChange"
-                                            />
+                                            <Dropdown v-model="exportOption" :options="exportOptions"
+                                                optionLabel="label" optionValue="value" placeholder="Export"
+                                                class="export-dropdown" @change="onExportChange" />
 
                                         </div>
                                     </div>

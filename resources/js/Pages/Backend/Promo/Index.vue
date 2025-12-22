@@ -83,7 +83,7 @@ const exportOptions = [
 const onExportChange = (e) => {
     if (e.value) {
         onDownload(e.value)
-        exportOption.value = null 
+        exportOption.value = null
     }
 }
 
@@ -911,17 +911,6 @@ const downloadExcel = (data) => {
                                             <h5 class="mb-0 fw-semibold">Promos</h5>
 
                                             <div class="d-flex flex-wrap gap-2 align-items-center">
-
-                                                <FilterModal v-model="filters" title="Promos"
-                                                    modalId="promosFilterModal" modalSize="modal-lg" :sortOptions="[
-                                                        { value: 'name_asc', label: 'Name: A to Z' },
-                                                        { value: 'name_desc', label: 'Name: Z to A' },
-                                                    ]" :categories="promoTypesForFilter" categoryLabel="Promo Type"
-                                                    statusLabel="Promo Status" :showPriceRange="true"
-                                                    :show-stock-status="false" priceRangeLabel="Discount Amount Range"
-                                                    :showDateRange="true" @apply="handleFilterApply"
-                                                    @clear="handleFilterClear" />
-
                                                 <div class="search-wrap">
                                                     <i class="bi bi-search"></i>
                                                     <input type="email" name="email" autocomplete="email"
@@ -936,7 +925,15 @@ const downloadExcel = (data) => {
                                                         disabled type="text" />
                                                 </div>
 
-
+                                                <FilterModal v-model="filters" title="Promos"
+                                                    modalId="promosFilterModal" modalSize="modal-lg" :sortOptions="[
+                                                        { value: 'name_asc', label: 'Name: A to Z' },
+                                                        { value: 'name_desc', label: 'Name: Z to A' },
+                                                    ]" :categories="promoTypesForFilter" categoryLabel="Promo Type"
+                                                    statusLabel="Promo Status" :showPriceRange="true"
+                                                    :show-stock-status="false" priceRangeLabel="Discount Amount Range"
+                                                    :showDateRange="true" @apply="handleFilterApply"
+                                                    @clear="handleFilterClear" />
 
                                                 <button data-bs-toggle="modal" data-bs-target="#promoModal"
                                                     @click="resetModal"
@@ -947,15 +944,9 @@ const downloadExcel = (data) => {
                                                 <ImportFile label="Import Promos" :sampleHeaders="sampleHeaders"
                                                     :sampleData="sampleData" @on-import="handleImport" />
 
-                                              <Dropdown
-                                                    v-model="exportOption"
-                                                    :options="exportOptions"
-                                                    optionLabel="label"
-                                                    optionValue="value"
-                                                    placeholder="Export"
-                                                    class="export-dropdown"
-                                                    @change="onExportChange"
-                                                />
+                                                <Dropdown v-model="exportOption" :options="exportOptions"
+                                                    optionLabel="label" optionValue="value" placeholder="Export"
+                                                    class="export-dropdown" @change="onExportChange" />
 
                                             </div>
                                         </div>

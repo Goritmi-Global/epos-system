@@ -34,20 +34,23 @@ const exportOption = ref(null)
 const exportOptions = [
     { label: 'PDF', value: 'pdf' },
     { label: 'Excel', value: 'excel' },
+    { label: 'CSV', value: 'csv' }
 ]
 
-const handleExport = (value) => {
+const handleExport = async (value) => {
     if (!value) return
 
     if (value === 'pdf') {
         downloadPDF()
     }
-
-    if (value === 'excel') {
+    else if (value === 'excel') {
         downloadExcel()
     }
+    else if (value === 'csv') {
+        await downloadCSV()
+    }
 
-    exportOption.value = null // reset after export
+    exportOption.value = null
 }
 
 const analyticsTypeOptions = [
@@ -850,6 +853,36 @@ const downloadExcel = () => {
     // Save file
     XLSX.writeFile(wb, `${filters.value.type}-analytics-${Date.now()}.xlsx`);
 };
+
+const downloadCSV = async () => {
+    try {
+        const response = await axios.get('/api/analytics/export-csv', {
+            params: {
+                type: filters.value.type,
+                timeRange: filters.value.timeRange,
+                selectedMonth: filters.value.selectedMonth,
+                selectedYear: filters.value.selectedYear,
+                selectedDate: filters.value.selectedDate,
+                dateFrom: filters.value.dateFrom,
+                dateTo: filters.value.dateTo,
+                orderType: filters.value.orderType,
+                paymentType: filters.value.paymentType,
+            },
+            responseType: 'blob'
+        });
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${filters.value.type}_analytics_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    } catch (error) {
+        console.error('CSV download error:', error);
+        errorMsg.value = 'Failed to download CSV';
+    }
+}
 
 </script>
 

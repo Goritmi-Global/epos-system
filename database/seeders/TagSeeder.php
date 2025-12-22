@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Tag;
+use Illuminate\Database\Seeder;
 
 class TagSeeder extends Seeder
 {
@@ -13,26 +13,26 @@ class TagSeeder extends Seeder
     public function run(): void
     {
         $tags = [
-            "Vegan",
-            "Vegetarian",
-            "Halal",
-            "Kosher",
-            "Organic",
-            "Locally Sourced",
-            "Fairtrade",
-            "Spicy",
-            "Free-From Nuts",
-            "Contains Soy",
-            "Free-From Egg",
-            "Sugar-Free",
-            "Ethically Sourced",
-            "Red Tractor Certified",
-            "Scottish Produce",
-            "Welsh Lamb",
+            'Vegan',
+            'Vegetarian',
+            'Halal',
+            'Kosher',
+            'Organic',
+            'Locally Sourced',
+            'Fairtrade',
+            'Spicy',
+            'Free-From Nuts',
+            'Contains Soy',
+            'Free-From Egg',
+            'Sugar-Free',
+            'Ethically Sourced',
+            'Red Tractor Certified',
+            'Scottish Produce',
+            'Welsh Lamb',
         ];
 
         foreach ($tags as $tagName) {
-            Tag::create([
+            Tag::updateOrCreate([
                 'name' => $tagName,
             ]);
         }
