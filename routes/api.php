@@ -42,6 +42,12 @@ Route::get('/test-api', function () {
     return response()->json(['status' => 'API file is loading']);
 });
 
+Route::get('/csrf-token', function () {
+    return response()->json([
+        'csrf_token' => csrf_token()
+    ]);
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/analytics', [AnalyticsController::class, 'index'])
         ->name('api.analytics.index');
