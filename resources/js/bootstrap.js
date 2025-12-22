@@ -19,7 +19,7 @@ if (initialToken) {
     console.error('❌ CSRF token not found in meta tag');
 }
 
-// Before each request
+// Before each request - always get fresh token
 window.axios.interceptors.request.use(
     config => {
         const token = getCsrfToken();
@@ -35,7 +35,7 @@ window.axios.interceptors.request.use(
     }
 );
 
-// Handle responses
+// Handle responses with proper retry logic
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -74,6 +74,7 @@ window.axios.interceptors.response.use(
                         failedQueue.push({ resolve, reject });
                     }).then(token => {
                         originalRequest.headers['X-CSRF-TOKEN'] = token;
+                        console.log('🔄 Retrying queued request with new token');
                         return axios(originalRequest);
                     }).catch(err => Promise.reject(err));
                 }
@@ -84,22 +85,44 @@ window.axios.interceptors.response.use(
                 console.log('🔄 Attempting to refresh CSRF token...');
 
                 try {
-                    await axios.get('/sanctum/csrf-cookie');
-                    console.log('✅ CSRF cookie endpoint called');
+                    // Get fresh CSRF cookie from server
+                    const cookieResponse = await axios.get('/sanctum/csrf-cookie');
+                    console.log('✅ CSRF cookie endpoint called:', cookieResponse.status);
                     
-                    const newToken = getCsrfToken();
+                    // CRITICAL: Wait a moment for cookie to be set in browser
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // Now get the new token from meta tag
+                    // But first, we need to update the meta tag with the new token
+                    // The server should have updated it, but let's fetch it explicitly
+                    
+                    // Make a simple GET request to refresh the page token
+                    const tokenResponse = await axios.get('/api/csrf-token');
+                    const newToken = tokenResponse.data.csrf_token;
                     
                     if (newToken) {
-                        console.log('✅ New CSRF token obtained');
+                        console.log('✅ New CSRF token obtained:', newToken.substring(0, 20) + '...');
+                        
+                        // Update the meta tag
+                        const metaTag = document.head.querySelector('meta[name="csrf-token"]');
+                        if (metaTag) {
+                            metaTag.setAttribute('content', newToken);
+                        }
+                        
+                        // Update axios defaults
                         window.axios.defaults.headers.common['X-CSRF-TOKEN'] = newToken;
+                        
+                        // Update the original request header
                         originalRequest.headers['X-CSRF-TOKEN'] = newToken;
+                        
+                        // Process queued requests
                         processQueue(null, newToken);
                         isRefreshing = false;
                         
-                        console.log('🔄 Retrying original request...');
+                        console.log('🔄 Retrying original request with new token...');
                         return axios(originalRequest);
                     } else {
-                        throw new Error('No CSRF token found after refresh');
+                        throw new Error('No CSRF token received from server');
                     }
                 } catch (refreshError) {
                     console.error('❌ CSRF token refresh failed:', refreshError);
