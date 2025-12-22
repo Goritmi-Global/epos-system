@@ -859,20 +859,6 @@ const handleImport = (data) => {
                         <h5 class="mb-0 fw-semibold">Addon Groups</h5>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
-
-
-                            <FilterModal v-model="filters" title="Addon Groups" modalId="addonGroupsFilterModal"
-                                modalSize="modal-lg" :sortOptions="[
-                                    { value: 'name_asc', label: 'Name: A to Z' },
-                                    { value: 'name_desc', label: 'Name: Z to A' },
-                                    { value: 'addons_asc', label: 'Addons Count: Low to High' },
-                                    { value: 'addons_desc', label: 'Addons Count: High to Low' },
-                                    { value: 'newest', label: 'Newest First' },
-                                    { value: 'oldest', label: 'Oldest First' },
-                                ]" :showPriceRange="false" :showStockStatus="false" :showDateRange="false"
-                                :showCategory="false" statusLabel="Group Status" priceLabel="Addons Count Range"
-                                priceMinPlaceholder="Min Count" priceMaxPlaceholder="Max Count"
-                                @apply="handleFilterApply" @clear="handleFilterClear" />
                             <!-- Search Input -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
@@ -891,6 +877,19 @@ const handleImport = (data) => {
                                     placeholder="Search groups..." disabled type="text" />
                             </div>
 
+                            <FilterModal v-model="filters" title="Addon Groups" modalId="addonGroupsFilterModal"
+                                modalSize="modal-lg" :sortOptions="[
+                                    { value: 'name_asc', label: 'Name: A to Z' },
+                                    { value: 'name_desc', label: 'Name: Z to A' },
+                                    { value: 'addons_asc', label: 'Addons Count: Low to High' },
+                                    { value: 'addons_desc', label: 'Addons Count: High to Low' },
+                                    { value: 'newest', label: 'Newest First' },
+                                    { value: 'oldest', label: 'Oldest First' },
+                                ]" :showPriceRange="false" :showStockStatus="false" :showDateRange="false"
+                                :showCategory="false" statusLabel="Group Status" priceLabel="Addons Count Range"
+                                priceMinPlaceholder="Min Count" priceMaxPlaceholder="Max Count"
+                                @apply="handleFilterApply" @clear="handleFilterClear" />
+
                             <!-- Add Group Button -->
                             <button data-bs-toggle="modal" data-bs-target="#addonGroupModal" @click="resetModal"
                                 class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
@@ -900,15 +899,9 @@ const handleImport = (data) => {
                             <ImportFile label="Import Groups" :sampleHeaders="sampleHeaders" :sampleData="sampleData"
                                 @on-import="handleImport" />
 
-                            <Dropdown
-                                v-model="exportOption"
-                                :options="exportOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="Export"
-                                class="export-dropdown"
-                                @change="onExportChange"
-                            />
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
 
                         </div>
                     </div>

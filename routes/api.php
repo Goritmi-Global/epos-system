@@ -45,6 +45,8 @@ Route::get('/test-api', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/analytics', [AnalyticsController::class, 'index'])
         ->name('api.analytics.index');
+    // Add this route in your api.php or web.php
+    Route::get('/api/analytics/export-csv', [AnalyticsController::class, 'exportCsv']);
     // Allergies
     Route::prefix('allergies')->name('api.allergies.')->group(function () {
         Route::post('/import', [AllergyController::class, 'import'])->name('import');
@@ -249,11 +251,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/unique-groups', [AddonController::class, 'getUniqueGroups']);
         // Get all addons with their group information
         Route::get('/all', [AddonController::class, 'all']);
-
-        // Get statistics for KPI cards
-        Route::get('/statistics', [AddonController::class, 'statistics']);
-
-        // Get addons by specific group
+        Route::get('/stats', [AddonController::class, 'getStats']);
         Route::get('/group/{groupId}', [AddonController::class, 'byGroup']);
 
         // CRUD operations

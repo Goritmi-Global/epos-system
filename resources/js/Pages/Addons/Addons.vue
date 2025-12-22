@@ -37,6 +37,13 @@ const addonForm = ref({
     sort_order: 0,
 });
 
+const summaryStats = ref({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    avgPrice: 0
+});
+
 // Store the last applied filters
 const appliedFilters = ref({
     sortBy: "",
@@ -72,7 +79,7 @@ const exportOptions = [
 const onExportChange = (e) => {
     if (e.value) {
         onDownload(e.value)
-        exportOption.value = null 
+        exportOption.value = null
     }
 }
 
@@ -126,6 +133,27 @@ const fetchAddons = async (page = 1) => {
     }
 };
 
+const fetchAddonStats = async () => {
+    try {
+        const res = await axios.get("/api/addons/stats", {
+            params: {
+                q: q.value.trim() || null,
+                status: appliedFilters.value.stockStatus || null,
+                category: appliedFilters.value.category || null,
+                price_min: appliedFilters.value.priceMin || null,
+                price_max: appliedFilters.value.priceMax || null,
+            }
+        });
+        summaryStats.value = res.data.data || {
+            total: 0,
+            active: 0,
+            inactive: 0,
+            avgPrice: 0
+        };
+    } catch (err) {
+        console.error("Failed to fetch addon stats:", err);
+    }
+};
 
 const handlePageChange = (url) => {
     if (!url || loading.value) return;
@@ -191,7 +219,7 @@ onMounted(async () => {
     }, 100);
 
     // Fetch initial data
-    await Promise.all([fetchAddons(), fetchAddonGroups(),fetchUniqueAddonGroups()]);
+    await Promise.all([fetchAddons(), fetchAddonGroups(), fetchUniqueAddonGroups(), fetchAddonStats()]);
 
     const filterModal = document.getElementById('addonsFilterModal');
     if (filterModal) {
@@ -216,37 +244,31 @@ onMounted(async () => {
  * Updates automatically when addons changes
  */
 const addonStats = computed(() => {
-    // Calculate average price of all addons
-    const avgPrice =
-        addons.value.length > 0
-            ? addons.value.reduce((sum, a) => sum + parseFloat(a.price), 0) / addons.value.length
-            : 0;
-
     return [
         {
             label: "Total Addons",
-            value: addons.value.length,
+            value: summaryStats.value.total,
             icon: Package,
             iconBg: "bg-light-primary",
             iconColor: "text-primary",
         },
         {
             label: "Active Addons",
-            value: addons.value.filter((a) => a.status === "active").length,
+            value: summaryStats.value.active,
             icon: CheckCircle,
             iconBg: "bg-light-success",
             iconColor: "text-success",
         },
         {
             label: "Inactive Addons",
-            value: addons.value.filter((a) => a.status === "inactive").length,
+            value: summaryStats.value.inactive,
             icon: XCircle,
             iconBg: "bg-light-danger",
             iconColor: "text-danger",
         },
         {
             label: "Average Price",
-            value: formatCurrencySymbol(avgPrice),
+            value: formatCurrencySymbol(summaryStats.value.avgPrice),
             icon: DollarSign,
             iconBg: "bg-light-warning",
             iconColor: "text-warning",
@@ -293,7 +315,8 @@ const handleFilterApply = (appliedFiltersData) => {
     selectedGroupFilter.value = "all";
     filtersJustApplied.value = true;
     fetchAddons(1);
-    fetchUniqueAddonGroups(); 
+    fetchUniqueAddonGroups();
+    fetchAddonStats();
 };
 
 const handleFilterClear = () => {
@@ -325,6 +348,7 @@ watch(q, () => {
         currentPage.value = 1;
         fetchAddons(1);
         fetchUniqueAddonGroups();
+        fetchAddonStats();
     }, 500);
 });
 
@@ -343,6 +367,7 @@ const setGroupFilter = (group) => {
 
     currentPage.value = 1; // ✅ Reset to page 1
     fetchAddons(1); // ✅ Fetch with new group filter
+    fetchAddonStats();
 };
 
 /**
@@ -441,6 +466,7 @@ const submitAddon = async () => {
         // Reset form and refresh data
         resetModal();
         await fetchAddons();
+        await fetchAddonStats();
     } catch (err) {
         console.error("❌ Error:", err.response?.data || err.message);
 
@@ -489,6 +515,7 @@ const toggleStatus = async (row) => {
         toast.success(`Status changed to ${newStatus}`);
 
         confirmModalKey.value++;
+        await fetchAddonStats();
     } catch (error) {
         console.error("Failed to update status:", error);
         toast.error("Failed to update status");
@@ -510,6 +537,7 @@ const deleteAddon = async (row) => {
         await axios.delete(`/api/addons/${row.id}`);
         toast.success("Addon deleted successfully");
         await fetchAddons();
+        await fetchAddonStats();
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
 
@@ -892,17 +920,7 @@ const handleImport = (data) => {
                         <h5 class="mb-0 fw-semibold">Addons</h5>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
-                            <FilterModal v-model="filters" title="Addons" modalId="addonsFilterModal"
-                                modalSize="modal-lg" :sortOptions="[
-                                    { value: 'name_asc', label: 'Name: A to Z' },
-                                    { value: 'name_desc', label: 'Name: Z to A' },
-                                    { value: 'price_asc', label: 'Price: Low to High' },
-                                    { value: 'price_desc', label: 'Price: High to Low' },
-                                    { value: 'newest', label: 'Newest First' },
-                                    { value: 'oldest', label: 'Oldest First' },
-                                ]" :showStockStatus="false" :categories="addonGroupsForFilter"
-                                categoryLabel="Addon Group" statusLabel="Addon Status" :showPriceRange="true"
-                                :showDateRange="false" @apply="handleFilterApply" @clear="handleFilterClear" />
+
                             <!-- Search Input -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
@@ -924,7 +942,17 @@ const handleImport = (data) => {
                                     placeholder="Search addons..." disabled type="text" />
                             </div>
 
-
+                            <FilterModal v-model="filters" title="Addons" modalId="addonsFilterModal"
+                                modalSize="modal-lg" :sortOptions="[
+                                    { value: 'name_asc', label: 'Name: A to Z' },
+                                    { value: 'name_desc', label: 'Name: Z to A' },
+                                    { value: 'price_asc', label: 'Price: Low to High' },
+                                    { value: 'price_desc', label: 'Price: High to Low' },
+                                    { value: 'newest', label: 'Newest First' },
+                                    { value: 'oldest', label: 'Oldest First' },
+                                ]" :showStockStatus="false" :categories="addonGroupsForFilter"
+                                categoryLabel="Addon Group" statusLabel="Addon Status" :showPriceRange="true"
+                                :showDateRange="false" @apply="handleFilterApply" @clear="handleFilterClear" />
 
                             <!-- Add Addon Button -->
                             <button data-bs-toggle="modal" data-bs-target="#addonModal" @click="resetModal"
@@ -935,15 +963,9 @@ const handleImport = (data) => {
                             <ImportFile label="Import Addons" :sampleHeaders="sampleHeaders" :sampleData="sampleData"
                                 @on-import="handleImport" />
 
-                           <Dropdown
-                                v-model="exportOption"
-                                :options="exportOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="Export"
-                                class="export-dropdown"
-                                @change="onExportChange"
-                            />
+                            <Dropdown v-model="exportOption" :options="exportOptions" optionLabel="label"
+                                optionValue="value" placeholder="Export" class="export-dropdown"
+                                @change="onExportChange" />
 
 
                         </div>
