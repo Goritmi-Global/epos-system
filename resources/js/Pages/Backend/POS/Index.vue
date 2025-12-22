@@ -4460,15 +4460,15 @@ const getRemainingDealIngredientsCount = () => {
     return ingredients.filter(ing => !removed.includes(ing.id)).length;
 };
 
-// Get remaining ingredients count
-const getRemainingIngredientsCount = () => {
-     return getModalIngredients().filter(
-        ing => !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
-    ).length;
-    // const ingredients = getCurrentIngredients();
-    // const removed = dealRemovedIngredients.value[currentDealMenuItemIndex.value] || [];
-    // return ingredients.filter(ing => !removed.includes(ing.id)).length;
-};
+// // Get remaining ingredients count
+// const getRemainingIngredientsCount = () => {
+//      return getModalIngredients().filter(
+//         ing => !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
+//     ).length;
+//     // const ingredients = getCurrentIngredients();
+//     // const removed = dealRemovedIngredients.value[currentDealMenuItemIndex.value] || [];
+//     // return ingredients.filter(ing => !removed.includes(ing.id)).length;
+// };
 
 // Handle addon change
 const handleDealAddonChange = (addonGroupId, selectedAddons) => {
