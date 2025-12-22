@@ -113,12 +113,12 @@
                 </label>
                 <div class="row g-2">
                   <div class="col-md-6">
-                      <VueDatePicker v-model="localFilters.dateFrom" placeholder="Start Date" format="yyyy-MM-dd"
-                                :enable-time-picker="false" single-calendar />
+                    <VueDatePicker v-model="localFilters.dateFrom" placeholder="Start Date" format="yyyy-MM-dd"
+                      :enable-time-picker="false" single-calendar />
                   </div>
                   <div class="col-md-6">
-                      <VueDatePicker v-model="localFilters.dateTo" placeholder="End Date" format="yyyy-MM-dd"
-                                :enable-time-picker="false" single-calendar />
+                    <VueDatePicker v-model="localFilters.dateTo" placeholder="End Date" format="yyyy-MM-dd"
+                      :enable-time-picker="false" single-calendar />
                   </div>
                 </div>
               </div>

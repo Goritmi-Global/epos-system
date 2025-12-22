@@ -70,11 +70,37 @@ const skipToReview = () => {
     currentStep.value = finalStep.value;
 };
 
-// Reset addon group index when modal opens or item changes
+const currentDealAddonGroupIndex = ref(0);
+
+const currentDealAddonGroup = computed(() => {
+    if (!currentDealMenuItem.value?.addon_groups || currentDealMenuItem.value.addon_groups.length === 0) {
+        return null;
+    }
+    return currentDealMenuItem.value.addon_groups[currentDealAddonGroupIndex.value];
+});
+
 const resetAddonGroupIndex = () => {
     currentAddonGroupIndex.value = 0;
 };
 
+// Navigate to next deal addon group
+const nextDealAddonGroup = () => {
+    if (currentDealAddonGroupIndex.value < currentDealMenuItem.value?.addon_groups?.length - 1) {
+        currentDealAddonGroupIndex.value++;
+    }
+};
+
+// Navigate to previous deal addon group
+const previousDealAddonGroup = () => {
+    if (currentDealAddonGroupIndex.value > 0) {
+        currentDealAddonGroupIndex.value--;
+    }
+};
+
+// Skip to review step directly for deals
+const skipDealAddons = () => {
+    currentDealStep.value = dealFinalStep.value;
+};
 
 const filteredCategories = computed(() => {
     const q = categorySearchQuery.value.trim().toLowerCase();
@@ -512,6 +538,12 @@ const getStepCircleClass = (stepNumber) => {
         return 'stepper-circle-active';
     }
     return 'stepper-circle-inactive';
+};
+
+const getRemainingIngredientsCount = () => {
+    const ingredients = getModalIngredients();
+    const removed = modalRemovedIngredients.value || [];
+    return ingredients.filter(ing => !removed.includes(ing.id || ing.inventory_item_id)).length;
 };
 
 const initializeStep = () => {
@@ -2096,18 +2128,75 @@ const incCartWithWarning = async (i) => {
 };
 
 
-async function printReceipt(order) {
+// async function printReceipt(order, shouldPrint) {
+//     console.log("🖨️ printReceipt() called");
+//     console.log("➡️ Should Print Receipt:", shouldPrint);
+//     console.log("📦 Order ID:", order?.id || "N/A");
+
+//     try {
+//         const response = await axios.post("/api/customer/print-receipt", {
+//             order,
+//             should_print: shouldPrint
+//         });
+
+//         console.log("✅ Printer API Response:", response.data);
+
+//         if (!response.data.success) {
+//             toast.error(response.data.message || "Print failed");
+//         }
+//     } catch (error) {
+//         console.error("❌ Print failed:", error);
+//         toast.error(
+//             "Unable to connect to the customer printer. Please ensure it is properly connected."
+//         );
+//     }
+// }
+
+
+async function printReceipt(order, shouldPrint) {
+
+    const printValue = shouldPrint ? 'yes' : 'no';
+    console.log("🖨️ printReceiptN called");
+    console.log("➡️ shouldPrint (boolean):", shouldPrint);
+    console.log("➡️ print value sent to printer:", printValue);
     try {
-        const response = await axios.post("/api/customer/print-receipt", { order });
-        if (response.data.success) {
-        } else {
-            toast.error(response.data.message || "Print failed");
-        }
+
+        const res = await axios.post(
+            'http://localhost:8085/print',
+            { order, type: 'customer', print: printValue },
+            {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000,
+            },
+        );
     } catch (error) {
         console.error("Print failed:", error);
         toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
     }
 }
+
+async function printReceiptN(order, shouldPrint) {
+
+    const printValue = shouldPrint ? 'yes' : 'no';
+    console.log("🖨️ printReceiptN called");
+    console.log("➡️ shouldPrint (boolean):", shouldPrint);
+    console.log("➡️ print value sent to printer:", printValue);
+    try {
+
+        const res = await axios.post(
+            'http://localhost:8085/print',
+            { order, type: 'customer', print: printValue },
+            {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000,
+            },
+        );
+    } catch (error) {
+        console.error("Print failed:", error);
+        toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
+    }
+}
+
 
 
 const paymentMethod = ref("cash");
@@ -2565,14 +2654,17 @@ const confirmOrder = async ({
             cash_amount: paymentMethod === 'Split' ? cashReceived : null,
             card_amount: paymentMethod === 'Split' ? cardAmount : null,
         };
-        console.log('🧾 Last order data prepared:', lastOrder.value);
 
-        if (autoPrintKot) {
-              printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
-        }
-            kotData.value = await openPosOrdersModal();
-            printKot(JSON.parse(JSON.stringify(lastOrder.value)));
-     
+        console.log("🧾 Preparing to print receipt...");
+        console.log("🟢 autoPrintKot value:", autoPrintKot);
+
+        printReceipt(
+            JSON.parse(JSON.stringify(lastOrder.value)),
+            autoPrintKot === true
+        );
+        kotData.value = await openPosOrdersModal();
+        printKot(JSON.parse(JSON.stringify(lastOrder.value)));
+
 
         selectedPromos.value = [];
         selectedDiscounts.value = [];
@@ -3659,7 +3751,7 @@ const categoriesWithMenus = computed(() => {
     return menuCategories.value.filter(category => {
         const hasMenuItems = category.menu_items_count && category.menu_items_count > 0;
         const hasDeals = category.deals_count && category.deals_count > 0;
-        
+
         return hasMenuItems || hasDeals;
     });
 });
@@ -4280,14 +4372,36 @@ const hasDealAddons = computed(() => {
 });
 
 const dealVisibleSteps = computed(() => {
-    const steps = [];
+    let steps = [];
+    let displayOrder = 1;
+
     if (hasDealIngredients.value) {
-        steps.push({ id: 'ingredients', name: 'Ingredients' });
+        steps.push({
+            id: 'ingredients',
+            name: 'Ingredients',
+            stepNumber: displayOrder,
+            actualStep: 1
+        });
+        displayOrder++;
     }
+
     if (hasDealAddons.value) {
-        steps.push({ id: 'addons', name: 'Add-ons' });
+        steps.push({
+            id: 'addons',
+            name: 'Add-ons',
+            stepNumber: displayOrder,
+            actualStep: 2
+        });
+        displayOrder++;
     }
-    steps.push({ id: 'review', name: 'Review' });
+
+    steps.push({
+        id: 'review',
+        name: 'Review',
+        stepNumber: displayOrder,
+        actualStep: 3
+    });
+
     return steps;
 });
 
@@ -4416,72 +4530,46 @@ const getDealRemovedIngredientsText = () => {
 };
 
 // Step navigation
-const getDealStepCircleClass = (step) => {
-    if (step < currentDealStep.value) {
-        return 'bg-success text-white';
-    } else if (step === currentDealStep.value) {
-        return 'bg-primary text-white';
-    } else {
-        return 'bg-light text-muted border';
+const getDealStepCircleClass = (stepNumber) => {
+    if (stepNumber < currentDealStep.value) {
+        return 'stepper-circle-completed';
+    } else if (stepNumber === currentDealStep.value) {
+        return 'stepper-circle-active';
+    }
+    return 'stepper-circle-inactive';
+};
+
+const goToDealStep = (stepNumber) => {
+    if (stepNumber <= currentDealStep.value || stepNumber === currentDealStep.value + 1) {
+        currentDealStep.value = stepNumber;
     }
 };
 
+const initializeDealStep = () => {
+    currentDealStep.value = dealVisibleSteps.value[0]?.stepNumber || 1;
+};
+
 const nextDealStep = () => {
-    let nextStepNum = currentDealStep.value + 1;
-
-    while (nextStepNum <= dealFinalStep.value) {
-        const stepInfo = dealVisibleSteps.value[nextStepNum - 1];
-
-        if (stepInfo.id === 'ingredients' && !hasDealIngredients.value) {
-            nextStepNum++;
-            continue;
-        }
-        if (stepInfo.id === 'addons' && !hasDealAddons.value) {
-            nextStepNum++;
-            continue;
-        }
-
-        break;
-    }
-
-    if (nextStepNum <= dealFinalStep.value) {
-        currentDealStep.value = nextStepNum;
+    const currentIndex = dealVisibleSteps.value.findIndex(s => s.stepNumber === currentDealStep.value);
+    if (currentIndex < dealVisibleSteps.value.length - 1) {
+        currentDealStep.value = dealVisibleSteps.value[currentIndex + 1].stepNumber;
     }
 };
 
 const previousDealStep = () => {
-    let prevStepNum = currentDealStep.value - 1;
-
-    while (prevStepNum >= 1) {
-        const stepInfo = dealVisibleSteps.value[prevStepNum - 1];
-
-        if (stepInfo.id === 'ingredients' && !hasDealIngredients.value) {
-            prevStepNum--;
-            continue;
-        }
-        if (stepInfo.id === 'addons' && !hasDealAddons.value) {
-            prevStepNum--;
-            continue;
-        }
-
-        break;
-    }
-
-    if (prevStepNum >= 1) {
-        currentDealStep.value = prevStepNum;
+    const currentIndex = dealVisibleSteps.value.findIndex(s => s.stepNumber === currentDealStep.value);
+    if (currentIndex > 0) {
+        currentDealStep.value = dealVisibleSteps.value[currentIndex - 1].stepNumber;
     }
 };
 
-// Confirm current item and move to next
 const confirmCurrentDealItem = () => {
-    // Mark current item as completed
     if (!completedDealItems.value.includes(currentDealMenuItemIndex.value)) {
         completedDealItems.value.push(currentDealMenuItemIndex.value);
     }
-
-    // Move to next item
     currentDealMenuItemIndex.value++;
-    currentDealStep.value = 1; // Reset to first step
+    currentDealAddonGroupIndex.value = 0;
+    initializeDealStep();
 
     toast.success('Item customized! Configure next item.');
 };
@@ -4649,15 +4737,15 @@ const currentItemAddonsTotal = computed(() => {
     return total;
 });
 
-// Open customization modal for a deal
 const openDealCustomization = (deal) => {
     selectedDeal.value = deal;
     currentDealMenuItemIndex.value = 0;
-    currentDealStep.value = 1;
     dealRemovedIngredients.value = {};
     dealSelectedAddons.value = {};
     dealItemKitchenNotes.value = {};
     completedDealItems.value = [];
+
+    initializeDealStep();
 
     if (!customizeDealModal) {
         const modalEl = document.getElementById('customizeDealModal');
@@ -4682,6 +4770,7 @@ const resetDealCustomization = () => {
     dealSelectedAddons.value = {};
     dealItemKitchenNotes.value = {};
     completedDealItems.value = [];
+    currentDealAddonGroupIndex.value = 0;
 };
 
 
@@ -5294,27 +5383,27 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                 </div>
 
                                                 <!-- Included Items -->
-                                                <div class="mb-3">
+                                                <!-- <div class="mb-3">
                                                     <small class="text-muted fw-semibold d-block mb-1"
                                                         style="font-size: 0.75rem;">
                                                         <i class="bi bi-box-seam me-1"></i>Includes:
                                                     </small>
                                                     <div class="d-flex flex-wrap gap-1">
                                                         <span v-for="item in p.menu_items" :key="item.id"
-                                                            class="badge bg-light text-dark border"
+                                                            class="badge bg-light includes text-dark border"
                                                             style="font-size: 0.7rem; font-weight: 500;">
                                                             {{ item.name }}
                                                         </span>
                                                     </div>
-                                                </div>
+                                                </div> -->
                                             </div>
 
                                             <!-- Action Buttons -->
                                             <div class="mt-2">
                                                 <!-- Customize Button -->
-                                                <button class="btn btn-primary btn-sm w-75 mb-2"
+                                                <button class="btn btn-primary customize-deal btn-sm w-75 mb-2"
                                                     @click.stop="openDealCustomization(p)">
-                                                    <i class="bi bi-sliders me-1"></i>
+                                                    <!-- <i class="bi bi-sliders me-1"></i> -->
                                                     Customize Deal
                                                 </button>
 
@@ -5438,7 +5527,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                 </div>
 
                                                 <!-- Variant Dropdown -->
-                                                <div v-if="p.variants && p.variants.length > 0" class="mb-3">
+                                                <!-- <div v-if="p.variants && p.variants.length > 0" class="mb-3">
                                                     <label class="form-label small fw-semibold mb-1">
                                                         Variants:
                                                     </label>
@@ -5457,10 +5546,10 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                             </template>
                                                         </option>
                                                     </select>
-                                                </div>
+                                                </div> -->
 
                                                 <!-- Addons Selection -->
-                                                <div v-if="p.addon_groups && p.addon_groups.length > 0" class="mb-3">
+                                                <!-- <div v-if="p.addon_groups && p.addon_groups.length > 0" class="mb-3">
                                                     <label class="form-label small fw-semibold mb-2">
                                                         Add-ons
                                                     </label>
@@ -5496,7 +5585,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                             </div>
                                                         </template>
                                                     </MultiSelect>
-                                                </div>
+                                                </div> -->
 
                                                 <!-- View Details Button -->
                                                 <button class="btn btn-primary btn-sm mb-2 view-details-btn"
@@ -5549,7 +5638,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
                             < </button> -->
-                            <button class="btn btn-info px-3 py-2" @click="openPendingOrdersModal">
+                            <button class="btn pending btn-info px-3 py-2" @click="openPendingOrdersModal">
                                 Pending
                                 <span v-if="pendingOrders.length > 0" class="badge bg-danger ms-1">
                                     {{ pendingOrders.length }}
@@ -5806,10 +5895,8 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                     </div>
                                 </div>
 
-
-
                                 <div class="">
-                                    <Accordion value="0">
+                                    <Accordion>
                                         <AccordionPanel value="0">
                                             <AccordionHeader>Front Note</AccordionHeader>
                                             <AccordionContent>
@@ -5833,10 +5920,6 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                         </AccordionPanel>
                                     </Accordion>
                                 </div>
-
-
-
-
                             </div>
                             <div class="cart-footer">
                                 <button class="btn btn-secondary btn-clear" @click="resetCart()">
@@ -6080,7 +6163,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                         </div>
 
                         <!-- STEP INDICATOR -->
-                        <div class="px-3 pt-2 progress-bar">
+                        <div class="px-1 pt-2 progress-bar">
                             <div class="stepper-container position-relative" style="min-height: 60px;">
                                 <!-- Background line -->
                                 <div class="stepper-progress-bg"></div>
@@ -6114,7 +6197,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                 <!-- LEFT COLUMN : IMAGE + PRICE -->
                                 <div class="col-lg-5">
                                     <!-- Image -->
-                                    <div class="position-relative mb-3">
+                                    <!-- <div class="position-relative mb-3">
                                         <img :src="selectedItem?.image_url || selectedItem?.img || '/assets/img/product/product29.jpg'"
                                             class="img-fluid rounded-3 w-100 object-fit-cover"
                                             style="height: 200px; object-fit: cover;" alt="Product">
@@ -6126,7 +6209,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             <i class="bi bi-tag-fill me-1"></i>
                                             {{ getResaleBadgeInfo(getModalSelectedVariant(), true).display }}
                                         </span>
-                                    </div>
+                                    </div> -->
 
                                     <!-- Price Summary -->
                                     <div class="rounded-3 border shadow-sm p-3 bg-white">
@@ -6203,7 +6286,8 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                         </div>
 
                                         <!-- STEP 2 : INGREDIENTS -->
-                                        <div v-show="currentStep === 2 && hasIngredients" class="step-content">
+                                        <div v-show="visibleSteps[currentStep - 1]?.id === 'ingredients'"
+                                            class="step-content">
                                             <div class="d-flex align-items-start mb-2">
                                                 <div>
                                                     <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Remove
@@ -6237,7 +6321,8 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                         </div>
 
                                         <!-- STEP 3 : ADD-ONS -->
-                                        <div v-show="currentStep === 3 && hasAddons" class="step-content">
+                                        <div v-show="visibleSteps[currentStep - 1]?.id === 'addons'"
+                                            class="step-content">
                                             <div class="d-flex align-items-start mb-3">
                                                 <i class="bi bi-plus-circle me-2 text-success"
                                                     style="font-size: 1.1rem;"></i>
@@ -6368,7 +6453,8 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                         </div>
 
                                         <!-- STEP 4 : REVIEW -->
-                                        <div v-show="currentStep === finalStep" class="step-content">
+                                        <div v-show="visibleSteps[currentStep - 1]?.id === 'review'"
+                                            class="step-content">
                                             <div class="d-flex align-items-start mb-2">
                                                 <i class="bi bi-cart-check me-2 text-success"
                                                     style="font-size: 1.1rem;"></i>
@@ -6482,29 +6568,27 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                             </button>
                         </div>
 
-
-
-
                         <!-- STEP INDICATOR for Current Item -->
-                        <div class="px-3 pt-2 progress-bar">
+                        <div class="px-3 pt-3 progress-bar">
                             <div class="stepper-container position-relative" style="min-height: 60px;">
                                 <!-- Background line -->
                                 <div class="stepper-progress-bg"></div>
                                 <!-- Filled line -->
                                 <div class="stepper-progress-fill" :style="{ width: dealStepProgressWidth }"></div>
-
                                 <!-- Steps -->
                                 <div v-for="(step, index) in dealVisibleSteps" :key="step.id"
                                     class="stepper-step text-center">
                                     <div class="stepper-circle stepper-circle-sm"
-                                        :class="getDealStepCircleClass(index + 1)">
-                                        <i v-if="index + 1 < currentDealStep" class="bi bi-check-lg"
+                                        :class="getDealStepCircleClass(step.stepNumber)"
+                                        @click="goToDealStep(step.stepNumber)" style="cursor: pointer;">
+                                        <i v-if="step.stepNumber < currentDealStep" class="bi bi-check-lg"
                                             style="font-size: 0.7rem;"></i>
-                                        <span v-else style="font-size: 0.75rem;">{{ index + 1 }}</span>
+                                        <span v-else style="font-size: 0.75rem;">{{ step.stepNumber }}</span>
                                     </div>
                                     <small class="stepper-label"
-                                        :class="{ 'stepper-label-active': index + 1 === currentDealStep }"
-                                        style="font-size: 0.7rem; margin-top: 4px; display: block;">
+                                        :class="{ 'stepper-label-active': step.stepNumber === currentDealStep }"
+                                        style="font-size: 0.7rem; margin-top: 4px; display: block; cursor: pointer;"
+                                        @click="goToDealStep(step.stepNumber)">
                                         {{ step.name }}
                                     </small>
                                 </div>
@@ -6518,7 +6602,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                 <!-- LEFT COLUMN : Deal Image + Price -->
                                 <div class="col-lg-4">
                                     <!-- Deal Image -->
-                                    <div class="position-relative mb-3">
+                                    <!-- <div class="position-relative mb-3">
                                         <img :src="selectedDeal?.img || '/assets/img/product/product29.jpg'"
                                             class="img-fluid rounded-3 w-100 object-fit-cover"
                                             style="height: 200px; object-fit: cover;" alt="Deal">
@@ -6532,7 +6616,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                 Deal: {{ formatCurrencySymbol(selectedDeal?.price || 0) }}
                                             </span>
                                         </span>
-                                    </div>
+                                    </div> -->
 
                                     <!-- Current Item Being Customized -->
                                     <div class="rounded-3 border shadow-sm p-3 bg-white mb-3">
@@ -6588,7 +6672,8 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                     <div class="px-1">
 
                                         <!-- STEP 1 : REMOVE INGREDIENTS -->
-                                        <div v-show="currentDealStep === 1 && hasDealIngredients" class="step-content">
+                                        <div v-show="dealVisibleSteps[currentDealStep - 1]?.id === 'ingredients'"
+                                            class="step-content">
                                             <div class="d-flex align-items-start mb-2">
                                                 <i class="bi bi-dash-circle me-2 text-warning"
                                                     style="font-size: 1.1rem;"></i>
@@ -6626,12 +6711,13 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
 
 
                                         <!-- STEP 2 : ADD-ONS (if available) -->
-                                        <div v-show="currentDealStep === 2 && hasDealAddons" class="step-content">
-                                            <div class="d-flex align-items-start mb-2">
+                                        <!-- STEP 2 : ADD-ONS (if available) -->
+                                        <div v-show="dealVisibleSteps[currentDealStep - 1]?.id === 'addons'"
+                                            class="step-content">
+                                            <div class="d-flex align-items-start mb-3">
                                                 <i class="bi bi-plus-circle me-2 text-success"
                                                     style="font-size: 1.1rem;"></i>
-                                                <div>
-
+                                                <div class="flex-grow-1">
                                                     <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">
                                                         Add Add-ons to {{ currentDealMenuItem?.name }}
                                                     </h6>
@@ -6641,30 +6727,129 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                 </div>
                                             </div>
 
-                                            <div v-for="group in currentDealMenuItem?.addon_groups"
-                                                :key="group.group_id" class="mb-3">
-                                                <label class="fw-semibold mb-1 d-flex justify-content-between"
-                                                    style="font-size: 0.85rem;">
-                                                    <span>{{ group.group_name }}</span>
-                                                    <span v-if="group.max_select > 0"
-                                                        class="badge rounded-pill bg-primary"
-                                                        style="font-size: 0.7rem;">
-                                                        Max {{ group.max_select }}
-                                                    </span>
-                                                </label>
+                                            <!-- Addon Group Progress Indicator -->
+                                            <div v-if="currentDealMenuItem?.addon_groups?.length > 1" class="mb-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <small class="text-muted" style="font-size: 0.75rem;">
+                                                        Group {{ currentDealAddonGroupIndex + 1 }} of {{
+                                                            currentDealMenuItem?.addon_groups?.length }}
+                                                    </small>
+                                                    <div class="d-flex gap-1">
+                                                        <span v-for="(g, idx) in currentDealMenuItem?.addon_groups"
+                                                            :key="idx" class="rounded-circle"
+                                                            :class="idx === currentDealAddonGroupIndex ? 'bg-primary' : 'bg-secondary'"
+                                                            style="width: 8px; height: 8px; display: inline-block; opacity: 0.6;"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                                <MultiSelect
-                                                    :modelValue="dealSelectedAddons[currentDealMenuItemIndex]?.[group.group_id] || []"
-                                                    @update:modelValue="(val) => handleDealAddonChange(group.group_id, val)"
-                                                    :options="group.addons" optionLabel="name" dataKey="id"
-                                                    placeholder="Select add-ons" :maxSelectedLabels="2" class="w-100"
-                                                    appendTo="self">
-                                                </MultiSelect>
+                                            <!-- Current Addon Group -->
+                                            <div v-if="currentDealAddonGroup" class="mb-3">
+                                                <div class="bg-light rounded-3 p-1 mb-3">
+                                                    <div class="d-flex justify-content-between align-items-center mb-0">
+                                                        <h6 class="fw-bold mb-0" style="font-size: 0.95rem;">
+                                                            {{ currentDealAddonGroup.group_name }}
+                                                        </h6>
+                                                        <span v-if="currentDealAddonGroup.max_select > 0"
+                                                            class="badge rounded-pill bg-primary"
+                                                            style="font-size: 0.7rem;">
+                                                            Max {{ currentDealAddonGroup.max_select }}
+                                                        </span>
+                                                    </div>
+                                                    <p v-if="currentDealAddonGroup.description"
+                                                        class="text-muted small mb-0" style="font-size: 0.75rem;">
+                                                        {{ currentDealAddonGroup.description }}
+                                                    </p>
+                                                </div>
+
+                                                <div class="row g-2">
+                                                    <div v-for="addon in currentDealAddonGroup.addons" :key="addon.id"
+                                                        class="col-12">
+                                                        <div class="border rounded-2 p-2 shadow-sm d-flex align-items-center justify-content-between"
+                                                            :class="{ 'bg-light border-success': isModalAddonSelected(currentDealAddonGroup.group_id, addon.id) }">
+
+                                                            <!-- Checkbox & Name -->
+                                                            <div class="d-flex align-items-center flex-grow-1">
+                                                                <input type="checkbox" class="form-check-input me-2"
+                                                                    style="width: 18px; height: 18px; cursor: pointer;"
+                                                                    :id="'deal-addon-' + addon.id"
+                                                                    :checked="isModalAddonSelected(currentDealAddonGroup.group_id, addon.id)"
+                                                                    @change="toggleModalAddon(currentDealAddonGroup.group_id, addon)">
+
+                                                                <label :for="'deal-addon-' + addon.id"
+                                                                    class="form-check-label mb-0"
+                                                                    style="font-size: 0.85rem; cursor: pointer;">
+                                                                    {{ addon.name }}
+                                                                    <span class="text-success fw-semibold ms-1">
+                                                                        +{{ formatCurrencySymbol(addon.price) }}
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+
+                                                            <!-- Quantity Controls -->
+                                                            <div v-if="isModalAddonSelected(currentDealAddonGroup.group_id, addon.id)"
+                                                                class="d-flex align-items-center gap-1">
+
+                                                                <!-- Minus -->
+                                                                <button class="btn btn-primary rounded-circle p-0"
+                                                                    style="width: 35px; height: 10px;"
+                                                                    @click="decrementModalAddon(currentDealAddonGroup.group_id, addon.id)"
+                                                                    :disabled="getModalAddonQuantity(currentDealAddonGroup.group_id, addon.id) <= 1">
+                                                                    <i class="bi bi-dash"
+                                                                        style="font-size: 0.9rem;"></i>
+                                                                </button>
+
+                                                                <!-- Quantity -->
+                                                                <span class="fw-bold"
+                                                                    style="min-width: 20px; text-align: center; font-size: 0.75rem;">
+                                                                    {{
+                                                                        getModalAddonQuantity(currentDealAddonGroup.group_id,
+                                                                            addon.id) }}
+                                                                </span>
+
+                                                                <!-- Plus -->
+                                                                <button class="btn btn-primary rounded-circle p-0"
+                                                                    style="width: 35px; height: 10px;"
+                                                                    @click="incrementModalAddon(currentDealAddonGroup.group_id, addon.id)">
+                                                                    <i class="bi bi-plus"
+                                                                        style="font-size: 0.9rem;"></i>
+                                                                </button>
+
+                                                            </div>
+
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Navigation Buttons for Addon Groups -->
+                                            <div v-if="currentDealMenuItem?.addon_groups?.length > 1"
+                                                class="d-flex justify-content-between gap-2 mt-3">
+                                                <button class="btn btn-primary btn-sm px-3"
+                                                    @click="previousDealAddonGroup"
+                                                    :disabled="currentDealAddonGroupIndex === 0">
+                                                    <i class="bi bi-chevron-left me-1"></i>
+                                                    Previous
+                                                </button>
+
+                                                <button class="btn btn-primary btn-sm px-3" @click="nextDealAddonGroup"
+                                                    :disabled="currentDealAddonGroupIndex >= currentDealMenuItem?.addon_groups?.length - 1">
+                                                    Next
+                                                    <i class="bi bi-chevron-right ms-1"></i>
+                                                </button>
+                                            </div>
+
+                                            <!-- Skip Add-ons Button -->
+                                            <div class="text-center mt-3">
+                                                <button class="btn btn-link btn-sm text-muted" @click="skipDealAddons">
+                                                    <small>Skip add-ons</small>
+                                                </button>
                                             </div>
                                         </div>
 
                                         <!-- STEP 3 : REVIEW CURRENT ITEM -->
-                                        <div v-show="currentDealStep === dealFinalStep" class="step-content">
+                                        <div v-show="dealVisibleSteps[currentDealStep - 1]?.id === 'review'"
+                                            class="step-content">
                                             <div class="d-flex align-items-start mb-2">
                                                 <Eye class="me-2 text-primary w-5" style="font-size: 1.1rem;" />
                                                 <div>
@@ -8034,6 +8219,17 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
         font-size: 0.85rem;
     }
 
+    .customize-deal {
+        width: 100px !important;
+        font-size: 12px !important;
+        padding: 0px 2px !important;
+
+    }
+
+    .includes {
+        font-size: 12px !important;
+    }
+
     .price {
         font-size: 0.9rem;
     }
@@ -8326,7 +8522,8 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
     }
 
     .promos-btn,
-    .discount-btn {
+    .discount-btn,
+    .pending {
         height: 30px !important;
         padding-top: 0.19rem !important;
 

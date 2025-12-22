@@ -29,7 +29,7 @@ public function run(): void
     ];
 
     foreach ($suppliers as $sup) {
-        Supplier::create([
+        Supplier::updateOrCreate([
             'name' => $sup['name'],
             'email' => $sup['email'],
             'address' => $sup['address'],
