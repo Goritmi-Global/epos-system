@@ -2206,7 +2206,7 @@ async function printKot(order) {
     try {
         const res = await axios.post(
             'http://localhost:8085/print',
-            { order, type: 'KOT',print:'yes' },
+            { order, type: 'KOT',print:'yes'},
             {
                 headers: { 'Content-Type': 'application/json' },
                 timeout: 5000,
