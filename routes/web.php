@@ -63,7 +63,7 @@ Route::post('/forgot-password', [CustomPasswordResetController::class, 'requestR
 
 Route::get('/sanctum/csrf-cookie', function () {
     return response()->json(['message' => 'CSRF cookie refreshed']);
-})->middleware('web');
+});
 
 /* =========================================================
 |  Shift Management Routes (NO shift check - must be accessible)
