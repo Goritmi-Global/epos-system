@@ -226,6 +226,8 @@ const formattedOrderType = computed(() => {
                                                     <tbody>
                                                         <tr v-for="(item, index) in orderItems" :key="item.id || index
                                                             ">
+
+                                                           
                                                             <td>
                                                                 {{ index + 1 }}
                                                             </td>

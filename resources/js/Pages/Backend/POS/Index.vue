@@ -1519,6 +1519,20 @@ const subTotal = computed(() =>
     orderItems.value.reduce((s, i) => s + i.price, 0)
 );
 
+const totalAddons = computed(() => {
+    return orderItems.value.reduce((total, item) => {
+        if (!item.addons || item.addons.length === 0) return total;
+
+        const itemAddonsTotal = item.addons.reduce((addonSum, addon) => {
+            const addonPrice = parseFloat(addon.price || 0);
+            const addonQty = addon.quantity || 1;
+            return addonSum + (addonPrice * addonQty);
+        }, 0);
+
+        return total + (itemAddonsTotal * item.qty);
+    }, 0);
+});
+
 const deliveryCharges = computed(() => {
     if (orderType.value !== "Delivery") return 0;
 
@@ -3199,6 +3213,7 @@ const totalResaleSavings = computed(() => {
 });
 const grandTotal = computed(() => {
     const total = subTotal.value
+        + totalAddons.value
         + totalTax.value
         + deliveryCharges.value
         + serviceCharges.value
@@ -5803,6 +5818,16 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                         <b class="sub-total">{{ formatCurrencySymbol(subTotal) }}</b>
                                     </div>
 
+                                    <!-- Add-ons Total (Optional - for clarity) -->
+                                    <div v-if="totalAddons > 0" class="trow">
+                                        <span class="text-muted">
+                                            <!-- <i class="bi bi-plus-circle text-success"></i> -->
+                                            Add-ons Total:
+                                        </span>
+                                        <span class="text-success fw-semibold">{{ formatCurrencySymbol(totalAddons)
+                                            }}</span>
+                                    </div>
+
                                     <!-- Tax Row -->
                                     <div class="trow" v-if="totalTax > 0">
                                         <span class="d-flex align-items-center gap-2">
@@ -5839,7 +5864,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -5885,7 +5910,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
                                     </div>
                                     <!-- Total After All Discounts -->
@@ -6163,7 +6188,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                         </div>
 
                         <!-- STEP INDICATOR -->
-                        <div class="px-1 pt-2 progress-bar">
+                        <div class="px-1 pt-3 progress-bar">
                             <div class="stepper-container position-relative" style="min-height: 60px;">
                                 <!-- Background line -->
                                 <div class="stepper-progress-bg"></div>
@@ -6228,7 +6253,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                                }}</strong>
+                                            }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -6266,7 +6291,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                    }}</h6>
+                                                                }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">
