@@ -74,6 +74,31 @@ class PosOrderService
                 throw new \Exception('No active shift found. Please start a shift before creating an order.');
             }
 
+            // ✅ WALK-IN CUSTOMER NUMBER GENERATION (SERVER-SIDE)
+            if (
+                empty($data['customer_name']) ||
+                str_starts_with($data['customer_name'], 'Walk In')
+            ) {
+                $counter = DB::table('walk_in_counters')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $counter) {
+                    throw new \Exception('Walk-in counter not initialized.');
+                }
+
+                $nextNumber = $counter->current_number + 1;
+
+                DB::table('walk_in_counters')
+                    ->where('id', $counter->id)
+                    ->update([
+                        'current_number' => $nextNumber,
+                        'updated_at' => now(),
+                    ]);
+
+                $data['customer_name'] = 'Walk In-'.str_pad($nextNumber, 3, '0');
+            }
+
             // 3. Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
@@ -590,7 +615,7 @@ class PosOrderService
         $order->save();
     }
 
-  public function getMenuCategories(bool $onlyActive = true)
+    public function getMenuCategories(bool $onlyActive = true)
     {
         $query = MenuCategory::with('children')
             ->withCount([

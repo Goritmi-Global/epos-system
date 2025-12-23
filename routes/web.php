@@ -251,6 +251,8 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::post('/check-ingredients', [PosOrderController::class, 'checkIngredients']);
         Route::post('/order-without-payment', [PosOrderController::class, 'storeWithoutPayment']);
         Route::post('/orders/{orderId}/complete-payment', [PosOrderController::class, 'completePayment']);
+        Route::get('/walk-in/next', [PosOrderController::class, 'getNextWalkInNumber']);
+        Route::get('/walk-in/current', [PosOrderController::class, 'getCurrentWalkInNumber']);
     });
 
     /* -------- Pending Orders -------- */
