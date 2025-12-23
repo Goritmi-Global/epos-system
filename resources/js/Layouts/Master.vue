@@ -17,6 +17,7 @@ import ConfirmModal from "@/Components/ConfirmModal.vue";
 import LogoutModal from "@/Components/LogoutModal.vue";
 import RestoreSystemModal from "@/Components/RestoreSystemModal.vue";
 import { useAutoLogout } from '@/composables/useAutoLogout';
+import PasswordVerificationModal from '@/Components/PasswordVerificationModal.vue';
 
 import Drawer from 'primevue/drawer';
 import Button from 'primevue/button';
@@ -26,29 +27,20 @@ import Button from 'primevue/button';
 const page = usePage();
 const showConfirmRestore = ref(false);
 const drawerVisible = ref(false);
-
-
-// Get user info from Inertia shared data
 const user = computed(() => page.props.current_user);
-
-// ✅ Corrected: roles is an array of strings, not objects
 const isCashierRole = computed(() => {
     return user.value?.roles?.includes('Cashier');
 });
-
-
-// Only activate auto-logout for cashiers
 if (isCashierRole.value) {
     useAutoLogout();
 }
-// Add this function to handle the sidebar action
 const handleSidebarAction = (action) => {
     console.log('Sidebar action triggered:', action);
     if (action === "systemRestore") {
-        showRestoreModal.value = true; // Use the new modal
+        showRestoreModal.value = true;
         console.log('showConfirmRestore set to:', showConfirmRestore.value);
     } else if (action === "databaseBackup") {
-        showBackupModal.value = true; // 👈 Add this
+        showBackupModal.value = true;
     }
 };
 
@@ -58,6 +50,10 @@ const showBackupModal = ref(false);
 const isFullscreen = ref(false);
 const showQuickOrderModal = ref(false);
 const quickOrderType = ref(null);
+
+const showPasswordModalForBackup = ref(false);
+const isVerifyingBackup = ref(false);
+const passwordErrorBackup = ref('');
 
 
 const isCashier = computed(() => {
@@ -92,6 +88,125 @@ const proceedToQuickOrder = () => {
 
     showQuickOrderModal.value = false;
     router.visit(route('pos.order', { type: quickOrderType.value }));
+};
+
+const handleBackupConfirm = () => {
+    showBackupModal.value = false;
+    showPasswordModalForBackup.value = true;
+    passwordErrorBackup.value = '';
+};
+
+/**
+ * Step 2: Verify password then perform backup
+ */
+const handlePasswordVerifyForBackup = async (password) => {
+    isVerifyingBackup.value = true;
+    passwordErrorBackup.value = '';
+
+    try {
+        const verifyResponse = await fetch(route('settings.verify-password'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ password })
+        });
+
+        const verifyData = await verifyResponse.json();
+
+        if (!verifyData.success) {
+            passwordErrorBackup.value = verifyData.message;
+            isVerifyingBackup.value = false;
+            return;
+        }
+        isVerifyingBackup.value = false;
+        showPasswordModalForBackup.value = false;
+        passwordErrorBackup.value = ''; 
+        await performDatabaseBackup();
+
+    } catch (error) {
+        console.error('Error:', error);
+        toast.error('An error occurred during verification.', {
+            autoClose: 4000,
+            position: toast.POSITION.BOTTOM_RIGHT,
+        });
+    } finally {
+        isVerifyingBackup.value = false;
+    }
+};
+const performDatabaseBackup = async () => {
+    try {
+        // Make API call with blob response type for file download
+        const response = await axios.post(route('database.backup'), {}, {
+            responseType: 'blob'
+        });
+
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+
+        // Extract filename from response headers or use default
+        const contentDisposition = response.headers['content-disposition'];
+        let filename = 'database_backup_' + new Date().toISOString().slice(0, 10) + '.sql';
+
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+
+        // Trigger download
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+
+        // Cleanup
+        link.remove();
+        window.URL.revokeObjectURL(url);
+
+        // Show success message
+        toast.success('Database backup downloaded successfully!', {
+            autoClose: 3000,
+            position: toast.POSITION.BOTTOM_RIGHT,
+        });
+
+    } catch (error) {
+        console.error('Database backup error:', error);
+
+        let message = 'Failed to create database backup. Please try again.';
+
+        // Handle blob error responses
+        if (error.response?.data) {
+            if (error.response.data instanceof Blob) {
+                try {
+                    const text = await error.response.data.text();
+                    const json = JSON.parse(text);
+                    message = json.message || message;
+                } catch (e) {
+                    message = 'An error occurred while creating the backup.';
+                }
+            } else if (error.response.data.message) {
+                message = error.response.data.message;
+            }
+        } else if (error.message) {
+            message = error.message;
+        }
+
+        toast.error(message, {
+            autoClose: 4000,
+            position: toast.POSITION.BOTTOM_RIGHT,
+        });
+    }
+};
+
+const cancelPasswordVerificationBackup = () => {
+    showPasswordModalForBackup.value = false;
+    passwordErrorBackup.value = '';
 };
 
 
@@ -494,17 +609,17 @@ const sidebarMenus = ref([
                         icon: "layers",
                         route: "menu-categories.index",
                     },
-                    { 
-                        label: "Menus", 
-                        icon: "box", 
-                        route: "menu.index" 
+                    {
+                        label: "Menus",
+                        icon: "box",
+                        route: "menu.index"
                     },
                     // { 
                     //     label: "Deals", 
                     //     icon: "gift", 
                     //     route: "deals.index" 
                     // },
-                
+
                     {
                         label: "Addon Groups",
                         icon: "gift",
@@ -673,10 +788,10 @@ onMounted(() => {
     // Initialize fullscreen for Cashier
     initializeFullscreen();
 
-     if (isDesktop.value) {
+    if (isDesktop.value) {
         sidebarExpanded.value = !isCashierRole.value;
     }
-    
+
     evaluateBreakpoint();
     window.addEventListener("resize", evaluateBreakpoint, { passive: true });
     // feather icons setup and open active groups (same as before)
@@ -1032,7 +1147,7 @@ onMounted(fetchNotifications);
                                             @click="toggleGroup(item.label)" type="button" :title="item.label">
                                             <i :data-feather="item.icon" class="me-2"></i>
                                             <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                            }}</span>
+                                                }}</span>
                                             <i class="chevron-icon"
                                                 :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
                                         </button>
@@ -1089,7 +1204,7 @@ onMounted(fetchNotifications);
                             <img :src="businessInfo.image_url" alt="logo" width="40" height="40"
                                 class="rounded-full border shadow" />
                             <span class="font-bold text-lg text-black dark:text-white">{{ businessInfo.business_name
-                                }}</span>
+                            }}</span>
                         </div>
 
 
@@ -1193,7 +1308,11 @@ onMounted(fetchNotifications);
 
         <RestoreSystemModal v-if="showBackupModal" :show="showBackupModal" title="Confirm Database Backup"
             message="Are you sure you want to create a database backup? The backup file will be downloaded to your computer."
-            confirmLabel="Yes, Backup" @confirm="handleDatabaseBackup" @cancel="showBackupModal = false" />
+            confirmLabel="Yes, Backup" @confirm="handleBackupConfirm" @cancel="showBackupModal = false" />
+
+        <PasswordVerificationModal :show="showPasswordModalForBackup" :isVerifying="isVerifyingBackup"
+            :errorMessage="passwordErrorBackup" @confirm="handlePasswordVerifyForBackup"
+            @cancel="cancelPasswordVerificationBackup" />
 
         <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" :loading="isLoggingOut" @confirm="handleLogout"
             @cancel="showLogoutModal = false" />
@@ -1391,21 +1510,21 @@ onMounted(fetchNotifications);
                     <div class="row g-3">
                         <!-- Dynamic Order Types -->
                         <div class="row g-3">
-                        <!-- Dynamic Order Types -->
-                        <div v-for="orderType in orderTypes" :key="orderType" class="col-md-4 mb-3">
-                            <button
-                                class="card-option w-100 p-4 border rounded-3 cursor-pointer transition d-flex align-items-center justify-content-center gap-3"
-                                :class="{ 'border-primary bg-light': !isDark && quickOrderType === orderType, 'border-primary dark-selected': isDark && quickOrderType === orderType }"
-                                @click="quickOrderType = orderType; proceedToQuickOrder();">
-                                <i :data-feather="getOrderTypeIcon(orderType)" class="flex-shrink-0"
-                                    style="width: 28px; height: 28px;"></i>
-                                <div class="text-start">
-                                    <div class="fw-bold">{{ formatOrderTypeName(orderType) }}</div>
-                                    <small class="text-muted">{{ getOrderTypeDescription(orderType) }}</small>
-                                </div>
-                            </button>
+                            <!-- Dynamic Order Types -->
+                            <div v-for="orderType in orderTypes" :key="orderType" class="col-md-4 mb-3">
+                                <button
+                                    class="card-option w-100 p-4 border rounded-3 cursor-pointer transition d-flex align-items-center justify-content-center gap-3"
+                                    :class="{ 'border-primary bg-light': !isDark && quickOrderType === orderType, 'border-primary dark-selected': isDark && quickOrderType === orderType }"
+                                    @click="quickOrderType = orderType; proceedToQuickOrder();">
+                                    <i :data-feather="getOrderTypeIcon(orderType)" class="flex-shrink-0"
+                                        style="width: 28px; height: 28px;"></i>
+                                    <div class="text-start">
+                                        <div class="fw-bold">{{ formatOrderTypeName(orderType) }}</div>
+                                        <small class="text-muted">{{ getOrderTypeDescription(orderType) }}</small>
+                                    </div>
+                                </button>
+                            </div>
                         </div>
-                    </div>
                     </div>
                 </div>
             </div>
@@ -1553,7 +1672,7 @@ html.dark li.active .drawer-link {
     border-color: #0d6efd !important;
 }
 
-.dark .card-option{
+.dark .card-option {
     background-color: #212121 !important;
     color: #fff !important;
 }

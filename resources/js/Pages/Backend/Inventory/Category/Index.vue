@@ -114,7 +114,7 @@ const filtered = computed(() => {
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
-    pagination.value.current_page = 1;
+    pagination.value.current_page = 999999;
     fetchCategories(1);
 };
 
@@ -148,28 +148,50 @@ const fetchCategories = async (page = null) => {
         loading.value = true;
     
         const params = {
-            q: q.value,
-            page: page || pagination.value.current_page,
+            page: page || 1,
             per_page: pagination.value.per_page,
-            sort_by: appliedFilters.value.sortBy || '',
-            status: appliedFilters.value.status || '',
-            has_subcategories: appliedFilters.value.hasSubcategories || '',
-            stock_status: appliedFilters.value.stockStatus || '',
-            value_min: appliedFilters.value.valueMin || '',
-            value_max: appliedFilters.value.valueMax || '',
         };
+
+        // ✅ Only add parameters that have actual values
+        if (q.value?.trim()) {
+            params.q = q.value.trim();
+        }
+        
+        if (appliedFilters.value.sortBy) {
+            params.sort_by = appliedFilters.value.sortBy;
+        }
+        
+        if (appliedFilters.value.status) {
+            params.status = appliedFilters.value.status;
+        }
+        
+        if (appliedFilters.value.hasSubcategories) {
+            params.has_subcategories = appliedFilters.value.hasSubcategories;
+        }
+        
+        if (appliedFilters.value.stockStatus) {
+            params.stock_status = appliedFilters.value.stockStatus;
+        }
+        
+        if (appliedFilters.value.valueMin) {
+            params.value_min = appliedFilters.value.valueMin;
+        }
+        
+        if (appliedFilters.value.valueMax) {
+            params.value_max = appliedFilters.value.valueMax;
+        }
 
         const { data } = await axios.get("/categories", { params });
         
         categories.value = data.data || [];
         pagination.value = {
-            current_page: data.current_page,
-            last_page: data.last_page,
-            per_page: data.per_page,
-            total: data.total,
-            from: data.from,
-            to: data.to,
-            links: data.links
+            current_page: data.current_page || 1,
+            last_page: data.last_page || 1,
+            per_page: data.per_page || 10,
+            total: data.total || 0,
+            from: data.from || 0,
+            to: data.to || 0,
+            links: data.links || []
         };
     } catch (err) {
         console.error("Failed to fetch categories:", err);
@@ -178,6 +200,7 @@ const fetchCategories = async (page = null) => {
         loading.value = false;
     }
 };
+
 const handlePageChange = (url) => {
     if (!url) return;
     const urlParams = new URLSearchParams(url.split('?')[1]);
