@@ -12,6 +12,8 @@ import Step6 from "../../../Onboarding/Steps/Step6.vue";
 import Step7 from "../../../Onboarding/Steps/Step7.vue";
 import Step8 from "../../../Onboarding/Steps/Step8.vue";
 import Step9 from "../../../Onboarding/Steps/Step9.vue";
+import RestoreModal from "@/Components/RestoreModal.vue";
+import PasswordVerificationModal from '@/Components/PasswordVerificationModal.vue';
 
 const props = defineProps({
     profile: Object,
@@ -32,6 +34,156 @@ const profile = ref({
     ...props.profileData.step8,
     ...props.profileData.step9,
 });
+
+const showRestoreModal = ref(false);
+const showPasswordModal = ref(false);
+const isRestoring = ref(false);
+const isVerifying = ref(false);
+const passwordError = ref('');
+
+const openRestoreModal = () => {
+    showRestoreModal.value = true;
+};
+
+// Step 2: User confirmed, now ask for password
+const handleRestoreConfirm = () => {
+    showRestoreModal.value = false;
+    showPasswordModal.value = true;
+    passwordError.value = '';
+};
+
+// Step 3: Verify password then restore
+const handlePasswordVerify = async (password) => {
+    isVerifying.value = true;
+    passwordError.value = '';
+
+    try {
+        // First, verify the password
+        const verifyResponse = await fetch(route('settings.verify-password'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ password })
+        });
+
+        const verifyData = await verifyResponse.json();
+
+        if (!verifyData.success) {
+            passwordError.value = verifyData.message;
+            isVerifying.value = false;
+            return;
+        }
+
+        // Password verified successfully - close modal and clear error
+        isVerifying.value = false;
+        showPasswordModal.value = false;
+        passwordError.value = ''; // Clear any previous errors
+        isRestoring.value = true;
+
+        const restoreResponse = await fetch(route('settings.restore'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+        });
+
+        if (!restoreResponse.ok) {
+            throw new Error(`HTTP error! status: ${restoreResponse.status}`);
+        }
+
+        const restoreData = await restoreResponse.json();
+
+        if (restoreData.success === true) {
+            toast.success(restoreData.message, {
+                autoClose: 3000,
+                position: toast.POSITION.BOTTOM_RIGHT,
+            });
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            toast.error(restoreData.message, {
+                autoClose: 4000,
+                position: toast.POSITION.BOTTOM_RIGHT,
+            });
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        toast.error('An error occurred while restoring the system.', {
+            autoClose: 4000,
+            position: toast.POSITION.BOTTOM_RIGHT,
+        });
+    } finally {
+        isVerifying.value = false;
+        isRestoring.value = false;
+    }
+};
+const cancelPasswordVerification = () => {
+    showPasswordModal.value = false;
+    passwordError.value = '';
+};
+
+const cancelRestore = () => {
+    showRestoreModal.value = false;
+};
+
+const handleRestoreSystem = async () => {
+    isRestoring.value = true;
+
+    try {
+        const response = await fetch(route('settings.restore'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+        });
+
+        // Check if response is ok (status 200-299)
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Check the success flag from the response
+        if (data.success === true) {
+            toast.success(data.message, {
+                autoClose: 3000,
+                position: toast.POSITION.BOTTOM_RIGHT,
+            });
+            showRestoreModal.value = false;
+
+            // Reload the page after successful restore
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            toast.error(data.message, {
+                autoClose: 4000,
+                position: toast.POSITION.BOTTOM_RIGHT,
+            });
+        }
+    } catch (error) {
+        console.error('Error restoring system:', error);
+        toast.error('An error occurred while restoring the system.', {
+            autoClose: 4000,
+            position: toast.POSITION.BOTTOM_RIGHT,
+        });
+    } finally {
+        isRestoring.value = false;
+    }
+};
 
 const sections = [
     {
@@ -184,6 +336,17 @@ function changeSection(sectionId) {
                 <div>
                     <h3 class="fw-bold mb-0">Restaurant Settings</h3>
                 </div>
+                <div>
+                    <button @click="openRestoreModal"
+                        class="btn btn-danger d-flex align-items-center gap-2 px-3 py-2 rounded-pill">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Restore System
+                    </button>
+                </div>
             </div>
         </div>
         <div class="settings-sidebar-horizontal mb-3">
@@ -254,6 +417,14 @@ function changeSection(sectionId) {
             </div>
         </div>
     </div>
+
+
+    <RestoreModal :show="showRestoreModal" :isLoading="false" title="Restore System"
+        message="Are you sure you want to restore the system? This will permanently delete all orders, payments, purchases, kitchen orders, and shifts data. This action cannot be undone!"
+        @confirm="handleRestoreConfirm" @cancel="cancelRestore" />
+
+    <PasswordVerificationModal :show="showPasswordModal" :isVerifying="isVerifying || isRestoring"
+        :errorMessage="passwordError" @confirm="handlePasswordVerify" @cancel="cancelPasswordVerification" />
 </template>
 
 <style scoped>

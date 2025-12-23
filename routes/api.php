@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AddonController;
 use App\Http\Controllers\AddonGroupController;
+use App\Http\Controllers\Api\CustomerViewController;
 use App\Http\Controllers\Auth\ApiKeyController;
 use App\Http\Controllers\DealsController;
 use App\Http\Controllers\DiscountApprovalController;
@@ -113,6 +114,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Menu Categories
     Route::prefix('menu-categories')->name('api.menu-categories.')->group(function () {
+        Route::get('/parents/dropdown', [MenuCategoryController::class, 'getParentsForDropdown']);
         Route::get('/parents/list', [MenuCategoryController::class, 'getParents'])->name('parents');
         Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics'])->name('stats');
         Route::post('/import', [MenuCategoryController::class, 'import'])->name('import');
@@ -266,13 +268,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Update sort order (drag & drop functionality)
         Route::post('/sort-order', [AddonController::class, 'updateSortOrder']);
     });
+    // routes/api.php
+    
 
     Route::post('/discount-approvals/request', [DiscountApprovalController::class, 'requestApproval']);
     Route::post('/discount-approvals/check-status', [DiscountApprovalController::class, 'checkApprovalStatus']);
     Route::get('/discount-approvals/pending', [DiscountApprovalController::class, 'getPendingRequests']);
     Route::post('/discount-approvals/{id}/respond', [DiscountApprovalController::class, 'respondToRequest']);
     Route::get('/discount-approvals/history', [DiscountApprovalController::class, 'getApprovalHistory']);
+
 });
 Route::post('/verify-super-admin', [ApiKeyController::class, 'verifyCredentials']);
 Route::post('/store-api-key', [ApiKeyController::class, 'storeApiKey']);
 Route::post('/get-api-key', [ApiKeyController::class, 'getApiKey']);
+Route::post('/customer-view/url', [CustomerViewController::class, 'store']);

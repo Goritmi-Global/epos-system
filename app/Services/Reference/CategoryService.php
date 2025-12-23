@@ -529,138 +529,101 @@ class CategoryService
             ];
         }
     }
+public function getAllCategoriesWithFilters(array $filters)
+{
+    $query = InventoryCategory::query()
+        ->whereNull('parent_id') // Only get parent categories
+        ->with(['subcategories' => function ($query) {
+            $query->select('id', 'name', 'parent_id', 'active');
+        }])
+        ->withCount('primaryInventoryItems');
 
-    public function getAllCategoriesWithFilters(array $filters = [])
-    {
-        $query = InventoryCategory::with([
-            'subcategories' => function ($query) {
-                $query->withCount('primaryInventoryItems');
-            },
-        ])
-            ->withCount('primaryInventoryItems')
-            ->whereNull('parent_id');
-
-        // ✅ Search filter
-        if (! empty($filters['q'])) {
-            $query->where('name', 'like', "%{$filters['q']}%");
-        }
-
-        // ✅ Status filter
-        if (! empty($filters['status'])) {
-            if ($filters['status'] === 'active') {
-                $query->where('active', 1);
-            } elseif ($filters['status'] === 'inactive') {
-                $query->where('active', 0);
-            }
-        }
-
-        // ✅ Has Subcategories filter
-        if (! empty($filters['has_subcategories'])) {
-            if ($filters['has_subcategories'] === 'yes') {
-                $query->whereHas('subcategories');
-            } elseif ($filters['has_subcategories'] === 'no') {
-                $query->doesntHave('subcategories');
-            }
-        }
-
-        // ✅ Stock Status filter
-        if (! empty($filters['stock_status'])) {
-            switch ($filters['stock_status']) {
-                case 'in_stock':
-                    $query->where('in_stock', '>', 0);
-                    break;
-                case 'low_stock':
-                    $query->where('low_stock', '>', 0);
-                    break;
-                case 'out_of_stock':
-                    $query->where('out_of_stock', '>', 0);
-                    break;
-                case 'has_items':
-                    $query->where('total_items', '>', 0);
-                    break;
-                case 'no_items':
-                    $query->where('total_items', 0);
-                    break;
-            }
-        }
-
-        // ✅ Value range filter
-        if (! empty($filters['value_min']) && $filters['value_min'] !== '') {
-            $query->where('total_value', '>=', $filters['value_min']);
-        }
-
-        if (! empty($filters['value_max']) && $filters['value_max'] !== '') {
-            $query->where('total_value', '<=', $filters['value_max']);
-        }
-
-        // ✅ Sorting
-        if (! empty($filters['sort_by'])) {
-            switch ($filters['sort_by']) {
-                case 'name_asc':
-                    $query->orderBy('name', 'asc');
-                    break;
-                case 'name_desc':
-                    $query->orderBy('name', 'desc');
-                    break;
-                case 'value_desc':
-                    $query->orderBy('total_value', 'desc');
-                    break;
-                case 'value_asc':
-                    $query->orderBy('total_value', 'asc');
-                    break;
-                case 'items_desc':
-                    $query->orderByRaw('primary_inventory_items_count DESC');
-                    break;
-                case 'items_asc':
-                    $query->orderByRaw('primary_inventory_items_count ASC');
-                    break;
-                default:
-                    $query->orderBy('name', 'asc');
-                    break;
-            }
-        } else {
-            $query->orderBy('name', 'asc');
-        }
-
-        $searchQuery = trim($filters['q'] ?? '');
-        $hasSearch = ! empty($searchQuery);
-        $hasStatus = ! empty($filters['status']);
-        $hasSubcategoriesFilter = ! empty($filters['has_subcategories']);
-        $hasStockStatus = ! empty($filters['stock_status']);
-        $hasValueRange = (! empty($filters['value_min']) && $filters['value_min'] !== '')
-                      || (! empty($filters['value_max']) && $filters['value_max'] !== '');
-        $hasSorting = ! empty($filters['sort_by']);
-        $hasFilterOnly = $hasStatus || $hasSubcategoriesFilter
-                     || $hasStockStatus || $hasValueRange || $hasSorting;
-
-        if ($hasFilterOnly) {
-            $allCategories = $query->get();
-            $total = $allCategories->count();
-            $transformedCategories = $allCategories->map(function ($category) {
-                return $this->transformCategory($category);
-            });
-            $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
-                $transformedCategories,
-                $total,
-                $total > 0 ? $total : 1,
-                1,
-                [
-                    'path' => request()->url(),
-                    'query' => request()->query(),
-                ]
-            );
-
-        } else {
-            $perPage = $filters['per_page'] ?? 10;
-            $paginator = $query->paginate($perPage);
-
-            $paginator->getCollection()->transform(function ($category) {
-                return $this->transformCategory($category);
-            });
-        }
-
-        return $paginator;
+    // Search filter
+    if (!empty($filters['q'])) {
+        $searchTerm = $filters['q'];
+        $query->where(function ($q) use ($searchTerm) {
+            $q->where('name', 'like', "%{$searchTerm}%")
+              ->orWhereHas('subcategories', function ($subQuery) use ($searchTerm) {
+                  $subQuery->where('name', 'like', "%{$searchTerm}%");
+              });
+        });
     }
+
+    // Status filter - ✅ Only apply if explicitly set
+    if (!empty($filters['status'])) {
+        $query->where('active', $filters['status'] === 'active' ? 1 : 0);
+    }
+
+    // ✅ Has Subcategories filter - Only apply if explicitly set to 'yes' or 'no'
+    if (!empty($filters['has_subcategories']) && in_array($filters['has_subcategories'], ['yes', 'no'])) {
+        if ($filters['has_subcategories'] === 'yes') {
+            $query->has('subcategories');
+        } elseif ($filters['has_subcategories'] === 'no') {
+            $query->doesntHave('subcategories');
+        }
+        // If empty or 'all', don't apply any filter
+    }
+
+    // Stock Status filter - ✅ Only apply if explicitly set
+    if (!empty($filters['stock_status'])) {
+        switch ($filters['stock_status']) {
+            case 'in_stock':
+                $query->whereHas('primaryInventoryItems', function ($q) {
+                    $q->where('quantity', '>', 10);
+                });
+                break;
+            case 'low_stock':
+                $query->whereHas('primaryInventoryItems', function ($q) {
+                    $q->whereBetween('quantity', [1, 10]);
+                });
+                break;
+            case 'out_of_stock':
+                $query->whereHas('primaryInventoryItems', function ($q) {
+                    $q->where('quantity', 0);
+                });
+                break;
+            case 'has_items':
+                $query->has('primaryInventoryItems');
+                break;
+            case 'no_items':
+                $query->doesntHave('primaryInventoryItems');
+                break;
+        }
+    }
+
+    // Value range filter - ✅ Only apply if both min and max are provided
+    if (!empty($filters['value_min']) && !empty($filters['value_max'])) {
+        $query->whereBetween('total_value', [$filters['value_min'], $filters['value_max']]);
+    }
+
+    // Sorting - ✅ Only apply if explicitly set
+    if (!empty($filters['sort_by'])) {
+        switch ($filters['sort_by']) {
+            case 'name_asc':
+                $query->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('name', 'desc');
+                break;
+            case 'value_asc':
+                $query->orderBy('total_value', 'asc');
+                break;
+            case 'value_desc':
+                $query->orderBy('total_value', 'desc');
+                break;
+            default:
+                $query->orderBy('created_at', 'desc');
+        }
+    } else {
+        // Default sorting
+        $query->orderBy('created_at', 'desc');
+    }
+
+    // ✅ Pagination with proper per_page handling
+    $perPage = !empty($filters['per_page']) ? (int) $filters['per_page'] : 15;
+    
+    return $query->paginate($perPage);
+}
 
 
     private function transformCategory($category)

@@ -123,12 +123,9 @@ class MenuCategoryService
         $query = MenuCategory::with(['subcategories', 'parent'])
             ->withCount('menuItems')
             ->whereNull('parent_id');
-
         $totalCount = MenuCategory::whereNull('parent_id')->count();
         $activeCount = MenuCategory::whereNull('parent_id')->where('active', 1)->count();
         $inactiveCount = MenuCategory::whereNull('parent_id')->where('active', 0)->count();
-
-        // Apply all your filters here...
         $searchQuery = isset($filters['q']) ? trim($filters['q']) : '';
         if (! empty($searchQuery)) {
             $query->where('name', 'like', "%{$searchQuery}%");
@@ -144,13 +141,12 @@ class MenuCategoryService
 
         if (! empty($filters['has_subcategories']) && in_array($filters['has_subcategories'], ['yes', 'no'])) {
             if ($filters['has_subcategories'] === 'yes') {
-                $query->whereHas('subcategories');
+                $query->has('subcategories');
             } else {
                 $query->doesntHave('subcategories');
             }
         }
 
-        // Apply sorting
         if (! empty($filters['sort_by'])) {
             switch ($filters['sort_by']) {
                 case 'name_asc':
@@ -172,56 +168,32 @@ class MenuCategoryService
         } else {
             $query->orderBy('id', 'DESC');
         }
-
-        // Determine if ANY meaningful filter is applied
         $hasSearch = ! empty($searchQuery);
         $hasStatus = ! empty($filters['status']) && in_array($filters['status'], ['active', 'inactive']);
         $hasCategory = ! empty($filters['category']) && is_numeric($filters['category']);
         $hasSubcategoriesFilter = ! empty($filters['has_subcategories']) && in_array($filters['has_subcategories'], ['yes', 'no']);
-        $hasSorting = ! empty($filters['sort_by']) && $filters['sort_by'] !== 'default';
+        $hasSorting = ! empty($filters['sort_by']);
 
-        $hasAnyFilter = $hasSearch || $hasStatus || $hasCategory || $hasSubcategoriesFilter || $hasSorting;
+        $hasAnyFilter = $hasSearch || $hasStatus || $hasCategory || $hasSubcategoriesFilter;
 
         Log::info('Menu Category Filter Debug', [
             'hasAnyFilter' => $hasAnyFilter,
             'hasSearch' => $hasSearch,
+            'hasStatus' => $hasStatus,
+            'hasCategory' => $hasCategory,
+            'hasSubcategoriesFilter' => $hasSubcategoriesFilter,
+            'hasSorting' => $hasSorting,
             'filters' => $filters,
         ]);
 
-        if ($hasAnyFilter) {
-            $allCategories = $query->get();
-            $total = $allCategories->count();
+        $perPage = ! empty($filters['per_page']) ? (int) $filters['per_page'] : 10;
 
-            Log::info('Filter Mode (Menu Categories)', ['total_found' => $total]);
+        // ✅ ALWAYS use pagination (simpler approach)
+        $paginator = $query->paginate($perPage);
 
-            $transformedCategories = $allCategories->map(function ($category) {
-                return $this->transformCategory($category);
-            });
-
-            // ✅ FIX: Use a consistent per_page value (10) instead of total
-            $perPage = 10;
-
-            $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
-                $transformedCategories,
-                $total,
-                $perPage,  // ✅ Fixed: Always use 10 instead of total
-                1,
-                [
-                    'path' => request()->url(),
-                    'query' => request()->query(),
-                ]
-            );
-
-        } else {
-            Log::info('Pagination Mode (Menu Categories)');
-
-            $perPage = $filters['per_page'] ?? 10;
-            $paginator = $query->paginate($perPage);
-
-            $paginator->getCollection()->transform(function ($category) {
-                return $this->transformCategory($category);
-            });
-        }
+        $paginator->getCollection()->transform(function ($category) {
+            return $this->transformCategory($category);
+        });
 
         $response = $paginator->toArray();
         $response['stats'] = [
