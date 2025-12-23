@@ -31,8 +31,6 @@ use App\Http\Controllers\Shifts\ShiftManagementController;
 use App\Http\Controllers\VariantController;
 use App\Http\Controllers\VariantGroupController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);
@@ -50,14 +48,6 @@ Route::get('/csrf-token', function () {
     ]);
 });
 
-Route::post('/proxy/customer-view', function(Request $request) {
-    $response = Http::timeout(5)
-        ->post('http://192.168.1.46:51234/data', [
-            'cartData' => $request->input('cartData')
-        ]);
-    
-    return $response->json();
-});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/analytics', [AnalyticsController::class, 'index'])

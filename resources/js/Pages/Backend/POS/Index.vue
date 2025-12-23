@@ -2175,20 +2175,51 @@ async function printReceipt(order, shouldPrint) {
     }
 }
 
+// async function pushDataToCustomerView(cartData) {
+//     console.log("➡️ Cusstomer View (Cart Data):", cartData);
+//     try {
+//         const res = await axios.post(
+//             '/proxy/customer-view', // Use your Laravel proxy
+//             {cartData},
+//             {
+//                 headers: { 'Content-Type': 'application/json' },
+//                 timeout: 5000,
+//             },
+//         );
+//     } catch (error) {
+//         console.error("Customer View failed:", error);
+//         toast.error("Unable to connect to the customer view.");
+//     }
+// }
+
 async function pushDataToCustomerView(cartData) {
-    console.log("➡️ Cusstomer View (Cart Data):", cartData);
+    console.log("➡️ Customer View (Cart Data):", cartData);
+
     try {
         const res = await axios.post(
-            '/proxy/customer-view', // Use your Laravel proxy
-            {cartData},
+            'http://192.168.1.46:51234/data',
+            { cartData },
             {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 5000,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                timeout: 10000, // 10 seconds
             },
         );
+        res.setHeader('Access-Control-Allow-Origin', '*'); // or specific domain
+        res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+        console.log('✅ Data sent successfully');
     } catch (error) {
-        console.error("Customer View failed:", error);
-        toast.error("Unable to connect to the customer view.");
+        if (error.code === 'ECONNABORTED') {
+            console.error("Timeout: Customer view didn't respond");
+            // toast.error("Customer view is not responding. Please check the connection.");
+        } else if (error.code === 'ERR_NETWORK') {
+            console.error("Network error: Cannot reach customer view");
+            // toast.error("Cannot reach customer view. Please ensure it's running on the network.");
+        } else {
+            console.error("Customer View failed:", error);
+            //toast.error("Unable to connect to the customer view.");
+        }
     }
 }
 
@@ -2201,7 +2232,7 @@ async function printKot(order) {
     try {
         const res = await axios.post(
             'http://localhost:8085/print',
-            { order, type: 'KOT',print:'yes'},
+            { order, type: 'KOT', print: 'yes' },
             {
                 headers: { 'Content-Type': 'application/json' },
                 timeout: 5000,
@@ -5847,7 +5878,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -5893,7 +5924,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
                                     </div>
                                     <!-- Total After All Discounts -->
@@ -6236,7 +6267,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                                }}</strong>
+                                            }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -6274,7 +6305,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                    }}</h6>
+                                                                }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">

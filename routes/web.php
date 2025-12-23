@@ -45,8 +45,6 @@ use App\Http\Controllers\VariantController;
 use App\Http\Controllers\VariantGroupController;
 use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 
 /* =========================================================
@@ -67,14 +65,6 @@ Route::get('/sanctum/csrf-cookie', function () {
     return response()->json(['message' => 'CSRF cookie refreshed']);
 });
 
-Route::post('/proxy/customer-view', function(Request $request) {
-    $response = Http::timeout(5)
-        ->post('http://192.168.1.46:51234/data', [
-            'cartData' => $request->input('cartData')
-        ]);
-    
-    return $response->json();
-});
 
 /* =========================================================
 |  Shift Management Routes (NO shift check - must be accessible)
