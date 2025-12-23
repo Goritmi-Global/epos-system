@@ -2175,25 +2175,21 @@ async function printReceipt(order, shouldPrint) {
     }
 }
 
-async function printReceiptN(order, shouldPrint) {
-
-    const printValue = shouldPrint ? 'yes' : 'no';
-    console.log("🖨️ printReceiptN called");
-    console.log("➡️ shouldPrint (boolean):", shouldPrint);
-    console.log("➡️ print value sent to printer:", printValue);
+async function pushDataToCustomerView(cartData) {
+    console.log("➡️ Cusstomer View (Cart Data):", cartData);
     try {
 
         const res = await axios.post(
-            'http://localhost:8085/print',
-            { order, type: 'customer', print: printValue },
+            'http://192.168.1.46:51234/data',
+            {cartData},
             {
                 headers: { 'Content-Type': 'application/json' },
                 timeout: 5000,
             },
         );
     } catch (error) {
-        console.error("Print failed:", error);
-        toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
+        console.error("Customer View failed:", error);
+        toast.error("Unable to connect to the customer view. Please ensure it is properly connected.");
     }
 }
 
@@ -3822,9 +3818,14 @@ watch(
     (newCart) => {
         console.log('🔔 Cart changed:', newCart.items.length, 'items, Total:', newCart.total);
         debouncedBroadcastCart(newCart);
+        pushDataToCustomerView(newCart);
+
     },
     { deep: true, immediate: true }
 );
+
+
+
 
 // Watch for UI state changes
 watch(
