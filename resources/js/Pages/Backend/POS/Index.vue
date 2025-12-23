@@ -2178,9 +2178,8 @@ async function printReceipt(order, shouldPrint) {
 async function pushDataToCustomerView(cartData) {
     console.log("➡️ Cusstomer View (Cart Data):", cartData);
     try {
-
         const res = await axios.post(
-            'http://192.168.1.46:51234/data',
+            '/proxy/customer-view', // Use your Laravel proxy
             {cartData},
             {
                 headers: { 'Content-Type': 'application/json' },
@@ -2189,7 +2188,7 @@ async function pushDataToCustomerView(cartData) {
         );
     } catch (error) {
         console.error("Customer View failed:", error);
-        toast.error("Unable to connect to the customer view. Please ensure it is properly connected.");
+        toast.error("Unable to connect to the customer view.");
     }
 }
 
