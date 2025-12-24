@@ -60,6 +60,12 @@ Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name
 Route::post('/forgot-password', [CustomPasswordResetController::class, 'requestReset'])
     ->name('password.custom-request');
 
+
+Route::get('/sanctum/csrf-cookie', function () {
+    return response()->json(['message' => 'CSRF cookie refreshed']);
+});
+
+
 /* =========================================================
 |  Shift Management Routes (NO shift check - must be accessible)
 |========================================================= */

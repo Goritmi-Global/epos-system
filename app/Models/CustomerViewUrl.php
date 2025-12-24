@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class CustomerViewUrl extends Model
 {
-    protected $fillable = ['url'];
+    protected $fillable = ['url','user_id'];
 }

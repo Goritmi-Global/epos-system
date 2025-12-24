@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Helpers\UploadHelper;
+use App\Models\CustomerViewUrl;
 use App\Models\ProfileStep1;
 use App\Models\ProfileStep2;
 use App\Models\ProfileStep3;
@@ -54,6 +55,7 @@ class HandleInertiaRequests extends Middleware
             'payment_methods' => ['cash_enabled', 'card_enabled'],
             'business_hours' => ['disable_order_after_hours_id', 'business_hours_id'],
             'optional_features' => ['enable_loyalty_system', 'enable_inventory_tracking', 'enable_cloud_backup', 'enable_multi_location', 'theme_preference'],
+            'customer_view_url' => ['url']
         ];
 
         $models = [
@@ -66,6 +68,7 @@ class HandleInertiaRequests extends Middleware
             'payment_methods' => ProfileStep7::class,
             'business_hours' => ProfileStep8::class,
             'optional_features' => ProfileStep9::class,
+            'customer_view_url' => CustomerViewUrl::class
         ];
 
         // Initialize
@@ -105,7 +108,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
-
+            'csrf_token' => csrf_token(),
             'current_user' => $user ? [
                 'id' => $user->id,
                 'name' => $user->name,

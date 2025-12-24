@@ -152,14 +152,17 @@ const filteredOrderItems = computed(() => {
     }
 
     return items.filter(item => {
-        const preferredSupplierId = item.preferred_supplier_id || item.preferredSupplierId;
-        const supplierIds = item.supplier_id || item.supplierId;
+        const normalize = (v) => v == null ? "" : String(v).trim();
+
+        const preferredSupplierId = normalize(item.preferred_supplier_id ?? item.preferredSupplierId);
+        const supplierIds = normalize(item.supplier_id ?? item.supplierId);
+        const selectedSupplierId = normalize(p_supplier.value);
 
         console.log("Preferred Supplier Id: ", preferredSupplierId);
         console.log("Suppliers Id: ", supplierIds);
 
-        return preferredSupplierId == p_supplier.value ||
-            supplierIds == p_supplier.value;
+        return preferredSupplierId === selectedSupplierId ||
+            supplierIds === selectedSupplierId;
     });
 });
 
@@ -431,7 +434,6 @@ async function addOrderItem(item) {
 function delOrderRow(idx) {
     o_cart.value.splice(idx, 1);
 }
-
 
 async function orderSubmit() {
     formErrors.value = {};
