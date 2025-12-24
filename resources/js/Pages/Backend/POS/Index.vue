@@ -21,6 +21,7 @@ import AccordionContent from 'primevue/accordioncontent';
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
 
 const props = defineProps(["client_secret", "order_code"]);
+const page = usePage();
 
 import { Popover } from 'bootstrap';
 
@@ -2219,25 +2220,53 @@ async function printReceipt(order, shouldPrint) {
     }
 }
 
-async function printReceiptN(order, shouldPrint) {
+// async function pushDataToCustomerView(cartData) {
+//     console.log("➡️ Cusstomer View (Cart Data):", cartData);
+//     try {
+//         const res = await axios.post(
+//             '/proxy/customer-view', // Use your Laravel proxy
+//             {cartData},
+//             {
+//                 headers: { 'Content-Type': 'application/json' },
+//                 timeout: 5000,
+//             },
+//         );
+//     } catch (error) {
+//         console.error("Customer View failed:", error);
+//         toast.error("Unable to connect to the customer view.");
+//     }
+// }
 
-    const printValue = shouldPrint ? 'yes' : 'no';
-    console.log("🖨️ printReceiptN called");
-    console.log("➡️ shouldPrint (boolean):", shouldPrint);
-    console.log("➡️ print value sent to printer:", printValue);
+
+
+async function pushDataToCustomerView(cartData) {
+    console.log("➡️ Customer View (Cart Data):", cartData);
+
     try {
-
         const res = await axios.post(
-            'http://localhost:8085/print',
-            { order, type: 'customer', print: printValue },
+            customer_view_url.value,
+            { cartData },
             {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 5000,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                timeout: 10000, // 10 seconds
             },
         );
+        res.setHeader('Access-Control-Allow-Origin', '*'); // or specific domain
+        res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+        console.log('✅ Data sent successfully');
     } catch (error) {
-        console.error("Print failed:", error);
-        toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
+        if (error.code === 'ECONNABORTED') {
+            console.error("Timeout: Customer view didn't respond");
+            // toast.error("Customer view is not responding. Please check the connection.");
+        } else if (error.code === 'ERR_NETWORK') {
+            console.error("Network error: Cannot reach customer view");
+            // toast.error("Cannot reach customer view. Please ensure it's running on the network.");
+        } else {
+            console.error("Customer View failed:", error);
+            //toast.error("Unable to connect to the customer view.");
+        }
     }
 }
 
@@ -2248,11 +2277,14 @@ const changeAmount = ref(0);
 
 async function printKot(order) {
     try {
-        const response = await axios.post("/api/kot/print-receipt", { order });
-        if (response.data.success) {
-        } else {
-            toast.error(response.data.message || "KOT print failed");
-        }
+        const res = await axios.post(
+            'http://localhost:8085/print',
+            { order, type: 'KOT', print: 'yes' },
+            {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000,
+            },
+        );
     } catch (error) {
         console.error("KOT print failed:", error);
         toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
@@ -2949,13 +2981,14 @@ onMounted(async () => {
     }
 
 });
-const page = usePage();
+
 function bumpToasts() {
     const s = page.props.flash?.success;
     const e = page.props.flash?.error;
     if (s) toast.success(s, { autoClose: 4000 });
     if (e) toast.error(e, { autoClose: 6000 });
 }
+
 onMounted(() => bumpToasts());
 onMounted(() => {
     const s = page.props.flash?.success;
@@ -3786,6 +3819,7 @@ import PendingOrdersModal from "./PendingOrdersModal.vue";
 import { Eye, Pencil } from "lucide-vue-next";
 
 const user = computed(() => page.props.current_user);
+const customer_view_url = computed(() => page.props.onboarding.customer_view_url.url);
 
 const categoriesWithMenus = computed(() => {
     return menuCategories.value.filter(category => {
@@ -3859,9 +3893,14 @@ watch(
     (newCart) => {
         console.log('🔔 Cart changed:', newCart.items.length, 'items, Total:', newCart.total);
         debouncedBroadcastCart(newCart);
+        pushDataToCustomerView(newCart);
+
     },
     { deep: true, immediate: true }
 );
+
+
+
 
 // Watch for UI state changes
 watch(
@@ -4077,12 +4116,7 @@ const getDealQty = (deal) => {
 // Get total count of items (menu items + deals) in a category
 const getCategoryItemCount = (categoryId) => {
     const category = menuCategories.value.find(c => c.id === categoryId);
-    // Use total_items_count if available, otherwise calculate
-    if (category?.total_items_count !== undefined) {
-        return category.total_items_count;
-    }
-
-    const menuCount = category?.menu_items_count || 0;
+    const menuCount = +(category?.menu_items_count || 0);
     const dealsCount = getCategoryDealsCount(categoryId);
     return menuCount + dealsCount;
 };
@@ -4501,6 +4535,16 @@ const getRemainingDealIngredientsCount = () => {
     const removed = dealRemovedIngredients.value[currentDealMenuItemIndex.value] || [];
     return ingredients.filter(ing => !removed.includes(ing.id)).length;
 };
+
+// // Get remaining ingredients count
+// const getRemainingIngredientsCount = () => {
+//      return getModalIngredients().filter(
+//         ing => !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
+//     ).length;
+//     // const ingredients = getCurrentIngredients();
+//     // const removed = dealRemovedIngredients.value[currentDealMenuItemIndex.value] || [];
+//     // return ingredients.filter(ing => !removed.includes(ing.id)).length;
+// };
 
 // Handle addon change
 const handleDealAddonChange = (addonGroupId, selectedAddons) => {
@@ -5889,7 +5933,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -5935,7 +5979,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
                                     </div>
                                     <!-- Total After All Discounts -->
@@ -6278,7 +6322,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                                }}</strong>
+                                            }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -6316,7 +6360,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                    }}</h6>
+                                                                }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">

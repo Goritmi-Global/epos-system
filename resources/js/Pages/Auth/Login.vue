@@ -307,10 +307,7 @@ const switchToPin = () => {
                         <img src="/assets/img/login.jpg" alt="img" class="w-100 h-100 object-fit-cover" />
                         <div class="login-overlay text-center">
                             <div class="overlay-content">
-                                <h1 class="restaurant-name">The Tasty House</h1>
-                                <p class="restaurant-desc">
-                                    Where taste meets comfort and every meal feels like home.
-                                </p>
+                                
                             </div>
                         </div>
                     </div>

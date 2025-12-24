@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('customer_view_urls', function (Blueprint $table) {
             $table->id();
             $table->string('url');
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();
         });
 
