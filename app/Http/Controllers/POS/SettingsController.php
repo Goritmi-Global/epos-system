@@ -16,6 +16,10 @@ use App\Models\ProfileStep8;
 use App\Models\ProfileStep9;
 use App\Models\RestaurantProfile;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 
 class SettingsController extends Controller
@@ -644,5 +648,95 @@ class SettingsController extends Controller
         }
 
         return $data;
+    }
+
+     public function verifyPassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+        if ($user->is_first_super_admin !== 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Super Admins can perform this action.'
+            ], 403);
+        }
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Incorrect password. Please try again.'
+            ], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password verified successfully.'
+        ]);
+    }
+
+    /**
+     * Restore system by truncating all operational tables
+     */
+    public function restoreSystem(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            // Double check user is super admin
+            if ($user->is_first_super_admin !== 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized action.'
+                ], 403);
+            }
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            $tables = [
+                // POS Order related tables
+                'pos_order_item_addons',
+                'pos_order_items',
+                'pos_order_delivery_details',
+                'kitchen_order_items',
+                'kitchen_orders',
+                'pos_order_types',
+                'payments',
+                'pos_orders',
+                'purchase_items',
+                'purchase_orders',
+                'shifts',
+                'shift_details',
+                'shift_inventory_snapshots',
+                'shift_inventory_snapshot_details',
+            ];
+
+            foreach ($tables as $table) {
+                if (DB::getSchemaBuilder()->hasTable($table)) {
+                    DB::table($table)->truncate();
+                }
+            }
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+            Log::info('System restored successfully by user: ' . $user->id . ' (' . $user->name . ')');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'System restored successfully! All data has been cleared.'
+            ], 200);
+
+        } catch (\Exception $e) {
+            try {
+                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            } catch (\Exception $fkException) {
+                Log::error('Failed to re-enable foreign key checks: ' . $fkException->getMessage());
+            }
+            
+            Log::error('System restore failed: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to restore system: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

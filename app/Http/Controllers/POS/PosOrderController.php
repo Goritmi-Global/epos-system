@@ -974,4 +974,50 @@ class PosOrderController extends Controller
             'selectedCardAddons' => [],
         ];
     }
+
+    /**
+     * Get next walk-in counter number
+     */
+    public function getNextWalkInNumber()
+    {
+        try {
+            $number = \App\Models\WalkInCounter::getNextNumber();
+
+            return response()->json([
+                'success' => true,
+                'number' => $number,
+                'formatted' => 'Walk In-'.str_pad($number, 3, '0', STR_PAD_LEFT),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to get walk-in number', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get walk-in number',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get current walk-in counter (without incrementing)
+     */
+    public function getCurrentWalkInNumber()
+    {
+        try {
+            $number = \App\Models\WalkInCounter::getCurrentNumber();
+
+            return response()->json([
+                'success' => true,
+                'number' => $number,
+                'formatted' => 'Walk In-'.str_pad($number, 3, '0', STR_PAD_LEFT),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get current number',
+            ], 500);
+        }
+    }
 }

@@ -257,6 +257,8 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::post('/check-ingredients', [PosOrderController::class, 'checkIngredients']);
         Route::post('/order-without-payment', [PosOrderController::class, 'storeWithoutPayment']);
         Route::post('/orders/{orderId}/complete-payment', [PosOrderController::class, 'completePayment']);
+        Route::get('/walk-in/next', [PosOrderController::class, 'getNextWalkInNumber']);
+        Route::get('/walk-in/current', [PosOrderController::class, 'getCurrentWalkInNumber']);
     });
 
     /* -------- Pending Orders -------- */
@@ -338,6 +340,12 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
 /* -------- Super Admin Only -------- */
 Route::middleware(['auth', 'role:Super Admin'])->group(function () {
     Route::post('/system/restore', [SystemRestoreController::class, 'restore'])->name('system.restore');
+
+    Route::post('/settings/verify-password', [SettingsController::class, 'verifyPassword'])
+        ->name('settings.verify-password');
+
+    Route::post('/settings/restore-system', [SettingsController::class, 'restoreSystem'])
+    ->name('settings.restore');
     Route::post('/database/backup', [DatabaseBackupController::class, 'backup'])->name('database.backup');
 });
 

@@ -21,6 +21,7 @@ import AccordionContent from 'primevue/accordioncontent';
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
 
 const props = defineProps(["client_secret", "order_code"]);
+const page = usePage();
 
 import { Popover } from 'bootstrap';
 
@@ -43,6 +44,8 @@ const categorySearchKey = ref(Date.now());
 const categoryInputId = `category-search-${Math.random().toString(36).substr(2, 9)}`;
 const isCategorySearchReady = ref(false);
 const currentAddonGroupIndex = ref(0);
+
+const counter = ref(0);
 
 const currentAddonGroup = computed(() => {
     if (!selectedItem.value?.addon_groups || selectedItem.value.addon_groups.length === 0) {
@@ -1054,20 +1057,48 @@ const handleApplyFilters = (appliedFilters) => {
     filters.value = { ...appliedFilters };
     filtersJustApplied.value = true;
 };
-const counter = ref('');
-const initializeWalkInCounter = () => {
-    const storedCounter = localStorage.getItem('pos_walkin_counter');
-    if (storedCounter) {
-        counter.value = parseInt(storedCounter);
-    } else {
+
+const initializeWalkInCounter = async () => {
+    try {
+        const response = await axios.get('/pos/walk-in/current');
+        if (response.data.success) {
+            counter.value = response.data.number;
+
+            // If counter is 0, get the first number
+            if (counter.value === 0) {
+                const nextResponse = await axios.get('/pos/walk-in/next');
+                if (nextResponse.data.success) {
+                    counter.value = nextResponse.data.number;
+                    customer.value = nextResponse.data.formatted;
+                }
+            } else {
+                customer.value = generateCustomerName();
+            }
+        }
+    } catch (error) {
+        console.error('Failed to initialize walk-in counter:', error);
+        // Fallback
         counter.value = 1;
-        localStorage.setItem('pos_walkin_counter', '1');
+        customer.value = 'Walk In-001';
+    }
+};
+
+const getNextWalkInNumber = async () => {
+    try {
+        const response = await axios.get('/pos/walk-in/next');
+        if (response.data.success) {
+            counter.value = response.data.number;
+            customer.value = response.data.formatted;
+            return response.data.formatted;
+        }
+    } catch (error) {
+        console.error('Failed to get next walk-in number:', error);
+        toast.error('Failed to generate walk-in number');
     }
 };
 
 const generateCustomerName = () => {
-    const number = String(counter.value).padStart(3, '0');
-    return `Walk In-${number}`;
+    return `Walk In-${String(counter.value).padStart(3, '0')}`;
 };
 
 const incrementWalkInCounter = () => {
@@ -1518,6 +1549,20 @@ const removeCart = (index) => {
 const subTotal = computed(() =>
     orderItems.value.reduce((s, i) => s + i.price, 0)
 );
+
+const totalAddons = computed(() => {
+    return orderItems.value.reduce((total, item) => {
+        if (!item.addons || item.addons.length === 0) return total;
+
+        const itemAddonsTotal = item.addons.reduce((addonSum, addon) => {
+            const addonPrice = parseFloat(addon.price || 0);
+            const addonQty = addon.quantity || 1;
+            return addonSum + (addonPrice * addonQty);
+        }, 0);
+
+        return total + (itemAddonsTotal * item.qty);
+    }, 0);
+});
 
 const deliveryCharges = computed(() => {
     if (orderType.value !== "Delivery") return 0;
@@ -2192,12 +2237,14 @@ async function printReceipt(order, shouldPrint) {
 //     }
 // }
 
+
+
 async function pushDataToCustomerView(cartData) {
     console.log("➡️ Customer View (Cart Data):", cartData);
 
     try {
         const res = await axios.post(
-            'http://192.168.1.46:51234/data',
+            customer_view_url.value,
             { cartData },
             {
                 headers: {
@@ -2670,7 +2717,6 @@ const confirmOrder = async ({
             if (done) done();
             return;
         }
-        incrementWalkInCounter();
         resetCart();
         showConfirmModal.value = false;
         toast.success(res.data.message || "Order placed successfully!");
@@ -2684,15 +2730,13 @@ const confirmOrder = async ({
             card_amount: paymentMethod === 'Split' ? cardAmount : null,
         };
 
-        console.log("🧾 Preparing to print receipt...");
-        console.log("🟢 autoPrintKot value:", autoPrintKot);
-
         printReceipt(
             JSON.parse(JSON.stringify(lastOrder.value)),
             autoPrintKot === true
         );
         kotData.value = await openPosOrdersModal();
         printKot(JSON.parse(JSON.stringify(lastOrder.value)));
+        initializeWalkInCounter();
 
 
         selectedPromos.value = [];
@@ -2898,8 +2942,6 @@ const handleCancelMissingIngredients = () => {
 -----------------------------*/
 onMounted(async () => {
     initializeWalkInCounter();
-    const number = String(counter.value).padStart(3, '0');
-    customer.value = `Walk In-${number}`;
     if (window.bootstrap) {
         document
             .querySelectorAll('[data-bs-toggle="tooltip"]')
@@ -2939,13 +2981,14 @@ onMounted(async () => {
     }
 
 });
-const page = usePage();
+
 function bumpToasts() {
     const s = page.props.flash?.success;
     const e = page.props.flash?.error;
     if (s) toast.success(s, { autoClose: 4000 });
     if (e) toast.error(e, { autoClose: 6000 });
 }
+
 onMounted(() => bumpToasts());
 onMounted(() => {
     const s = page.props.flash?.success;
@@ -3228,6 +3271,7 @@ const totalResaleSavings = computed(() => {
 });
 const grandTotal = computed(() => {
     const total = subTotal.value
+        + totalAddons.value
         + totalTax.value
         + deliveryCharges.value
         + serviceCharges.value
@@ -3775,6 +3819,7 @@ import PendingOrdersModal from "./PendingOrdersModal.vue";
 import { Eye, Pencil } from "lucide-vue-next";
 
 const user = computed(() => page.props.current_user);
+const customer_view_url = computed(() => page.props.onboarding.customer_view_url.url);
 
 const categoriesWithMenus = computed(() => {
     return menuCategories.value.filter(category => {
@@ -5194,7 +5239,7 @@ const placeOrderWithoutPayment = async () => {
             // if (response.data.kot) {
             //     printKot(JSON.parse(JSON.stringify(response.data.order)));
             // }
-
+            // await getNextWalkInNumber();
             // Reset cart
             resetCart();
 
@@ -5238,7 +5283,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
 
             showPaymentModal.value = false;
             selectedUnpaidOrder.value = null;
-
+            // await getNextWalkInNumber();
             // Refresh pending orders
             await fetchPendingOrders();
         }
@@ -5842,6 +5887,16 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                         <b class="sub-total">{{ formatCurrencySymbol(subTotal) }}</b>
                                     </div>
 
+                                    <!-- Add-ons Total (Optional - for clarity) -->
+                                    <div v-if="totalAddons > 0" class="trow">
+                                        <span class="text-muted">
+                                            <!-- <i class="bi bi-plus-circle text-success"></i> -->
+                                            Add-ons Total:
+                                        </span>
+                                        <span class="text-success fw-semibold">{{ formatCurrencySymbol(totalAddons)
+                                        }}</span>
+                                    </div>
+
                                     <!-- Tax Row -->
                                     <div class="trow" v-if="totalTax > 0">
                                         <span class="d-flex align-items-center gap-2">
@@ -6202,7 +6257,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                         </div>
 
                         <!-- STEP INDICATOR -->
-                        <div class="px-1 pt-2 progress-bar">
+                        <div class="px-1 pt-3 progress-bar">
                             <div class="stepper-container position-relative" style="min-height: 60px;">
                                 <!-- Background line -->
                                 <div class="stepper-progress-bg"></div>
