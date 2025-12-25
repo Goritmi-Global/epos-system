@@ -6133,7 +6133,7 @@ const handlePayItem = async (item) => {
                                             Add-ons Total:
                                         </span>
                                         <span class="text-success fw-semibold">{{ formatCurrencySymbol(totalAddons)
-                                        }}</span>
+                                            }}</span>
                                     </div>
 
                                     <!-- Tax Row -->
@@ -6172,7 +6172,6 @@ const handlePayItem = async (item) => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
                                                 }}</b>
                                             </div>
                                         </div>
@@ -6219,7 +6218,6 @@ const handlePayItem = async (item) => {
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
                                             }}</b>
                                         </div>
                                     </div>
@@ -6563,7 +6561,6 @@ const handlePayItem = async (item) => {
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                                }}</strong>
                                             }}</strong>
                                         </div>
 
@@ -6602,7 +6599,6 @@ const handlePayItem = async (item) => {
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                    }}</h6>
                                                                 }}</h6>
                                                             </div>
                                                             <div
