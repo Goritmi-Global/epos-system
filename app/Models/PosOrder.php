@@ -87,13 +87,41 @@ class PosOrder extends Model
         return $this->hasMany(Payment::class, 'order_id');
     }
 
-    public function getTotalPaidAmount(): float
-    {
-        return (float) $this->payments()->sum('amount_received');
-    }
+    // public function getTotalPaidAmount(): float
+    // {
+    //     return (float) $this->payments()->sum('amount_received');
+    // }
 
     public function getRemainingAmount(): float
     {
         return max(0, $this->total_amount - $this->getTotalPaidAmount());
+    }
+
+    public function getUnpaidItems()
+    {
+        return $this->items()->where('payment_status', '!=', 'paid')->get();
+    }
+
+    public function updatePaymentStatusFromItems()
+    {
+        $allPaid = $this->items()->where('payment_status', '!=', 'paid')->count() === 0;
+        $somePaid = $this->items()->where('amount_paid', '>', 0)->count() > 0;
+
+        if ($allPaid) {
+            $this->update(['payment_status' => 'paid', 'status' => 'paid']);
+        } elseif ($somePaid) {
+            $this->update(['payment_status' => 'partial']);
+        }
+    }
+
+    // ✅ HELPER METHOD: Get total paid amount
+    public function getTotalPaidAmount(): float
+    {
+        return $this->items->sum('amount_paid');
+    }
+
+    public function getRemainingBalance(): float
+    {
+        return $this->total_amount - $this->getTotalPaidAmount();
     }
 }

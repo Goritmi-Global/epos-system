@@ -16,9 +16,9 @@ const props = defineProps({
   orderType: String,
   selectedTable: Object,
   orderItems: Array,
-  grandTotal: Number,         
+  grandTotal: Number,
   money: Function,
-  cashReceived: Number,      
+  cashReceived: Number,
   subTotal: Number,
   tax: Number,
   serviceCharges: Number,
@@ -39,31 +39,49 @@ const props = defineProps({
 
   approvedDiscounts: { type: Number, default: 0 },
   approvedDiscountDetails: { type: Array, default: () => [] },
+
+  currentOrderId: { type: [Number, null], default: null },
+  isPartialPayment: { type: Boolean, default: false },
+  selectedItemIds: { type: Array, default: () => [] },
+  paidItemIds: { type: Array, default: () => [] },
+  paidProductIds: { type: Array, default: () => [] },
+  paidDealIds: { type: Array, default: () => [] },
 });
 
 
 
-const emit = defineEmits(["confirm"]);
+const emit = defineEmits(["confirm", "payment-success"]);
 
 const total = computed(() => Number(props.grandTotal ?? 0));
-ss
-const half = Math.floor(total.value / 2);
 
-// Cash = floor half
-const cash = ref(half);
+// Cash and Card refs
+const cash = ref(0);
+const card = ref(0);
 
-// Card = remainder (ensures sum == total)
-let remainder = total.value - half;
-const card = ref(remainder);
+// ======================================================
+//      Watch total and initialize split to 50/50
+// ======================================================
+watch(total, (newTotal) => {
+  if (newTotal > 0) {
+    const halfValue = Math.floor(newTotal / 2);
+    cash.value = halfValue;
+    card.value = Math.round((newTotal - halfValue) * 100) / 100;
 
-// Guarantee card portion ≥ 0.50
-if (card.value < 0.5) {
-  card.value = 0.5;
-  cash.value = total.value - card.value;
-}
+    // Guarantee card portion ≥ 0.50
+    if (card.value < 0.5 && newTotal >= 0.5) {
+      card.value = 0.5;
+      cash.value = Math.round((newTotal - 0.5) * 100) / 100;
+    }
+  } else {
+    cash.value = 0;
+    card.value = 0;
+  }
+}, { immediate: true });
 
 
-/** lock to avoid recursive watch loops */
+// ======================================================
+//        Lock to avoid recursive watch loops
+// ======================================================
 let guard = false;
 watch(cash, (v) => {
   if (guard) return;
@@ -80,7 +98,9 @@ watch(card, (v) => {
   guard = false;
 });
 
-// Derived subTotal (from items) if not provided
+// ======================================================
+//    Derived subTotal (from items) if not provided
+// ======================================================
 const derivedSubTotal = computed(() => {
   if (!Array.isArray(props.orderItems)) return 0;
   return props.orderItems.reduce((sum, i) => {
@@ -90,7 +110,9 @@ const derivedSubTotal = computed(() => {
   }, 0);
 });
 
-// Use provided subTotal or derived
+// =====================================================
+//          Use provided subTotal or derived
+// =====================================================
 const subTotalToSend = computed(() =>
   Number.isFinite(props.subTotal) ? Number(props.subTotal) : derivedSubTotal.value
 );
@@ -98,7 +120,9 @@ const subTotalToSend = computed(() =>
 // No change for strict split
 const changeAmount = computed(() => 0);
 
-// ---------- validation ----------
+// ===========================================================
+//                        Validation
+// ===========================================================
 function cents(n) { return Math.round((Number(n) || 0) * 100); }
 const errors = computed(() => {
   const out = [];
@@ -112,7 +136,9 @@ const errors = computed(() => {
 });
 const canConfirm = computed(() => errors.value.length === 0);
 
-// ---------- emit to parent (if you also save a cash movement right away) ----------
+// ================================================================
+// emit to parent (if you also save a cash movement right away)
+// ================================================================
 function confirmSplit() {
   if (!canConfirm.value) return;
   emit("confirm", {
@@ -125,8 +151,18 @@ function confirmSplit() {
     promoId: props.promoId,
     promoName: props.promoName,
     promoType: props.promoType,
+
+    isPartialPayment: props.isPartialPayment,
+    selectedItemIds: props.selectedItemIds,
+    paidItemIds: props.paidItemIds,
+    paidProductIds: props.paidProductIds,
+    existingOrderId: props.currentOrderId,
   });
 }
+
+const handleStripeSuccess = (data) => {
+  emit("payment-success", data);
+};
 </script>
 
 <template>
@@ -193,24 +229,33 @@ function confirmSplit() {
 
       <StripePayment :order_code="order_code" :show="show" :customer="customer" :phone="phone"
         :deliveryLocation="deliveryLocation" :orderType="orderType" :selectedTable="selectedTable"
-        :orderItems="orderItems" :grandTotal="card" :money="money" :cashReceived="cash" :cardPayment="card"
-        :subTotal="subTotalToSend" :tax="tax ?? 0" :serviceCharges="serviceCharges ?? 0"
+        :orderItems="orderItems" :grandTotal="card" :order-total="total" :money="money" :cashReceived="cash"
+        :cardPayment="card" :subTotal="subTotalToSend" :tax="tax ?? 0" :serviceCharges="serviceCharges ?? 0"
         :deliveryCharges="deliveryCharges ?? 0" :note="note" :kitchen-note="kitchenNote"
         :orderDate="orderDate ?? new Date().toISOString().split('T')[0]"
         :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]" :paymentMethod="'Card'" :change="changeAmount"
-        :paymentType="'split'" type="split-payment" :cardCharge="card" :promo-discount="promoDiscount"
+        :payment-type="'split'" type="split-payment" :cardCharge="card" :promo-discount="promoDiscount"
         :promo-id="promoId" :promo-name="promoName" :promo-type="promoType" :promo-discount-amount="promoDiscountAmount"
         :applied-promos="appliedPromos" :approved-discounts="approvedDiscounts"
-        :approved-discount-details="approvedDiscountDetails" />
+        :approved-discount-details="approvedDiscountDetails" :current-order-id="currentOrderId"
+        :is-partial-payment="isPartialPayment" :selected-item-ids="selectedItemIds" :paid-item-ids="paidItemIds"
+        :paid-product-ids="paidProductIds" :paid-deal-ids="paidDealIds" @payment-success="handleStripeSuccess" />
     </div>
 
     <!-- Actions -->
-    <div class="d-flex gap-2 mt-3">
+    <!-- <div class="d-flex flex-column gap-2 mt-3 p-3 bg-light rounded-3 border">
+      <div class="d-flex align-items-center gap-2 mb-2 text-primary">
+          <i class="bi bi-info-circle-fill"></i>
+          <span class="small fw-semibold">Manual / External Card Payment</span>
+      </div>
+      <p class="small text-muted mb-3">
+        Use this button ONLY if you have already charged the card portion on a separate physical terminal.
+      </p>
       <button class="btn brand-btn rounded-pill px-3 py-2" :disabled="!canConfirm" @click="confirmSplit">
         <i class="bi bi-check2-circle me-1"></i>
-        Confirm Split
+        Confirm Manual Split
       </button>
-    </div>
+    </div> -->
   </div>
 </template>
 

@@ -9,10 +9,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Validation\Rules\Password;
 
 class RegisteredUserController extends Controller
 {
@@ -40,7 +40,7 @@ class RegisteredUserController extends Controller
                 Password::min(8)               // Minimum 8 characters
                     ->letters()               // Must contain letters
                     ->mixedCase()
-                    ->numbers()               // Must contain at least one number
+                    ->numbers(),               // Must contain at least one number
             ],
             'pin' => 'required|digits:4|unique:users,pin',
         ]);
@@ -85,7 +85,6 @@ class RegisteredUserController extends Controller
         ]);
     }
 
-
     public function verifyOtp(Request $request)
     {
         $request->validate([
@@ -108,7 +107,6 @@ class RegisteredUserController extends Controller
         return response()->json(['message' => 'Verified successfully']);
     }
 
-
     private function runInitialSetupSeeders()
     {
         $seeders = [
@@ -123,6 +121,7 @@ class RegisteredUserController extends Controller
             \Database\Seeders\InventoryCategorySeeder::class,
             \Database\Seeders\MenuCategorySeeder::class,
             \Database\Seeders\ShiftChecklistItemsSeeder::class,
+            \Database\Seeders\WalkInCounterSeeder::class,
         ];
 
         foreach ($seeders as $seederClass) {
