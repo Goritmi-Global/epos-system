@@ -174,7 +174,8 @@ const fetchOrders = async (page = null) => {
                         ingredients: kotItem.ingredients || []
                     };
                 }),
-                item_count: ko.items?.length || 0
+                item_count: ko.items?.length || 0,
+                addons: posOrder?.items[0]?.addons,
             };
         });
 
@@ -288,8 +289,6 @@ const filterOptions = computed(() => ({
     sortOptions: [
         { value: "order_desc", label: "Total Amount: High to Low" },
         { value: "order_asc", label: "Total Amount: Low to High" },
-        { value: "date_desc", label: "Date: Newest First" },
-        { value: "date_asc", label: "Date: Oldest First" },
     ],
     orderTypeOptions: [
         { value: "Eat In", label: "Eat In" },
@@ -1171,7 +1170,7 @@ const downloadExcel = (data) => {
                                 <div class="col-md-3">
                                     <small class="text-muted d-block dark:text-gray-400">Table Number</small>
                                     <strong class="dark:text-white">{{ selectedOrder.type?.table_number || '-'
-                                    }}</strong>
+                                        }}</strong>
                                 </div>
                                 <div class="col-md-3">
                                     <small class="text-muted d-block dark:text-gray-400">Order Status</small>
@@ -1199,6 +1198,7 @@ const downloadExcel = (data) => {
                                             <th class="px-3">#</th>
                                             <th>Item Name</th>
                                             <th>Variant</th>
+                                            <th>Addons</th>
                                             <th>Quantity</th>
                                             <th>Kitchen Note</th>
                                             <th>Status</th>
@@ -1208,14 +1208,22 @@ const downloadExcel = (data) => {
                                     <tbody>
                                         <tr v-for="(item, idx) in selectedOrder.items" :key="item.id"
                                             class="dark:border-gray-700">
+
+
                                             <td class="px-3">{{ idx + 1 }}</td>
                                             <td class="fw-semibold">{{ item.item_name }}</td>
                                             <td>{{ item.variant_name }}</td>
                                             <td>
+                                                {{selectedOrder?.addons?.map(a => a.addon_name).join(', ')}}
+                                            </td>
+
+                                            <td>
                                                 <span class="badge bg-secondary">{{ item.quantity }}</span>
                                             </td>
                                             <td>
-                                                <small class="text-muted dark:text-gray-400">{{ item.item_kitchen_note.substring(item.item_kitchen_note.indexOf('No')) }}</small>
+                                                <small class="text-muted dark:text-gray-400">{{
+                                                    item.item_kitchen_note.substring(item.item_kitchen_note.indexOf('No'))
+                                                    }}</small>
                                             </td>
                                             <td>
                                                 <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"

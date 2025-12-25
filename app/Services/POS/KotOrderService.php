@@ -78,6 +78,7 @@ class KotOrderService
             'items',
             'posOrderType.order.payment',
             'posOrderType.order.items',
+            'posOrderType.order.items.addons'
         ]);
 
         // Apply filters
