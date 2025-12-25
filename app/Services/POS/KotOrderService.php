@@ -3,7 +3,6 @@
 namespace App\Services\POS;
 
 use App\Models\KitchenOrder;
-use Illuminate\Support\Facades\DB;
 
 class KotOrderService
 {
@@ -17,12 +16,13 @@ class KotOrderService
             'posOrderType.order.items',
         ])->whereDate('order_date', $today)->get();
     }
+
     public function getOrderStatistics(array $filters = [])
     {
         $query = KitchenOrder::with(['items', 'posOrderType']);
         $filtersWithoutStatus = $filters;
-        unset($filtersWithoutStatus['status']); 
-        
+        unset($filtersWithoutStatus['status']);
+
         $this->applyFilters($query, $filtersWithoutStatus);
         $allOrders = $query->get();
         $statusCounts = [
@@ -68,7 +68,7 @@ class KotOrderService
                 'in_progress_items' => $inProgressItems,
                 'done_items' => $doneItems,
                 'cancelled_items' => $cancelledItems,
-            ]
+            ],
         ];
     }
 
@@ -87,7 +87,7 @@ class KotOrderService
         $this->applySorting($query, $filters);
 
         // ✅ CHECK IF THIS IS AN EXPORT REQUEST
-        if (!empty($filters['export']) && $filters['export'] === 'all') {
+        if (! empty($filters['export']) && $filters['export'] === 'all') {
             $allKots = $query->get();
 
             return new \Illuminate\Pagination\LengthAwarePaginator(
@@ -109,13 +109,10 @@ class KotOrderService
         return $paginator;
     }
 
-    /**
-     * Apply filters to query
-     */
+
     private function applyFilters($query, array $filters)
     {
-        // Apply search filter
-        if (!empty($filters['q'])) {
+        if (! empty($filters['q'])) {
             $query->where(function ($q) use ($filters) {
                 $q->whereHas('items', function ($itemQuery) use ($filters) {
                     $itemQuery->where('item_name', 'like', "%{$filters['q']}%")
@@ -127,25 +124,19 @@ class KotOrderService
                     });
             });
         }
-
-        // Apply order type filter
-        if (!empty($filters['order_type'])) {
+        if (! empty($filters['order_type'])) {
             $query->whereHas('posOrderType', function ($q) use ($filters) {
                 $q->where('order_type', $filters['order_type']);
             });
         }
-
-        // Apply status filter
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+        if (! empty($filters['status'])) {
+            $query->where('kitchen_orders.status', $filters['status']);
         }
-
-        // Apply date range filters
-        if (!empty($filters['date_from'])) {
-            $query->whereDate('order_date', '>=', $filters['date_from']);
+        if (! empty($filters['date_from'])) {
+            $query->whereDate('kitchen_orders.order_date', '>=', $filters['date_from']);
         }
-        if (!empty($filters['date_to'])) {
-            $query->whereDate('order_date', '<=', $filters['date_to']);
+        if (! empty($filters['date_to'])) {
+            $query->whereDate('kitchen_orders.order_date', '<=', $filters['date_to']);
         }
     }
 
@@ -154,7 +145,7 @@ class KotOrderService
      */
     private function applySorting($query, array $filters)
     {
-        if (!empty($filters['sort_by'])) {
+        if (! empty($filters['sort_by'])) {
             switch ($filters['sort_by']) {
                 case 'date_desc':
                     $query->orderBy('kitchen_orders.order_date', 'desc');
@@ -162,25 +153,25 @@ class KotOrderService
                 case 'date_asc':
                     $query->orderBy('kitchen_orders.order_date', 'asc');
                     break;
-                    
+
                 case 'order_desc':
                     // Sort by Amount Received (High to Low)
                     $query->leftJoin('pos_order_types', 'kitchen_orders.pos_order_type_id', '=', 'pos_order_types.id')
-                          ->leftJoin('pos_orders', 'pos_order_types.pos_order_id', '=', 'pos_orders.id')
-                          ->leftJoin('payments', 'pos_orders.id', '=', 'payments.order_id')
-                          ->orderByRaw('COALESCE(payments.amount_received, 0) DESC')
-                          ->select('kitchen_orders.*'); // Important: select only kitchen_orders columns
+                        ->leftJoin('pos_orders', 'pos_order_types.pos_order_id', '=', 'pos_orders.id')
+                        ->leftJoin('payments', 'pos_orders.id', '=', 'payments.order_id')
+                        ->orderByRaw('COALESCE(payments.amount_received, 0) DESC')
+                        ->select('kitchen_orders.*'); // Important: select only kitchen_orders columns
                     break;
-                    
+
                 case 'order_asc':
                     // Sort by Amount Received (Low to High)
                     $query->leftJoin('pos_order_types', 'kitchen_orders.pos_order_type_id', '=', 'pos_order_types.id')
-                          ->leftJoin('pos_orders', 'pos_order_types.pos_order_id', '=', 'pos_orders.id')
-                          ->leftJoin('payments', 'pos_orders.id', '=', 'payments.order_id')
-                          ->orderByRaw('COALESCE(payments.amount_received, 0) ASC')
-                          ->select('kitchen_orders.*');
+                        ->leftJoin('pos_orders', 'pos_order_types.pos_order_id', '=', 'pos_orders.id')
+                        ->leftJoin('payments', 'pos_orders.id', '=', 'payments.order_id')
+                        ->orderByRaw('COALESCE(payments.amount_received, 0) ASC')
+                        ->select('kitchen_orders.*');
                     break;
-                    
+
                 default:
                     $query->orderBy('kitchen_orders.id', 'desc');
                     break;
@@ -189,6 +180,4 @@ class KotOrderService
             $query->orderBy('kitchen_orders.id', 'desc');
         }
     }
-
-
 }

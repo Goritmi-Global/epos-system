@@ -12,7 +12,8 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
-
+import { useModal } from "@/composables/useModal";
+const { closeModal } = useModal();
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const orders = ref([]);
@@ -145,19 +146,6 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrdersWithPayment();
-    const filterModal = document.getElementById('paymentFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            filters.value = {
-                sortBy: appliedFilters.value.sortBy || "",
-                paymentType: appliedFilters.value.paymentType || "",
-                dateFrom: appliedFilters.value.dateFrom || "",
-                dateTo: appliedFilters.value.dateTo || "",
-                priceMin: appliedFilters.value.priceMin || null,
-                priceMax: appliedFilters.value.priceMax || null,
-            };
-        });
-    }
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -216,13 +204,6 @@ const handleFilterApply = (appliedFiltersData) => {
     appliedFilters.value = { ...filters.value };
     pagination.value.current_page = 1;
     fetchOrdersWithPayment(1);
-
-    const modal = bootstrap.Modal.getInstance(
-        document.getElementById("paymentFilterModal")
-    );
-    modal?.hide();
-
-    console.log("Filters applied:", filters.value);
 };
 
 const handleFilterClear = () => {
@@ -245,8 +226,7 @@ const handleFilterClear = () => {
     pagination.value.current_page = 1;
     pagination.value.per_page = 10;
     fetchOrdersWithPayment(1);
-
-    console.log("Filters cleared");
+    closeModal('paymentFilterModal');
 };
 
 const filterOptions = computed(() => ({

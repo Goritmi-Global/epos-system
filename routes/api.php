@@ -88,6 +88,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Promos
     Route::prefix('promos')->name('api.promos.')->group(function () {
         Route::get('/all', [PromoController::class, 'fetchAllPromos'])->name('fetchAll');
+        Route::get('/global-stats', [PromoController::class, 'getGlobalStats'])->name('globalStats');
         Route::get('/today', [PromoController::class, 'getTodayPromos'])->name('today');
         Route::get('/current', [PromoController::class, 'getAllPromos']);
         Route::post('/import', [PromoController::class, 'import'])->name('import');
@@ -208,8 +209,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/{id}/toggle-status', [VariantGroupController::class, 'toggleStatus']);
         Route::post('/update-sort-order', [VariantGroupController::class, 'updateSortOrder']);
     });
-
-    // Get Printers
     Route::get('/printers', [PrinterController::class, 'index']);
     Route::post('/customer/print-receipt', [PrinterController::class, 'printReceipt']);
     Route::post('/kot/print-receipt', [PrinterController::class, 'printKot']);
@@ -218,29 +217,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/printers/{shift}/z-report/print', [PrinterController::class, 'printZReport'])->name('shift.z-report.print');
 
     Route::prefix('addon-groups')->group(function () {
-
         Route::post('/import', [AddonGroupController::class, 'import']);
-        // Get all addon groups with their addon counts
         Route::get('/all', [AddonGroupController::class, 'all']);
-
-        // Get statistics for KPI cards
         Route::get('/statistics', [AddonGroupController::class, 'statistics']);
-
-        // Get only active groups (for dropdowns)
         Route::get('/active', [AddonGroupController::class, 'active']);
-
-        // CRUD operations
         Route::get('/{id}', [AddonGroupController::class, 'show']);
         Route::post('/', [AddonGroupController::class, 'store']);
         Route::post('/{id}', [AddonGroupController::class, 'update']);
         Route::delete('/{id}', [AddonGroupController::class, 'destroy']);
-
-        // Toggle status (active/inactive)
         Route::patch('/{id}/toggle-status', [AddonGroupController::class, 'toggleStatus']);
     });
 
     Route::prefix('discounts')->name('api.discounts.')->group(function () {
         Route::get('/all', [DiscountController::class, 'fetchAllDiscounts'])->name('discounts.all');
+        Route::get('/global-stats', [DiscountController::class, 'getGlobalStats'])->name('discounts.globalStats');
         Route::get('/today', [DiscountController::class, 'getTodayDiscounts'])->name('discounts.today');
         Route::patch('/{id}/toggle-status', [DiscountController::class, 'toggleStatus'])->name('discounts.toggle-status');
         Route::get('/active', [DiscountController::class, 'getActiveDiscounts'])->name('discounts.active');
@@ -253,31 +243,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     | These routes handle individual addon items
     */
-
     Route::prefix('addons')->group(function () {
-
         Route::post('/import', [AddonController::class, 'import']);
         Route::get('/unique-groups', [AddonController::class, 'getUniqueGroups']);
-        // Get all addons with their group information
         Route::get('/all', [AddonController::class, 'all']);
+        Route::get('/global-stats', [AddonController::class, 'getGlobalStats']);
         Route::get('/stats', [AddonController::class, 'getStats']);
         Route::get('/group/{groupId}', [AddonController::class, 'byGroup']);
-
-        // CRUD operations
         Route::get('/{id}', [AddonController::class, 'show']);
         Route::post('/', [AddonController::class, 'store']);
         Route::post('/{id}', [AddonController::class, 'update']);
         Route::delete('/{id}', [AddonController::class, 'destroy']);
-
-        // Toggle status (active/inactive)
         Route::patch('/{id}/toggle-status', [AddonController::class, 'toggleStatus']);
-
-        // Update sort order (drag & drop functionality)
         Route::post('/sort-order', [AddonController::class, 'updateSortOrder']);
     });
-    // routes/api.php
-    
-
     Route::post('/discount-approvals/request', [DiscountApprovalController::class, 'requestApproval']);
     Route::post('/discount-approvals/check-status', [DiscountApprovalController::class, 'checkApprovalStatus']);
     Route::get('/discount-approvals/pending', [DiscountApprovalController::class, 'getPendingRequests']);

@@ -34,99 +34,123 @@ class PromoController extends Controller
         ]);
     }
 
-  public function fetchAllPromos(Request $request)
-{
-    try {
-        $filters = [
-            'q' => $request->query('q', ''),
-            'status' => $request->query('status', ''),
-            'category' => $request->query('category', ''),
-            'sort_by' => $request->query('sort_by', ''),
-            'price_min' => $request->query('price_min'),
-            'price_max' => $request->query('price_max'),
-            'date_from' => $request->query('date_from'),
-            'date_to' => $request->query('date_to'),
-            'per_page' => $request->query('per_page', 10),
-        ];
+    public function fetchAllPromos(Request $request)
+    {
+        try {
+            $filters = [
+                'q' => $request->query('q', ''),
+                'status' => $request->query('status', ''),
+                'category' => $request->query('category', ''),
+                'sort_by' => $request->query('sort_by', ''),
+                'price_min' => $request->query('price_min'),
+                'price_max' => $request->query('price_max'),
+                'date_from' => $request->query('date_from'),
+                'date_to' => $request->query('date_to'),
+                'per_page' => $request->query('per_page', 10),
+            ];
 
-        if ($request->has('export') && $request->export === 'all') {
-            $query = Promo::query();
-            
-            if (!empty($filters['q'])) {
-                $query->where('name', 'like', "%{$filters['q']}%");
-            }
-            if (!empty($filters['status'])) {
-                $query->where('status', $filters['status']);
-            }
-            if (!empty($filters['category'])) {
-                $query->where('type', $filters['category']);
-            }
-            if (isset($filters['price_min']) && $filters['price_min'] !== null) {
-                $query->where('discount_amount', '>=', (float) $filters['price_min']);
-            }
-            if (isset($filters['price_max']) && $filters['price_max'] !== null) {
-                $query->where('discount_amount', '<=', (float) $filters['price_max']);
-            }
-            if (!empty($filters['date_from'])) {
-                $query->whereDate('start_date', '>=', $filters['date_from']);
-            }
-            if (!empty($filters['date_to'])) {
-                $query->whereDate('start_date', '<=', $filters['date_to']);
-            }
-            if (!empty($filters['sort_by'])) {
-                switch ($filters['sort_by']) {
-                    case 'name_asc':
-                        $query->orderBy('name', 'asc');
-                        break;
-                    case 'name_desc':
-                        $query->orderBy('name', 'desc');
-                        break;
-                    case 'discount_asc':
-                        $query->orderBy('discount_amount', 'asc');
-                        break;
-                    case 'discount_desc':
-                        $query->orderBy('discount_amount', 'desc');
-                        break;
-                    case 'date_asc':
-                        $query->orderBy('start_date', 'asc');
-                        break;
-                    case 'date_desc':
-                        $query->orderBy('start_date', 'desc');
-                        break;
+            if ($request->has('export') && $request->export === 'all') {
+                $query = Promo::query();
+
+                if (! empty($filters['q'])) {
+                    $query->where('name', 'like', "%{$filters['q']}%");
                 }
+                if (! empty($filters['status'])) {
+                    $query->where('status', $filters['status']);
+                }
+                if (! empty($filters['category'])) {
+                    $query->where('type', $filters['category']);
+                }
+                if (isset($filters['price_min']) && $filters['price_min'] !== null) {
+                    $query->where('discount_amount', '>=', (float) $filters['price_min']);
+                }
+                if (isset($filters['price_max']) && $filters['price_max'] !== null) {
+                    $query->where('discount_amount', '<=', (float) $filters['price_max']);
+                }
+                if (! empty($filters['date_from'])) {
+                    $query->whereDate('start_date', '>=', $filters['date_from']);
+                }
+                if (! empty($filters['date_to'])) {
+                    $query->whereDate('start_date', '<=', $filters['date_to']);
+                }
+                if (! empty($filters['sort_by'])) {
+                    switch ($filters['sort_by']) {
+                        case 'name_asc':
+                            $query->orderBy('name', 'asc');
+                            break;
+                        case 'name_desc':
+                            $query->orderBy('name', 'desc');
+                            break;
+                        case 'discount_asc':
+                            $query->orderBy('discount_amount', 'asc');
+                            break;
+                        case 'discount_desc':
+                            $query->orderBy('discount_amount', 'desc');
+                            break;
+                        case 'date_asc':
+                            $query->orderBy('start_date', 'asc');
+                            break;
+                        case 'date_desc':
+                            $query->orderBy('start_date', 'desc');
+                            break;
+                    }
+                }
+
+                $allPromos = $query->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $allPromos,
+                    'total' => $allPromos->count(),
+                ]);
             }
 
-            $allPromos = $query->get();
+            $promos = $this->promoService->getAllPromos($filters);
 
             return response()->json([
                 'success' => true,
-                'data' => $allPromos,
-                'total' => $allPromos->count(),
+                'data' => $promos->items(),
+                'pagination' => [
+                    'current_page' => $promos->currentPage(),
+                    'last_page' => $promos->lastPage(),
+                    'per_page' => $promos->perPage(),
+                    'total' => $promos->total(),
+                    'from' => $promos->firstItem(),
+                    'to' => $promos->lastItem(),
+                    'links' => $promos->linkCollection()->toArray(),
+                ],
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch promos: '.$e->getMessage(),
+            ], 500);
         }
-
-        $promos = $this->promoService->getAllPromos($filters);
-
-        return response()->json([
-            'success' => true,
-            'data' => $promos->items(),
-            'pagination' => [
-                'current_page' => $promos->currentPage(),
-                'last_page' => $promos->lastPage(),
-                'per_page' => $promos->perPage(),
-                'total' => $promos->total(),
-                'from' => $promos->firstItem(),
-                'to' => $promos->lastItem(),
-                'links' => $promos->linkCollection()->toArray(),
-            ],
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to fetch promos: '.$e->getMessage(),
-        ], 500);
     }
-}
+
+    public function getGlobalStats(): JsonResponse
+    {
+        try {
+            $stats = [
+                'total' => Promo::count(),
+                'active' => Promo::where('status', 'active')->count(),
+                'inactive' => Promo::where('status', 'inactive')->count(),
+                'flat' => Promo::where('type', 'flat')->count(),
+                'percent' => Promo::where('type', 'percent')->count(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch global statistics',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
     /**
      * Get today's active promos

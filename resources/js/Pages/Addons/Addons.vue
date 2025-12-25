@@ -15,6 +15,10 @@ import FilterModal from "@/Components/FilterModal.vue";
 import ImportFile from "@/Components/importFile.vue";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
+import { useModal } from "@/composables/useModal";
+const { closeModal } = useModal();
+
+
 
 const { formatCurrencySymbol } = useFormatters();
 
@@ -37,12 +41,20 @@ const addonForm = ref({
     sort_order: 0,
 });
 
-const summaryStats = ref({
+const globalStats = ref({
     total: 0,
     active: 0,
     inactive: 0,
     avgPrice: 0
 });
+
+
+// const summaryStats = ref({
+//     total: 0,
+//     active: 0,
+//     inactive: 0,
+//     avgPrice: 0
+// });
 
 // Store the last applied filters
 const appliedFilters = ref({
@@ -133,27 +145,42 @@ const fetchAddons = async (page = 1) => {
     }
 };
 
-const fetchAddonStats = async () => {
+// const fetchAddonStats = async () => {
+//     try {
+//         const res = await axios.get("/api/addons/stats", {
+//             params: {
+//                 q: q.value.trim() || null,
+//                 status: appliedFilters.value.stockStatus || null,
+//                 category: appliedFilters.value.category || null,
+//                 price_min: appliedFilters.value.priceMin || null,
+//                 price_max: appliedFilters.value.priceMax || null,
+//             }
+//         });
+//         summaryStats.value = res.data.data || {
+//             total: 0,
+//             active: 0,
+//             inactive: 0,
+//             avgPrice: 0
+//         };
+//     } catch (err) {
+//         console.error("Failed to fetch addon stats:", err);
+//     }
+// };
+
+const fetchGlobalStats = async () => {
     try {
-        const res = await axios.get("/api/addons/stats", {
-            params: {
-                q: q.value.trim() || null,
-                status: appliedFilters.value.stockStatus || null,
-                category: appliedFilters.value.category || null,
-                price_min: appliedFilters.value.priceMin || null,
-                price_max: appliedFilters.value.priceMax || null,
-            }
-        });
-        summaryStats.value = res.data.data || {
+        const res = await axios.get("/api/addons/global-stats");
+        globalStats.value = res.data.data || {
             total: 0,
             active: 0,
             inactive: 0,
             avgPrice: 0
         };
     } catch (err) {
-        console.error("Failed to fetch addon stats:", err);
+        console.error("Failed to fetch global addon stats:", err);
     }
 };
+
 
 const handlePageChange = (url) => {
     if (!url || loading.value) return;
@@ -219,20 +246,7 @@ onMounted(async () => {
     }, 100);
 
     // Fetch initial data
-    await Promise.all([fetchAddons(), fetchAddonGroups(), fetchUniqueAddonGroups(), fetchAddonStats()]);
-
-    const filterModal = document.getElementById('addonsFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            // Only clear if filters were NOT just applied
-            if (!filtersJustApplied.value) {
-                handleFilterClear();
-            }
-            // Reset the flag for next time
-            filtersJustApplied.value = false;
-        });
-    }
-
+    await Promise.all([fetchAddons(), fetchAddonGroups(), fetchUniqueAddonGroups(), fetchGlobalStats()]);
 });
 
 /* ============================================
@@ -247,28 +261,28 @@ const addonStats = computed(() => {
     return [
         {
             label: "Total Addons",
-            value: summaryStats.value.total,
+            value: globalStats.value.total,
             icon: Package,
             iconBg: "bg-light-primary",
             iconColor: "text-primary",
         },
         {
             label: "Active Addons",
-            value: summaryStats.value.active,
+            value: globalStats.value.active,
             icon: CheckCircle,
             iconBg: "bg-light-success",
             iconColor: "text-success",
         },
         {
             label: "Inactive Addons",
-            value: summaryStats.value.inactive,
+            value: globalStats.value.inactive, 
             icon: XCircle,
             iconBg: "bg-light-danger",
             iconColor: "text-danger",
         },
         {
             label: "Average Price",
-            value: formatCurrencySymbol(summaryStats.value.avgPrice),
+            value: formatCurrencySymbol(globalStats.value.avgPrice), 
             icon: DollarSign,
             iconBg: "bg-light-warning",
             iconColor: "text-warning",
@@ -316,7 +330,6 @@ const handleFilterApply = (appliedFiltersData) => {
     filtersJustApplied.value = true;
     fetchAddons(1);
     fetchUniqueAddonGroups();
-    fetchAddonStats();
 };
 
 const handleFilterClear = () => {
@@ -336,8 +349,9 @@ const handleFilterClear = () => {
     };
     currentPage.value = 1;
     selectedGroupFilter.value = "all";
-    // fetchAddons(1);
+    fetchAddons(1);
     fetchUniqueAddonGroups();
+    closeModal('addonsFilterModal');
 };
 
 let searchTimeout = null;
@@ -348,7 +362,6 @@ watch(q, () => {
         currentPage.value = 1;
         fetchAddons(1);
         fetchUniqueAddonGroups();
-        fetchAddonStats();
     }, 500);
 });
 
@@ -365,9 +378,8 @@ const setGroupFilter = (group) => {
         }
     }
 
-    currentPage.value = 1; // ✅ Reset to page 1
-    fetchAddons(1); // ✅ Fetch with new group filter
-    fetchAddonStats();
+    currentPage.value = 1;
+    fetchAddons(1);
 };
 
 /**
@@ -466,7 +478,7 @@ const submitAddon = async () => {
         // Reset form and refresh data
         resetModal();
         await fetchAddons();
-        await fetchAddonStats();
+        fetchGlobalStats();
     } catch (err) {
         console.error("❌ Error:", err.response?.data || err.message);
 
@@ -515,7 +527,7 @@ const toggleStatus = async (row) => {
         toast.success(`Status changed to ${newStatus}`);
 
         confirmModalKey.value++;
-        await fetchAddonStats();
+        await fetchGlobalStats();
     } catch (error) {
         console.error("Failed to update status:", error);
         toast.error("Failed to update status");
@@ -537,7 +549,7 @@ const deleteAddon = async (row) => {
         await axios.delete(`/api/addons/${row.id}`);
         toast.success("Addon deleted successfully");
         await fetchAddons();
-        await fetchAddonStats();
+        fetchGlobalStats()
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
 

@@ -10,6 +10,9 @@ import { nextTick } from "vue";
 import { toast } from 'vue3-toastify';
 import OrderCancellationModal from "@/Components/OrderCancellationModal.vue";
 import Dropdown from 'primevue/dropdown'
+import { useModal } from "@/composables/useModal";
+const { closeModal } = useModal();
+
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const cancellingOrderId = ref(null);
@@ -20,10 +23,6 @@ const selectedOrderForRefund = ref(null);
 const orders = ref([]);
 
 const loading = ref(false);
-
-
-
-
 const exportOption = ref(null)
 
 const exportOptions = [
@@ -32,11 +31,10 @@ const exportOptions = [
     { label: 'CSV', value: 'csv' },
 ]
 
-// 🔁 Keep function call same
 const onExportChange = (e) => {
     if (e.value) {
         onDownload(e.value)
-        exportOption.value = null // reset after click
+        exportOption.value = null 
     }
 }
 
@@ -124,23 +122,6 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrders();
-    // Reset filters to last applied state when modal closes
-    const filterModal = document.getElementById('orderFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            // Reset filters to last applied state when modal closes
-            filters.value = {
-                sortBy: appliedFilters.value.sortBy || "",
-                orderType: appliedFilters.value.orderType || "",
-                paymentType: appliedFilters.value.paymentType || "",
-                status: appliedFilters.value.status || "",
-                priceMin: appliedFilters.value.priceMin || null,
-                priceMax: appliedFilters.value.priceMax || null,
-                dateFrom: appliedFilters.value.dateFrom || "",
-                dateTo: appliedFilters.value.dateTo || "",
-            };
-        });
-    }
 });
 
 const q = ref("");
@@ -197,7 +178,7 @@ const filterOptions = computed(() => ({
         { value: "customer_desc", label: "Customer: Z to A" },
     ],
     orderTypeOptions: [
-        { value: "Dine In", label: "Dine In" },
+        { value: "Eat In", label: "Eat In" },
         { value: "Delivery", label: "Delivery" },
         { value: "Takeaway", label: "Takeaway" },
         { value: "Collection", label: "Collection" },
@@ -218,11 +199,6 @@ const handleFilterApply = (appliedFiltersData) => {
     appliedFilters.value = { ...filters.value };
     pagination.value.current_page = 1;
     fetchOrders(1);
-
-    const modal = bootstrap.Modal.getInstance(
-        document.getElementById("orderFilterModal")
-    );
-    modal?.hide();
 };
 
 const handleFilterClear = () => {
@@ -249,6 +225,7 @@ const handleFilterClear = () => {
     pagination.value.current_page = 1;
     pagination.value.per_page = 10;
     fetchOrders(1);
+    closeModal('orderFilterModal');
 };
 
 

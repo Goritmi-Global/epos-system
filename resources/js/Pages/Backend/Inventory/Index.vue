@@ -10,6 +10,9 @@ import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
+import { useModal } from "@/composables/useModal";
+
+const { closeModal } = useModal();
 
 
 import { useFormatters } from '@/composables/useFormatters'
@@ -138,13 +141,54 @@ const fetchInventories = async (page = null) => {
 const fetchAllDataForExport = async () => {
     try {
         loading.value = true;
-        const res = await axios.get("inventory/api-inventories", {
-            params: {
-                q: q.value,
-                per_page: 10000, 
-                page: 1
+        
+        // ✅ Check if ANY filter is applied
+        const hasFilters = 
+            q.value?.trim() ||
+            appliedFilters.value.category ||
+            appliedFilters.value.supplier ||
+            appliedFilters.value.stockStatus ||
+            appliedFilters.value.priceMin ||
+            appliedFilters.value.priceMax ||
+            appliedFilters.value.sortBy;
+        
+        const params = {
+            per_page: 10000,
+            page: 1
+        };
+        
+        // ✅ Only add filter params if filters are applied
+        if (hasFilters) {
+            if (q.value?.trim()) {
+                params.q = q.value.trim();
             }
-        });
+            
+            if (appliedFilters.value.category) {
+                params.category = appliedFilters.value.category;
+            }
+            
+            if (appliedFilters.value.supplier) {
+                params.supplier = appliedFilters.value.supplier;
+            }
+            
+            if (appliedFilters.value.stockStatus) {
+                params.stockStatus = appliedFilters.value.stockStatus;
+            }
+            
+            if (appliedFilters.value.priceMin) {
+                params.priceMin = appliedFilters.value.priceMin;
+            }
+            
+            if (appliedFilters.value.priceMax) {
+                params.priceMax = appliedFilters.value.priceMax;
+            }
+            
+            if (appliedFilters.value.sortBy) {
+                params.sortBy = appliedFilters.value.sortBy;
+            }
+        }
+        
+        const res = await axios.get("inventory/api-inventories", { params });
         return res.data.data || [];
     } catch (err) {
         console.error('❌ Error fetching export data:', err);
@@ -180,13 +224,6 @@ onMounted(async () => {
     }, 100);
     fetchInventories();
     fetchKpiStats();
-    const filterModal = document.getElementById('inventoryFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            // Reset filters to last applied state when modal closes
-            filters.value = { ...appliedFilters.value };
-        });
-    }
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -314,6 +351,7 @@ const handleFilterClear = () => {
     pagination.value.current_page = 1;
     pagination.value.per_page = 10;
     fetchInventories(1);
+    closeModal('inventoryFilterModal');
 };
 
 // const sortedItems = computed(() => {

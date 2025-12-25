@@ -62,6 +62,14 @@ const loading = ref(false);
 
 const exportOption = ref(null)
 
+const globalStats = ref({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    flat: 0,
+    percent: 0
+});
+
 const exportOptions = [
     { label: 'PDF', value: 'pdf' },
     { label: 'Excel', value: 'excel' },
@@ -130,6 +138,17 @@ const handleFilterApply = (appliedFiltersData) => {
     fetchDiscounts(1);
 };
 
+const closeFilterModal = () => {
+    const modalEl = document.getElementById('discountsFilterModal');
+    if (!modalEl) return;
+
+    const modalInstance =
+        bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+
+    modalInstance.hide();
+};
+
+
 
 const handleFilterClear = () => {
     filters.value = {
@@ -151,28 +170,28 @@ const handleFilterClear = () => {
         dateTo: null
     };
     currentPage.value = 1;
-    // fetchDiscounts(1);
+    fetchDiscounts(1);
+    closeFilterModal();
 };
-
 
 const discountStats = computed(() => [
     {
         label: "Total Discounts",
-        value: discounts.value.length,
+        value: globalStats.value.total,
         icon: Percent,
         iconBg: "bg-light-primary",
         iconColor: "text-primary",
     },
     {
         label: "Active Discounts",
-        value: discounts.value.filter((d) => d.status === "active").length,
+        value: globalStats.value.active,
         icon: Calendar,
         iconBg: "bg-light-success",
         iconColor: "text-success",
     },
     {
         label: "Inactive Discounts",
-        value: discounts.value.filter((d) => d.status === "inactive").length,
+        value: globalStats.value.inactive,
         icon: XCircle,
         iconBg: "bg-light-danger",
         iconColor: "text-danger",
@@ -218,6 +237,21 @@ const fetchDiscounts = async (page = 1) => {
         toast.error("Failed to load discounts");
     } finally {
         loading.value = false;
+    }
+};
+
+const fetchGlobalStats = async () => {
+    try {
+        const res = await axios.get("/api/discounts/global-stats");
+        globalStats.value = res.data.data || {
+            total: 0,
+            active: 0,
+            inactive: 0,
+            flat: 0,
+            percent: 0
+        };
+    } catch (err) {
+        console.error("Failed to fetch global discount stats:", err);
     }
 };
 
@@ -346,6 +380,7 @@ const submitDiscount = async () => {
 
         resetModal();
         await fetchDiscounts();
+        fetchGlobalStats();
     } catch (err) {
         console.error("❌ Error:", err.response?.data || err.message);
 
@@ -509,6 +544,7 @@ const handleImport = (data) => {
         .then(() => {
             toast.success("Discounts imported successfully");
             fetchDiscounts();
+            fetchGlobalStats();
         })
         .catch((err) => {
             const msg = err.response?.data?.message || "Import failed";
@@ -530,6 +566,8 @@ const toggleStatus = async (row) => {
         row.status = newStatus;
         toast.success(`Discount status updated to ${newStatus}`);
         confirmModalKey.value++;
+
+        await fetchGlobalStats();
     } catch (error) {
         console.error("Failed to update status:", error);
         toast.error("Failed to update status");
@@ -541,6 +579,7 @@ const deleteDiscount = async (row) => {
         await axios.delete(`/discounts/${row.id}`);
         toast.success("Discount deleted successfully");
         await fetchDiscounts();
+        fetchGlobalStats();
     } catch (error) {
         console.error("Failed to delete discount:", error);
         toast.error("Failed to delete discount");
@@ -621,6 +660,7 @@ onMounted(async () => {
 
     await fetchDiscounts();
     await fetchPendingRequests();
+    fetchGlobalStats();
     startAutoRefresh();
     if (window.Echo) {
         window.Echo.channel('discount-approvals')
