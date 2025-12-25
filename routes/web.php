@@ -60,6 +60,12 @@ Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name
 Route::post('/forgot-password', [CustomPasswordResetController::class, 'requestReset'])
     ->name('password.custom-request');
 
+
+Route::get('/sanctum/csrf-cookie', function () {
+    return response()->json(['message' => 'CSRF cookie refreshed']);
+});
+
+
 /* =========================================================
 |  Shift Management Routes (NO shift check - must be accessible)
 |========================================================= */
@@ -338,6 +344,12 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
 /* -------- Super Admin Only -------- */
 Route::middleware(['auth', 'role:Super Admin'])->group(function () {
     Route::post('/system/restore', [SystemRestoreController::class, 'restore'])->name('system.restore');
+
+    Route::post('/settings/verify-password', [SettingsController::class, 'verifyPassword'])
+        ->name('settings.verify-password');
+
+    Route::post('/settings/restore-system', [SettingsController::class, 'restoreSystem'])
+    ->name('settings.restore');
     Route::post('/database/backup', [DatabaseBackupController::class, 'backup'])->name('database.backup');
 });
 

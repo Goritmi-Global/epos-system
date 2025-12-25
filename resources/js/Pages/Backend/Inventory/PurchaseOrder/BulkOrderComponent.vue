@@ -159,13 +159,15 @@ const filteredBulkItems = computed(() => {
     }
 
     return bulkItems.value.filter(item => {
-        // Check multiple possible field names
-        const preferredSupplierId = item.preferred_supplier_id || item.preferredSupplierId;
-        const supplierIds = item.supplier_id || item.supplierId;
+        const normalize = (v) => v == null ? "" : String(v).trim();
 
-        return preferredSupplierId === b_supplier.value ||
-            supplierIds === b_supplier.value;
-    });
+        const preferredSupplierId = normalize(item.preferred_supplier_id ?? item.preferredSupplierId);
+        const supplierIds = normalize(item.supplier_id ?? item.supplierId);
+        const selectedSupplierId = normalize(b_supplier.value);
+
+        return preferredSupplierId === selectedSupplierId ||
+            supplierIds === selectedSupplierId;
+     });
 });
 
 function delRow(idx) {

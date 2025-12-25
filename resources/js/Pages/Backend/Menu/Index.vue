@@ -15,6 +15,10 @@ import ImportFile from "@/Components/importFile.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import { Head } from "@inertiajs/vue3";
 import Dropdown from 'primevue/dropdown'
+import { useModal } from "@/composables/useModal";
+const { closeModal } = useModal();
+
+
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 import {
@@ -314,13 +318,6 @@ onMounted(async () => {
     }, 100);
     fetchInventory();
     fetchMenus(1);
-    const filterModal = document.getElementById('menuFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            // Reset filters to last applied state when modal closes
-            filters.value = { ...appliedFilters.value };
-        });
-    }
 });
 
 const inventories = ref(props.inventories?.data || []);
@@ -494,16 +491,13 @@ const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
     currentPage.value = 1;
     fetchMenus(1);
-    const modal = bootstrap.Modal.getInstance(
-        document.getElementById("menuFilterModal")
-    );
-    modal?.hide();
 };
 const handleFilterClear = () => {
     filters.value = { ...defaultMenuFilters };
     appliedFilters.value = { ...defaultMenuFilters };
     currentPage.value = 1;
     fetchMenus(1);
+    closeModal('menuFilterModal');
 };
 
 /* ===================== KPIs ===================== */

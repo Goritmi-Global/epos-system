@@ -14,6 +14,8 @@ import FilterModal from "@/Components/FilterModal.vue";
 import ImportFile from "@/Components/importFile.vue";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
+import { useModal } from "@/composables/useModal";
+const { closeModal } = useModal();
 
 /* ============================================
    DATA & STATE MANAGEMENT
@@ -120,6 +122,24 @@ const handlePageChange = (url) => {
     }
 };
 
+
+const globalStats = ref({
+    total_groups: 0,
+    active_groups: 0,
+    inactive_groups: 0,
+    total_addons: 0
+});
+
+// Fetch global statistics on mount (independent of filters)
+const fetchGlobalStatistics = async () => {
+    try {
+        const res = await axios.get("/api/addon-groups/statistics");
+        globalStats.value = res.data.data;
+    } catch (err) {
+        console.error("Failed to fetch statistics:", err);
+    }
+};
+
 /* ============================================
    LIFECYCLE HOOKS
 ============================================ */
@@ -142,54 +162,39 @@ onMounted(async () => {
         }
     }, 100);
 
-    // Fetch initial data
+    fetchGlobalStatistics(),
     fetchAddonGroups();
-    const filterModal = document.getElementById('addonGroupsFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            // Only clear if filters were NOT just applied
-            if (!filtersJustApplied.value) {
-                handleFilterClear();
-            }
-            // Reset the flag for next time
-            filtersJustApplied.value = false;
-        });
-    }
 });
 
 /* ============================================
    KPI STATISTICS CARDS
 ============================================ */
 
-/**
- * Computed statistics for dashboard cards
- * Updates automatically when addonGroups changes
- */
 const groupStats = computed(() => [
     {
         label: "Total Groups",
-        value: addonGroups.value.length,
+        value: globalStats.value.total_groups, 
         icon: Layers,
         iconBg: "bg-light-primary",
         iconColor: "text-primary",
     },
     {
         label: "Active Groups",
-        value: addonGroups.value.filter((g) => g.status === "active").length,
+        value: globalStats.value.active_groups, 
         icon: CheckCircle,
         iconBg: "bg-light-success",
         iconColor: "text-success",
     },
     {
         label: "Inactive Groups",
-        value: addonGroups.value.filter((g) => g.status === "inactive").length,
+        value: globalStats.value.inactive_groups, 
         icon: XCircle,
         iconBg: "bg-light-danger",
         iconColor: "text-danger",
     },
     {
         label: "Total Addons",
-        value: addonGroups.value.reduce((sum, g) => sum + (g.addons_count || 0), 0),
+        value: globalStats.value.total_addons, 
         icon: AlertCircle,
         iconBg: "bg-light-warning",
         iconColor: "text-warning",
@@ -236,7 +241,8 @@ const handleFilterClear = () => {
         priceMax: null,
     };
     currentPage.value = 1;
-    // fetchAddonGroups(1);
+    fetchAddonGroups(1);
+    closeModal('addonGroupsFilterModal');
 };
 
 /**
@@ -338,6 +344,7 @@ const submitAddonGroup = async () => {
         // Reset form and refresh data
         resetModal();
         await fetchAddonGroups();
+        fetchGlobalStatistics();
     } catch (err) {
         console.error("❌ Error:", err.response?.data || err.message);
 
@@ -409,6 +416,7 @@ const deleteGroup = async (row) => {
         await axios.delete(`/api/addon-groups/${row.id}`);
         toast.success("Addon group deleted successfully");
         await fetchAddonGroups();
+        fetchGlobalStatistics();
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
 

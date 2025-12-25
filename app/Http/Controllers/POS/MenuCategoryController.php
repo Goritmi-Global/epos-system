@@ -44,16 +44,33 @@ class MenuCategoryController extends Controller
         }
     }
 
+  public function getParentsForDropdown(): JsonResponse
+   {
+       try {
+           $parentCategories = MenuCategory::whereNull('parent_id')
+               ->where('active', 1)
+               ->orderBy('name', 'asc')
+               ->get(['id', 'name']);
+
+           return response()->json([
+               'success' => true,
+               'data' => $parentCategories,
+           ]);
+       } catch (\Exception $e) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Failed to retrieve parent categories',
+               'error' => $e->getMessage(),
+           ], 500);
+       }
+   }
+
     /**
-     * Get parent categories for dropdown
-     */
-    /**
-     * ✅ UPDATED: Get parent categories with filters and pagination
+     * ✅ UPDATED: Original getParents method with fixed filter detection
      */
     public function getParents(Request $request): JsonResponse
     {
         try {
-            // ✅ Only include parameters that actually have values
             $filters = [];
 
             if ($request->has('q') && trim($request->query('q')) !== '') {
@@ -80,7 +97,6 @@ class MenuCategoryController extends Controller
                 $filters['per_page'] = $request->query('per_page', 10);
             }
 
-            // ✅ Get paginated categories with filters
             $parentCategories = $this->MenuCategoryService->getParentCategories($filters);
 
             return response()->json($parentCategories);

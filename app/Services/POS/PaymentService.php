@@ -79,6 +79,7 @@ class PaymentService
         }
 
         // EXPORT ALL
+        // EXPORT ALL
         if (! empty($filters['export']) && $filters['export'] === 'all') {
             $allPayments = $query->get();
 
@@ -94,16 +95,24 @@ class PaymentService
             );
         }
 
+        // ✅ FIX: Always use database pagination
+        $perPage = $filters['per_page'] ?? 10;
+        $paginator = $query->paginate($perPage);
+
+        return $paginator;
+
         // Check if ANY filter is applied (excluding search)
         $searchQuery = trim($filters['q'] ?? '');
         $hasSearch = ! empty($searchQuery);
         $hasPaymentType = ! empty($filters['payment_type']);
-        $hasDateRange = ! empty($filters['date_from']) || ! empty($filters['date_to']);
-        $hasPriceRange = ! empty($filters['price_min']) || ! empty($filters['price_max']);
+        $hasDateRange = (! empty($filters['date_from']) || ! empty($filters['date_to']));
+        $hasPriceRange = (! empty($filters['price_min']) || ! empty($filters['price_max']));
         $hasSorting = ! empty($filters['sort_by']);
-        $hasFilterOnly = $hasPaymentType || $hasDateRange || $hasPriceRange || $hasSorting;
 
-        if ($hasFilterOnly) {
+        // ✅ FIX: Only use manual pagination if we have actual filtering (not just sorting)
+        $hasActualFilters = $hasPaymentType || $hasDateRange || $hasPriceRange;
+
+        if ($hasActualFilters) {
             // When filters are applied, fetch all and create manual paginator
             $allPayments = $query->get();
             $total = $allPayments->count();
@@ -119,7 +128,7 @@ class PaymentService
                 ]
             );
         } else {
-            // When only search or no filters, use standard database pagination
+            // When only search/sorting or no filters, use standard database pagination
             $perPage = $filters['per_page'] ?? 10;
             $paginator = $query->paginate($perPage);
         }

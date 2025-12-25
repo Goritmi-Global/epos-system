@@ -24,43 +24,40 @@ class InventoryService
                 'tags:id,name',
                 'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
             ])
-            // SEARCH FILTER (existing)
-            ->when($filters['q'] ?? null, function ($q, $v) {
-                $q->where(function ($qq) use ($v) {
-                    $qq->where('name', 'like', "%{$v}%")
-                        ->orWhere('sku', 'like', "%{$v}%")
-                        ->orWhereHas('category', function ($query) use ($v) {
-                            $query->where('name', 'like', "%{$v}%");
+            ->when(! empty($filters['q']), function ($q, $v) use ($filters) {
+                $searchTerm = trim($filters['q']);
+                $q->where(function ($qq) use ($searchTerm) {
+                    $qq->where('name', 'like', "%{$searchTerm}%")
+                        ->orWhere('sku', 'like', "%{$searchTerm}%")
+                        ->orWhereHas('category', function ($query) use ($searchTerm) {
+                            $query->where('name', 'like', "%{$searchTerm}%");
                         })
-                        ->orWhereHas('unit', function ($query) use ($v) {
-                            $query->where('name', 'like', "%{$v}%");
+                        ->orWhereHas('unit', function ($query) use ($searchTerm) {
+                            $query->where('name', 'like', "%{$searchTerm}%");
                         })
-                        ->orWhereHas('supplier', function ($query) use ($v) {
-                            $query->where('name', 'like', "%{$v}%");
+                        ->orWhereHas('supplier', function ($query) use ($searchTerm) {
+                            $query->where('name', 'like', "%{$searchTerm}%");
                         });
                 });
             })
-            // NEW: CATEGORY FILTER
-            ->when($filters['category'] ?? null, function ($q, $categoryId) {
-                $q->where('category_id', $categoryId);
+            ->when(! empty($filters['category']), function ($q) use ($filters) {
+                $q->where('category_id', $filters['category']);
             })
-            // SUPPLIER FILTER
-            ->when($filters['supplier'] ?? null, function ($q, $supplierId) {
-                $q->where('supplier_id', $supplierId);
+            ->when(! empty($filters['supplier']), function ($q) use ($filters) {
+                $q->where('supplier_id', $filters['supplier']);
             })
             ->orderByDesc('id');
-
-        // Check if ANY filter is applied (excluding search)
-        $searchQuery = trim($filters['q'] ?? '');
-        $hasSearch = ! empty($searchQuery);
+        $hasSearch = ! empty(trim($filters['q'] ?? ''));
         $hasCategory = ! empty($filters['category']);
         $hasSupplier = ! empty($filters['supplier']);
         $hasStockStatus = ! empty($filters['stockStatus']);
         $hasPriceRange = ! empty($filters['priceMin']) || ! empty($filters['priceMax']);
         $hasSorting = ! empty($filters['sortBy']);
+
+        $isExportRequest = ! empty($filters['per_page']) && (int) $filters['per_page'] >= 1000;
         $hasFilterOnly = $hasCategory || $hasSupplier || $hasStockStatus || $hasPriceRange || $hasSorting;
 
-        if ($hasFilterOnly) {
+        if ($hasFilterOnly || ($isExportRequest && ($hasCategory || $hasSupplier || $hasStockStatus || $hasPriceRange))) {
             $items = $query->get();
             $productIds = $items->pluck('id')->toArray();
             $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
@@ -70,8 +67,6 @@ class InventoryService
                     'stockValue' => '0.00',
                     'status' => null,
                 ];
-
-                // Stock Status Filter
                 if (! empty($filters['stockStatus'])) {
                     $available = $stock['available'];
                     $minAlert = $item->minAlert ?? 5;
@@ -105,8 +100,6 @@ class InventoryService
                             break;
                     }
                 }
-
-                // Price Range Filter
                 if (! empty($filters['priceMin']) || ! empty($filters['priceMax'])) {
                     $price = (float) $stock['stockValue'];
                     $min = (float) ($filters['priceMin'] ?? 0);
@@ -119,23 +112,23 @@ class InventoryService
 
                 return true;
             });
-
-            // Apply Sorting
             if (! empty($filters['sortBy'])) {
                 $filteredItems = $this->applySorting($filteredItems, $stockData, $filters['sortBy']);
             }
-
-            // Format the filtered items
             $formattedItems = $filteredItems->map(function ($item) use ($stockData) {
                 return $this->formatItemWithStock($item, $stockData[$item->id] ?? []);
             })->values();
-
+            $perPage = ! empty($filters['per_page']) ? (int) $filters['per_page'] : 10;
+            $currentPage = ! empty($filters['page']) ? (int) $filters['page'] : 1;
             $total = $formattedItems->count();
+            $offset = ($currentPage - 1) * $perPage;
+            $itemsForPage = $formattedItems->slice($offset, $perPage)->values();
+
             $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
-                $formattedItems,
+                $itemsForPage,
                 $total,
-                $total > 0 ? $total : 1,
-                1,
+                $perPage,
+                $currentPage,
                 [
                     'path' => request()->url(),
                     'query' => request()->query(),
@@ -143,10 +136,12 @@ class InventoryService
             );
 
         } else {
+            $perPage = ! empty($filters['per_page']) ? (int) $filters['per_page'] : 10;
+            $paginator = $query->paginate($perPage);
 
-            $paginator = $query->paginate($filters['per_page'] ?? 10);
             $productIds = $paginator->pluck('id')->toArray();
             $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
+
             $paginator->through(function (InventoryItem $item) use ($stockData) {
                 return $this->formatItemWithStock($item, $stockData[$item->id] ?? []);
             });

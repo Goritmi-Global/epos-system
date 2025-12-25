@@ -7,9 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
 import Dropdown from 'primevue/dropdown'
-
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
-
 import {
     Shapes,
     Package,
@@ -23,6 +21,10 @@ import { toast } from "vue3-toastify";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { useModal } from "@/composables/useModal";
+const { closeModal } = useModal();
+
+
 
 /* ---------------- Demo data (swap with API later) ---------------- */
 const manualCategories = ref([]);
@@ -30,7 +32,8 @@ const categories = ref([]);
 const editingCategory = ref(null);
 const manualSubcategories = ref([]);
 
-const exportOption = ref(null)
+const exportOption = ref(null);
+const allParentCategories = ref([]);
 
 // Image cropper states
 const iconFile = ref(null);
@@ -93,31 +96,45 @@ const defaultCategoryFilters = {
 const filters = ref({ ...defaultCategoryFilters });
 const appliedFilters = ref({ ...defaultCategoryFilters });
 
+const fetchAllParentCategories = async () => {
+    try {
+        const res = await axios.get("/api/menu-categories/parents/dropdown");
+        allParentCategories.value = res.data.data || [];
+    } catch (err) {
+        console.error("Failed to fetch parent categories for dropdown:", err);
+        toast.error("Failed to load categories for filter");
+    }
+};
+
 const fetchCategories = async (page = null) => {
     try {
         loading.value = true;
         const params = {
-            page: page || pagination.value.current_page,
-            per_page: pagination.value.per_page,
+            page: page || 1,
+            per_page: pagination.value.per_page || 10,
         };
         const searchQuery = (q.value || '').trim();
         if (searchQuery) {
             params.q = searchQuery;
         }
+
         if (appliedFilters.value.sortBy) {
             params.sort_by = appliedFilters.value.sortBy;
         }
+
         if (appliedFilters.value.status) {
             params.status = appliedFilters.value.status;
         }
+
         if (appliedFilters.value.category) {
             params.category = appliedFilters.value.category;
         }
+
         if (appliedFilters.value.hasSubcategories) {
             params.has_subcategories = appliedFilters.value.hasSubcategories;
         }
 
-        console.log('📤 Sending params:', params); 
+        console.log('📤 Sending params:', params);
 
         const res = await axios.get("/api/menu-categories/parents/list", { params });
 
@@ -126,15 +143,14 @@ const fetchCategories = async (page = null) => {
         if (res.data.stats) {
             categoryStats.value = res.data.stats;
         }
-
         pagination.value = {
-            current_page: res.data.current_page,
-            last_page: res.data.last_page,
-            per_page: res.data.per_page,
-            total: res.data.total,
-            from: res.data.from,
-            to: res.data.to,
-            links: res.data.links
+            current_page: res.data.current_page || 1,
+            last_page: res.data.last_page || 1,
+            per_page: res.data.per_page || 10,
+            total: res.data.total || 0,
+            from: res.data.from || 0,
+            to: res.data.to || 0,
+            links: res.data.links || []
         };
 
         loading.value = false;
@@ -146,7 +162,12 @@ const fetchCategories = async (page = null) => {
 };
 
 const hasActiveFilters = computed(() => {
-    return Object.values(appliedFilters.value).some(value => value !== "");
+    return (
+        (appliedFilters.value.sortBy && appliedFilters.value.sortBy !== "") ||
+        (appliedFilters.value.status && appliedFilters.value.status !== "") ||
+        (appliedFilters.value.category && appliedFilters.value.category !== "") ||
+        (appliedFilters.value.hasSubcategories && appliedFilters.value.hasSubcategories !== "")
+    );
 });
 
 let searchTimeout = null;
@@ -176,19 +197,13 @@ onMounted(async () => {
         }
     }, 100);
     fetchCategories();
-    const filterModal = document.getElementById('categoryFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            filters.value = { ...appliedFilters.value };
-        });
-    }
+    fetchAllParentCategories()
 });
 
 // Get only parent categories (main categories) for dropdown
 const parentCategories = computed(() => {
-    return categories.value.filter((cat) => cat.parent_id === null);
+    return allParentCategories.value;
 });
-
 /* ---------------- KPI (fake) ---------------- */
 const CategoriesDetails = computed(() => [
     {
@@ -225,13 +240,8 @@ const loading = ref(false);
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
-    pagination.value.current_page = 1; // ✅ Reset to page 1
-    fetchCategories(1); // ✅ Fetch with new filters
-
-    const modal = bootstrap.Modal.getInstance(
-        document.getElementById("categoryFilterModal")
-    );
-    modal?.hide();
+    pagination.value.current_page = 1; 
+    fetchCategories(1);
 };
 
 const filterOptions = computed(() => ({
@@ -252,9 +262,10 @@ const filterOptions = computed(() => ({
 const handleFilterClear = () => {
     filters.value = { ...defaultCategoryFilters };
     appliedFilters.value = { ...defaultCategoryFilters };
-    pagination.value.current_page = 1; // ✅ Reset to page 1
-    pagination.value.per_page = 10; // ✅ Reset per_page
-    fetchCategories(1); // ✅ Fetch without filters
+    pagination.value.current_page = 1; 
+    pagination.value.per_page = 10; 
+    fetchCategories(1); 
+    closeModal('categoryFilterModal');
 };
 
 /* ---------------- Helpers ---------------- */
@@ -766,9 +777,9 @@ const submitSubCategory = async () => {
 const fetchAllCategories = async () => {
     try {
         const params = {
-            per_page: 999999, 
+            per_page: 999999,
         };
-        
+
         const searchQuery = (q.value || '').trim();
         if (searchQuery) {
             params.q = searchQuery;
@@ -797,10 +808,10 @@ const fetchAllCategories = async () => {
 const onDownload = async (type) => {
     try {
         toast.info("Preparing download...");
-        
+
         // Fetch all categories for export
         const allCategories = await fetchAllCategories();
-        
+
         if (!allCategories || allCategories.length === 0) {
             toast.error("No categories data to download");
             return;
@@ -825,7 +836,7 @@ watch(q, () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
         pagination.value.current_page = 1;
-        pagination.value.per_page = 10; 
+        pagination.value.per_page = 10;
         fetchCategories(1);
     }, 500);
 });
@@ -1565,7 +1576,7 @@ const handleImport = (data) => {
                                     }" />
                                 <small class="text-danger">{{
                                     subCatErrors
-                                    }}</small>
+                                }}</small>
                             </div>
                             <button type="button" class="btn btn-primary rounded-pill px-4" @click="submitSubCategory"
                                 :disabled="submittingSub">

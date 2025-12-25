@@ -10,6 +10,9 @@ import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
+import { useModal } from "@/composables/useModal";
+
+const { closeModal } = useModal();
 
 
 import { useFormatters } from '@/composables/useFormatters'
@@ -83,54 +86,49 @@ const items = computed(() => inventories.value);
 const fetchInventories = async (page = null) => {
     loading.value = true;
     try {
-        console.log('🔍 Fetching with params:', {
-            q: q.value,
-            page: page || pagination.value.current_page,
-            per_page: pagination.value.per_page,
-            filters: appliedFilters.value // ✅ Log filters
-        });
-
-        // ✅ Build params object with ALL filters
         const params = {
-            q: q.value,
-            page: page || pagination.value.current_page,
-            per_page: pagination.value.per_page,
-            // ✅ Add all applied filters
-            category: appliedFilters.value.category || undefined,
-            supplier: appliedFilters.value.supplier || undefined,
-            stockStatus: appliedFilters.value.stockStatus || undefined,
-            priceMin: appliedFilters.value.priceMin || undefined,
-            priceMax: appliedFilters.value.priceMax || undefined,
-            sortBy: appliedFilters.value.sortBy || undefined,
+            page: page || 1, 
+            per_page: pagination.value.per_page || 10,
         };
-
-        // ✅ Remove undefined values to keep URL clean
-        Object.keys(params).forEach(key => {
-            if (params[key] === undefined || params[key] === '') {
-                delete params[key];
-            }
-        });
+        if (q.value?.trim()) {
+            params.q = q.value.trim();
+        }
+        
+        if (appliedFilters.value.category) {
+            params.category = appliedFilters.value.category;
+        }
+        
+        if (appliedFilters.value.supplier) {
+            params.supplier = appliedFilters.value.supplier;
+        }
+        
+        if (appliedFilters.value.stockStatus) {
+            params.stockStatus = appliedFilters.value.stockStatus;
+        }
+        
+        if (appliedFilters.value.priceMin) {
+            params.priceMin = appliedFilters.value.priceMin;
+        }
+        
+        if (appliedFilters.value.priceMax) {
+            params.priceMax = appliedFilters.value.priceMax;
+        }
+        
+        if (appliedFilters.value.sortBy) {
+            params.sortBy = appliedFilters.value.sortBy;
+        }
 
         const res = await axios.get("inventory/api-inventories", { params });
 
         inventories.value = res.data.data || [];
-
-        console.log('📊 Response pagination:', {
-            current_page: res.data.current_page,
-            last_page: res.data.last_page,
-            per_page: res.data.per_page,
-            total: res.data.total,
-            data_length: inventories.value.length
-        });
-
         pagination.value = {
-            current_page: res.data.current_page,
-            last_page: res.data.last_page,
-            per_page: res.data.per_page,
-            total: res.data.total,
-            from: res.data.from,
-            to: res.data.to,
-            links: res.data.links
+            current_page: res.data.current_page || 1,
+            last_page: res.data.last_page || 1,
+            per_page: res.data.per_page || 10,
+            total: res.data.total || 0,
+            from: res.data.from || 0,
+            to: res.data.to || 0,
+            links: res.data.links || []
         };
 
         loading.value = false;
@@ -140,17 +138,57 @@ const fetchInventories = async (page = null) => {
         loading.value = false;
     }
 };
-
 const fetchAllDataForExport = async () => {
     try {
         loading.value = true;
-        const res = await axios.get("inventory/api-inventories", {
-            params: {
-                q: q.value,
-                per_page: 10000, // Fetch up to 10,000 items at once
-                page: 1
+        
+        // ✅ Check if ANY filter is applied
+        const hasFilters = 
+            q.value?.trim() ||
+            appliedFilters.value.category ||
+            appliedFilters.value.supplier ||
+            appliedFilters.value.stockStatus ||
+            appliedFilters.value.priceMin ||
+            appliedFilters.value.priceMax ||
+            appliedFilters.value.sortBy;
+        
+        const params = {
+            per_page: 10000,
+            page: 1
+        };
+        
+        // ✅ Only add filter params if filters are applied
+        if (hasFilters) {
+            if (q.value?.trim()) {
+                params.q = q.value.trim();
             }
-        });
+            
+            if (appliedFilters.value.category) {
+                params.category = appliedFilters.value.category;
+            }
+            
+            if (appliedFilters.value.supplier) {
+                params.supplier = appliedFilters.value.supplier;
+            }
+            
+            if (appliedFilters.value.stockStatus) {
+                params.stockStatus = appliedFilters.value.stockStatus;
+            }
+            
+            if (appliedFilters.value.priceMin) {
+                params.priceMin = appliedFilters.value.priceMin;
+            }
+            
+            if (appliedFilters.value.priceMax) {
+                params.priceMax = appliedFilters.value.priceMax;
+            }
+            
+            if (appliedFilters.value.sortBy) {
+                params.sortBy = appliedFilters.value.sortBy;
+            }
+        }
+        
+        const res = await axios.get("inventory/api-inventories", { params });
         return res.data.data || [];
     } catch (err) {
         console.error('❌ Error fetching export data:', err);
@@ -186,13 +224,6 @@ onMounted(async () => {
     }, 100);
     fetchInventories();
     fetchKpiStats();
-    const filterModal = document.getElementById('inventoryFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            // Reset filters to last applied state when modal closes
-            filters.value = { ...appliedFilters.value };
-        });
-    }
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -320,6 +351,7 @@ const handleFilterClear = () => {
     pagination.value.current_page = 1;
     pagination.value.per_page = 10;
     fetchInventories(1);
+    closeModal('inventoryFilterModal');
 };
 
 // const sortedItems = computed(() => {

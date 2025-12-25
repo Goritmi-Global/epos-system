@@ -423,4 +423,28 @@ class DiscountController extends Controller
             return null;
         }
     }
+
+    public function getGlobalStats(): JsonResponse
+    {
+        try {
+            $stats = [
+                'total' => Discount::count(),
+                'active' => Discount::where('status', 'active')->count(),
+                'inactive' => Discount::where('status', 'inactive')->count(),
+                'flat' => Discount::where('type', 'flat')->count(),
+                'percent' => Discount::where('type', 'percent')->count(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch global statistics',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

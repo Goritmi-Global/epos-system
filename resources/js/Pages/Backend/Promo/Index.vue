@@ -22,6 +22,9 @@ import TabPanel from 'primevue/tabpanel';
 import FilterModal from "@/Components/FilterModal.vue";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
+import { useModal } from "@/composables/useModal";
+
+const { closeModal } = useModal();
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -79,6 +82,30 @@ const exportOptions = [
     { label: 'Excel', value: 'excel' },
     { label: 'CSV', value: 'csv' },
 ]
+
+// for KPI cards
+const globalStats = ref({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    flat: 0,
+    percent: 0
+});
+
+const fetchGlobalStats = async () => {
+    try {
+        const res = await axios.get("/api/promos/global-stats");
+        globalStats.value = res.data.data || {
+            total: 0,
+            active: 0,
+            inactive: 0,
+            flat: 0,
+            percent: 0
+        };
+    } catch (err) {
+        console.error("Failed to fetch global promo stats:", err);
+    }
+};
 
 const onExportChange = (e) => {
     if (e.value) {
@@ -234,6 +261,7 @@ const handleImport = (data) => {
         .then(() => {
             toast.success("Promos imported successfully");
             fetchPromos();
+            fetchGlobalStats();
         })
         .catch((err) => {
             console.error("Import error:", err);
@@ -325,50 +353,40 @@ onMounted(async () => {
 
     await fetchPromos();
     await fetchPromoScopes();
-    const filterModal = document.getElementById('promosFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            // Only clear if filters were NOT just applied
-            if (!filtersJustApplied.value) {
-                handleFilterClear();
-            }
-            // Reset the flag for next time
-            filtersJustApplied.value = false;
-        });
-    }
+    fetchGlobalStats();
 });
 
-/* ---------------- KPI Cards ---------------- */
 const promoStats = computed(() => [
     {
         label: "Total Promos",
-        value: promos.value.length,
-        icon: Tag,  // Changed from Percent to Tag
+        value: globalStats.value.total,
+        icon: Tag,
         iconBg: "bg-light-primary",
         iconColor: "text-primary",
     },
     {
         label: "Active Promos",
-        value: promos.value.filter((p) => p.status === "active").length,
-        icon: CheckCircle,  // Changed from Calendar to CheckCircle
+        value: globalStats.value.active,
+        icon: CheckCircle,
         iconBg: "bg-light-success",
         iconColor: "text-success",
     },
     {
         label: "Flat Discount",
-        value: promos.value.filter((p) => p.type === "flat").length,
-        icon: DollarSign,  // Changed from AlertTriangle to DollarSign
+        value: globalStats.value.flat,
+        icon: DollarSign,
         iconBg: "bg-light-warning",
         iconColor: "text-warning",
     },
     {
         label: "Percentage",
-        value: promos.value.filter((p) => p.type === "percent").length,
-        icon: Percent,  // Keep Percent for percentage discounts
+        value: globalStats.value.percent,
+        icon: Percent,
         iconBg: "bg-light-danger",
         iconColor: "text-danger",
     },
 ]);
+
 
 /* ---------------- Search ---------------- */
 const q = ref("");
@@ -419,6 +437,7 @@ const handleFilterApply = (appliedFiltersData) => {
     fetchPromos(1);
 };
 
+
 const handleFilterClear = () => {
     filters.value = {
         sortBy: "",
@@ -439,7 +458,8 @@ const handleFilterClear = () => {
         dateTo: null
     };
     currentPage.value = 1;
-    // fetchPromos(1);
+    fetchPromos(1);
+    closeModal('promosFilterModal');
 };
 /* ---------------- Form State ---------------- */
 const promoForm = ref({
@@ -499,6 +519,7 @@ const submitPromo = async () => {
 
         resetModal();
         await fetchPromos();
+        fetchGlobalStats();
     } catch (err) {
         console.error("❌ Error:", err.response?.data || err.message);
 
@@ -615,6 +636,7 @@ const toggleStatus = async (row) => {
         row.status = newStatus;
         toast.success(`Promo status updated to ${newStatus}`);
         confirmModalKey.value++;
+        await fetchGlobalStats();
     } catch (error) {
         console.error("Failed to update status:", error);
         toast.error("Failed to update status");
