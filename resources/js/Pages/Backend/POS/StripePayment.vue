@@ -38,7 +38,8 @@ const props = defineProps({
   orderType: String,
   selectedTable: Object,
   orderItems: Array,
-  grandTotal: Number,
+  grandTotal: Number, // Amount to charge NOW
+  orderTotal: Number, // Full order total (for receipts/metadata)
   money: Function,
   cashReceived: Number,
   cardPayment: Number,
@@ -56,7 +57,7 @@ const props = defineProps({
   type: String, // 'full-payment' | 'split-payment'
   cardCharge: Number, // required if type is 'split-payment'  
 
-  // ✅ ADD PROMO PROPS HERE
+  // ADD PROMO PROPS HERE
   promoDiscount: { type: Number, default: 0 },
   promoId: { type: [Number, String, null], default: null },
   promoName: { type: [String, null], default: null },
@@ -68,10 +69,16 @@ const props = defineProps({
 
   approvedDiscounts: { type: Number, default: 0 },
   approvedDiscountDetails: { type: Array, default: () => [] },
+
+  // PARTIAL PAYMENT PROPS
+  currentOrderId: { type: [Number, null], default: null },
+  isPartialPayment: { type: Boolean, default: false },
+  selectedItemIds: { type: Array, default: () => [] },
+  paidItemIds: { type: Array, default: () => [] },
+  paidProductIds: { type: Array, default: () => [] },
+  paidDealIds: { type: Array, default: () => [] },
 });
-
-
-
+const emit = defineEmits(["payment-success"]);
 
 const page = usePage();
 
@@ -82,7 +89,9 @@ const isReady = ref(false);
 const isPaying = ref(false);
 let paymentElement = null;
 
-// --- Create PI on the server with FINAL amount (£) ---
+// ========================================================
+//      Create PI on the server with FINAL amount (£)
+// ========================================================
 async function createPI() {
   try {
     const payload = {
@@ -105,6 +114,12 @@ async function createPI() {
 }
 
 async function initStripe() {
+  if ((props.grandTotal ?? 0) <= 0) {
+    if (paymentElement) paymentElement.unmount?.();
+    isReady.value = false;
+    return;
+  }
+
   stripe.value = window.Stripe(page.props.stripe_public_key);
 
   // 1) Create PI → get client_secret
@@ -152,12 +167,21 @@ async function pay() {
     customer_name: props.customer ?? "",
     phone_number: props.phone ?? "",
     delivery_location: props.deliveryLocation ?? "",
-    sub_total: String(props.subTotal ?? props.grandTotal ?? 0),
-    total_amount: String(props.grandTotal ?? 0),
+    sub_total: String(props.orderTotal ?? props.grandTotal ?? 0),
+    total_amount: String(props.orderTotal ?? props.grandTotal ?? 0),
+
+    // Order link for partial payment
+    order_id: String(props.currentOrderId ?? ""),
+    is_partial_payment: props.isPartialPayment ? "1" : "0",
+    selected_item_ids: JSON.stringify(props.selectedItemIds || []),
+    paid_item_ids: JSON.stringify(props.paidItemIds || []),
+    paid_product_ids: JSON.stringify(props.paidProductIds || []),
+    paid_deal_ids: JSON.stringify(props.paidDealIds || []),
 
     // Split payment handling
     type: String(props.type ?? 'full-payment'),
     cardCharge: String(props.cardCharge ?? props.grandTotal ?? 0),
+
     // Add promo fields
     promo_discount: String(props.promoDiscount ?? 0),
     promo_id: String(props.promoId ?? ''),
@@ -168,10 +192,6 @@ async function pay() {
 
     approved_discounts: String(props.approvedDiscounts ?? 0),
     approved_discount_details: JSON.stringify(props.approvedDiscountDetails || []),
-
-    // for split payment
-    cardCharge: String(props.cardCharge ?? 0),
-    type: String(props.type ?? 0),
 
     tax: String(props.tax ?? 0),
     sale_discount: String(
@@ -196,7 +216,7 @@ async function pay() {
             : "Collection",
     table_number: props.selectedTable?.name ?? "",
     payment_method: props.paymentMethod ?? "Stripe",
-    payment_type: props.paymentType ?? props.paymentMethod,
+    payment_type: props.paymentType || "Card",
     cash_received: String(props.cashReceived ?? 0),
     card_payment: String(props.cardPayment ?? props.grandTotal ?? 0),
     change: String(props.change ?? 0),
@@ -215,17 +235,35 @@ async function pay() {
   });
 
   try {
-    const { error } = await stripe.value.confirmPayment({
+    const result = await stripe.value.confirmPayment({
       elements: elements.value,
       confirmParams: {
         return_url: `${window.location.origin}/pos/place-stripe-order?${params.toString()}`,
       },
+      redirect: "if_required",
     });
 
-    if (error) {
-      toast.error(error.message || "Payment failed. Please try again.");
+    if (result.error) {
+      toast.error(result.error.message || "Payment failed. Please try again.");
       isPaying.value = false;
       return;
+    }
+
+    // If no redirect happened, it means we can finalize via Axios
+    if (result.paymentIntent && result.paymentIntent.status === "succeeded") {
+      const data = Object.fromEntries(params);
+      data.payment_intent = result.paymentIntent.id;
+      data.redirect_status = "succeeded";
+
+      const response = await axios.post("/pos/place-stripe-order", data);
+
+      if (response.data.success) {
+        toast.success(response.data.message || "Payment processed!");
+        emit("payment-success", response.data);
+      } else {
+        toast.error(response.data.message || "Failed to finalize order on server.");
+      }
+      isPaying.value = false;
     }
   } catch (err) {
     console.error(err);
@@ -234,7 +272,9 @@ async function pay() {
   }
 }
 
-// (optional) if the amount can change, re-create PI so Stripe total stays in sync
+// ===================================================================
+// Watch for changes in grandTotal and re-initialize Stripe if needed
+// ===================================================================
 watch(() => props.grandTotal, async (val, oldVal) => {
   if (val !== oldVal && stripe.value) {
     isReady.value = false;

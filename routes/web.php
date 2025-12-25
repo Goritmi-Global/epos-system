@@ -247,12 +247,16 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
     Route::prefix('pos')->name('pos.')->group(function () {
         Route::get('/order', [PosOrderController::class, 'index'])->name('order');
         Route::post('/order', [PosOrderController::class, 'store'])->name('pos-order.store');
-        Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])->name('place-stripe-order');
+        Route::match(['get', 'post'], '/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])->name('place-stripe-order');
         Route::post('/check-ingredients', [PosOrderController::class, 'checkIngredients']);
         Route::post('/order-without-payment', [PosOrderController::class, 'storeWithoutPayment']);
         Route::post('/orders/{orderId}/complete-payment', [PosOrderController::class, 'completePayment']);
         Route::get('/walk-in/next', [PosOrderController::class, 'getNextWalkInNumber']);
         Route::get('/walk-in/current', [PosOrderController::class, 'getCurrentWalkInNumber']);
+        Route::post('orders/{orderId}/pay-items', [PosOrderController::class, 'payForItems']);
+        Route::post('orders/{orderId}/payment', [PosOrderController::class, 'processPayment']);
+        Route::get('/orders/{orderId}', [PosOrderController::class, 'show']);
+        Route::get('/orders/{orderId}/payment-status', [PosOrderController::class, 'getPaymentStatus'])->name('order.payment-status');
     });
 
     /* -------- Pending Orders -------- */

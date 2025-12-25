@@ -11,6 +11,7 @@ class Payment extends Model
         'user_id',
         'amount_received',
         'payment_type',
+        'paid_items',
         'payment_date',
         'payment_status',
         'code',
@@ -22,6 +23,7 @@ class Payment extends Model
         'exp_year',
         'cash_amount',
         'card_amount',
+        'amount_paid',
 
         'refund_status',
         'refund_amount',
@@ -31,9 +33,9 @@ class Payment extends Model
         'refunded_by',
     ];
 
-
     protected $casts = [
         'payment_date' => 'datetime',
+        'paid_items' => 'array',
     ];
 
     // Relationships

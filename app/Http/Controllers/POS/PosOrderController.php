@@ -6,6 +6,7 @@ use App\Exceptions\MissingIngredientsException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PosOrders\StorePosOrderRequest;
 use App\Models\KitchenOrderItem;
+use App\Models\PosOrder;
 use App\Models\TerminalState;
 use App\Services\POS\PosOrderService;
 use Illuminate\Http\Request;
@@ -22,30 +23,21 @@ class PosOrderController extends Controller
         return Inertia::render('Backend/POS/Index');
     }
 
+    // PosOrderController.php
+
+    /**
+     * Create order without payment
+     */
     public function store(StorePosOrderRequest $request)
     {
         try {
             $validated = $request->validated();
-            $result = $this->service->create($validated);
+            $order = $this->service->createOrderWithoutPayment($validated);
 
-            // Check if this is an array with logout flag (cashier auto-logout)
-            if (is_array($result) && isset($result['logout']) && $result['logout'] === true) {
-                $order = $result['order'];
-
-                return response()->json([
-                    'message' => 'Order created successfully. You have been logged out.',
-                    'order' => $order,
-                    'kot' => $order->kot ? $order->kot->load('items') : null,
-                    'redirect' => route('login'),
-                    'logout' => true,
-                ]);
-            }
-
-            // Normal response (non-cashier or auto-logout disabled)
             return response()->json([
-                'message' => 'Order created successfully',
-                'order' => $result,
-                'kot' => $result->kot ? $result->kot->load('items') : null,
+                'success' => true,
+                'message' => 'Order created successfully. Ready for payment.',
+                'order' => $order->load(['items', 'type', 'deliveryDetail', 'kot.items']),
             ]);
         } catch (MissingIngredientsException $e) {
             return response()->json([
@@ -59,6 +51,127 @@ class PosOrderController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Process payment for an order
+     */
+    public function processPayment(Request $request, $orderId)
+    {
+        $request->validate([
+            'full_payment' => 'boolean',
+            'paid_item_ids' => 'array',
+            'paid_item_ids.*' => 'exists:pos_order_items,id',
+            'payment_method' => 'required|string|in:Cash,Card,Stripe',
+            'payment_type' => 'nullable|string|in:cash,card,split',
+            'cash_received' => 'nullable|numeric|min:0',
+            'cash_amount' => 'nullable|numeric|min:0',
+            'card_amount' => 'nullable|numeric|min:0',
+            'order_code' => 'nullable|string',
+            'stripe_payment_intent_id' => 'nullable|string',
+            'last_digits' => 'nullable|string',
+            'brand' => 'nullable|string',
+            'currency_code' => 'nullable|string',
+            'exp_month' => 'nullable|integer',
+            'exp_year' => 'nullable|integer',
+        ]);
+
+        try {
+            $result = $this->service->processPayment($orderId, $request->all());
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['is_final_payment']
+                    ? 'Payment completed. Order is now fully paid!'
+                    : 'Partial payment received successfully.',
+                'payment' => $result['payment'],
+                'order' => $result['order'],
+                'is_final_payment' => $result['is_final_payment'],
+                'paid_items' => $result['paid_items'],
+                'remaining_balance' => $result['remaining_balance'],
+                'receipt_type' => $result['receipt_type'],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Payment processing failed', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get order payment status
+     */
+    public function getPaymentStatus($orderId)
+    {
+        try {
+            $order = PosOrder::with(['items', 'payments'])->findOrFail($orderId);
+
+            $unpaidItems = $order->items->where('payment_status', 'unpaid');
+            $paidItems = $order->items->where('payment_status', 'paid');
+
+            return response()->json([
+                'success' => true,
+                'order_id' => $order->id,
+                'order_status' => $order->status,
+                'total_amount' => $order->total_amount,
+                'total_paid' => $order->getTotalPaidAmount(),
+                'remaining_balance' => $order->getRemainingBalance(),
+                'unpaid_items' => $unpaidItems->values(),
+                'paid_items' => $paidItems->values(),
+                'payment_history' => $order->payments,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found',
+            ], 404);
+        }
+    }
+
+    public function show($orderId)
+    {
+        try {
+            $order = PosOrder::with([
+                'items' => function ($query) {
+                    $query->select([
+                        'id',
+                        'pos_order_id',
+                        'menu_item_id',
+                        'deal_id',
+                        'is_deal',
+                        'title',
+                        'quantity',
+                        'price',
+                        'amount_paid',
+                        'payment_status',
+                        'variant_name',
+                        'note',
+                        'kitchen_note',
+                        'item_kitchen_note',
+                    ]);
+                },
+                'type',
+                'deliveryDetail',
+                'payments',
+            ])->findOrFail($orderId);
+
+            return response()->json([
+                'success' => true,
+                'order' => $order,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found',
+            ], 404);
         }
     }
 
@@ -230,10 +343,14 @@ class PosOrderController extends Controller
 
     public function placeStripeOrder(Request $request)
     {
-        $paymentIntentId = $request->query('payment_intent');
-        $redirectStatus = $request->query('redirect_status'); // succeeded | failed | requires_action
+        $paymentIntentId = $request->input('payment_intent');
+        $redirectStatus = $request->input('redirect_status'); // succeeded | failed | requires_action
 
         if ($redirectStatus !== 'succeeded' || empty($paymentIntentId)) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Stripe payment not successful.']);
+            }
+
             return redirect()->route('pos.order')->with('error', 'Stripe payment not successful.');
         }
 
@@ -243,18 +360,27 @@ class PosOrderController extends Controller
                 'expand' => ['payment_method', 'latest_charge.payment_method_details'],
             ]);
         } catch (\Throwable $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Unable to verify payment with Stripe.']);
+            }
+
             return redirect()->route('pos.order')->with('error', 'Unable to verify payment with Stripe.');
         }
 
         if (($pi->status ?? null) !== 'succeeded') {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Payment not captured yet.']);
+            }
+
             return redirect()->route('pos.order')->with('error', 'Payment not captured yet.');
         }
 
-        // Items JSON from query
+        // Items JSON from request
         $items = [];
         if ($request->filled('items')) {
             try {
-                $items = json_decode($request->query('items'), true) ?? [];
+                $rawItems = $request->input('items');
+                $items = is_array($rawItems) ? $rawItems : json_decode($rawItems, true) ?? [];
                 \Log::info('Parsed items:', $items);
             } catch (\Throwable $e) {
                 \Log::error('Failed to parse items', ['error' => $e->getMessage()]);
@@ -265,7 +391,8 @@ class PosOrderController extends Controller
         $approvedDiscountDetails = [];
         if ($request->filled('approved_discount_details')) {
             try {
-                $approvedDiscountDetails = json_decode($request->query('approved_discount_details'), true) ?? [];
+                $rawDetails = $request->input('approved_discount_details');
+                $approvedDiscountDetails = is_array($rawDetails) ? $rawDetails : json_decode($rawDetails, true) ?? [];
             } catch (\Throwable $e) {
                 \Log::error('Failed to parse approved_discount_details', ['error' => $e->getMessage()]);
             }
@@ -275,7 +402,8 @@ class PosOrderController extends Controller
         $appliedPromos = [];
         if ($request->filled('applied_promos')) {
             try {
-                $appliedPromos = json_decode($request->query('applied_promos'), true) ?? [];
+                $rawPromos = $request->input('applied_promos');
+                $appliedPromos = is_array($rawPromos) ? $rawPromos : json_decode($rawPromos, true) ?? [];
             } catch (\Throwable $e) {
                 \Log::error('Failed to parse applied_promos', ['error' => $e->getMessage()]);
             }
@@ -289,7 +417,7 @@ class PosOrderController extends Controller
             }
         }
 
-        $currency = strtoupper($pi->currency ?? $request->query('currency_code', 'GBP'));
+        $currency = strtoupper($pi->currency ?? $request->input('currency_code', 'GBP'));
 
         // Card details (prefer latest_charge)
         $pm = $pi->payment_method;
@@ -300,40 +428,95 @@ class PosOrderController extends Controller
         $expMonth = $pm->card->exp_month ?? null;
         $expYear = $pm->card->exp_year ?? null;
 
-        $code = $request->query('order_code') ?: (date('Ymd-His').rand(10, 99));
+        // ✅ NEW: Handle existing order context from callback query
+        $existingOrderId = $request->input('order_id');
+        $isPartialPayment = $request->input('is_partial_payment') === '1';
+        $selectedItemIds = [];
+        $paidItemIds = [];
+        $paidProductIds = [];
+        $paidDealIds = [];
+
+        if ($request->filled('selected_item_ids')) {
+            try {
+                $rawSelectedIds = $request->input('selected_item_ids');
+                $selectedItemIds = is_array($rawSelectedIds) ? $rawSelectedIds : json_decode($rawSelectedIds, true) ?? [];
+            } catch (\Throwable $e) {
+                \Log::error('Failed to parse selected_item_ids', ['error' => $e->getMessage()]);
+            }
+        }
+
+        if ($request->filled('paid_item_ids')) {
+            try {
+                $rawIds = $request->input('paid_item_ids');
+                $paidItemIds = is_array($rawIds) ? $rawIds : json_decode($rawIds, true) ?? [];
+            } catch (\Throwable $e) {
+                \Log::error('Failed to parse paid_item_ids', ['error' => $e->getMessage()]);
+            }
+        }
+
+        if ($request->filled('paid_product_ids')) {
+            try {
+                $rawIds = $request->input('paid_product_ids');
+                $paidProductIds = is_array($rawIds) ? $rawIds : json_decode($rawIds, true) ?? [];
+            } catch (\Throwable $e) {
+                \Log::error('Failed to parse paid_product_ids', ['error' => $e->getMessage()]);
+            }
+        }
+
+        if ($request->filled('paid_deal_ids')) {
+            try {
+                $rawIds = $request->input('paid_deal_ids');
+                $paidDealIds = is_array($rawIds) ? $rawIds : json_decode($rawIds, true) ?? [];
+            } catch (\Throwable $e) {
+                \Log::error('Failed to parse paid_deal_ids', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // ✅ CONTEXT-AWARE FALLBACK: If explicit arrays are empty, infer from selected_item_ids
+        if (empty($paidItemIds) && empty($paidProductIds) && ! empty($selectedItemIds)) {
+            \Log::info('⚠️ Using context-aware fallback for ID arrays', [
+                'has_order_id' => ! empty($existingOrderId),
+                'selected_count' => count($selectedItemIds),
+            ]);
+
+            if ($existingOrderId) {
+                // If it's an existing order, selected_item_ids are database PKs
+                $paidItemIds = $selectedItemIds;
+            } else {
+                // If it's a new order, selected_item_ids are Menu IDs
+                $paidProductIds = $selectedItemIds;
+            }
+        }
+
+        $code = $request->input('order_code') ?: (date('Ymd-His').rand(10, 99));
 
         $data = [
-            'customer_name' => $request->query('customer_name'),
-            'phone_number' => $request->query('phone_number'),
-            'delivery_location' => $request->query('delivery_location'),
-            'sub_total' => (float) $request->query('sub_total', 0),
-            'total_amount' => (float) $request->query('total_amount', 0),
-            'tax' => (float) $request->query('tax', 0),
-            'service_charges' => (float) $request->query('service_charges', 0),
-            'delivery_charges' => (float) $request->query('delivery_charges', 0),
-            'sale_discount' => (float) $request->query('sale_discount', 0),
-            'approved_discounts' => (float) $request->query('approved_discounts', 0),
+            'customer_name' => $request->input('customer_name'),
+            'phone_number' => $request->input('phone_number'),
+            'delivery_location' => $request->input('delivery_location'),
+            'sub_total' => (float) $request->input('sub_total', 0),
+            'total_amount' => (float) $request->input('total_amount', 0),
+            'tax' => (float) $request->input('tax', 0),
+            'service_charges' => (float) $request->input('service_charges', 0),
+            'delivery_charges' => (float) $request->input('delivery_charges', 0),
+            'sale_discount' => (float) $request->input('sale_discount', 0),
+            'approved_discounts' => (float) $request->input('approved_discounts', 0),
             'approved_discount_details' => $approvedDiscountDetails,
             'status' => 'paid',
-            'note' => $request->query('note'),
-            'kitchen_note' => $request->query('kitchen_note'),
-            'order_date' => $request->query('order_date', now()->toDateString()),
-            'order_time' => $request->query('order_time', now()->toTimeString()),
-            'order_type' => $request->query('order_type'),
-            'table_number' => $request->query('table_number'),
-            'payment_type' => $request->query('payment_type'),
+            'note' => $request->input('note'),
+            'kitchen_note' => $request->input('kitchen_note'),
+            'order_date' => $request->input('order_date', now()->toDateString()),
+            'order_time' => $request->input('order_time', now()->toTimeString()),
+            'order_type' => $request->input('order_type'),
+            'table_number' => $request->input('table_number'),
+            'payment_type' => $request->input('payment_type'),
             'items' => $items,
 
-            // Payment block
-            // Payment block
-            'payment_method' => 'Stripe',
-            'payment_status' => $pi->status ?? 'succeeded',
-            'cash_received' => (float) $request->query('cash_received', 0),
-            'card_payment' => (float) $request->query('card_payment', 0),
-
-            // Split payment amounts
-            'cash_amount' => (float) $request->query('cash_received', 0),
-            'card_amount' => (float) $request->query('card_payment', 0),
+            // Payment data
+            'payment_method' => $request->input('payment_method', 'Stripe'),
+            'payment_status' => 'completed',
+            'cash_amount' => (float) $request->input('cash_received', 0),
+            'card_amount' => (float) $request->input('card_payment', 0),
 
             // Tracking
             'order_code' => $code,
@@ -353,54 +536,84 @@ class PosOrderController extends Controller
             'promo_discount' => $totalPromoDiscount,
         ];
 
-        $order = $this->service->create($data);
+        // ✅ NEW: If we have an existing order, we only need to process payment
+        \Log::info('🔵 Stripe Payment Attempt', [
+            'existing_order_id' => $existingOrderId,
+            'is_partial_payment' => $isPartialPayment,
+            'selected_item_count' => count($selectedItemIds),
+        ]);
+
+        try {
+            if ($existingOrderId && is_numeric($existingOrderId)) {
+                $paymentData = $data;
+                $paymentData['full_payment'] = ! $isPartialPayment;
+                $paymentData['paid_item_ids'] = $paidItemIds;
+                $paymentData['paid_product_ids'] = $paidProductIds;
+                $paymentData['paid_deal_ids'] = $paidDealIds;
+                $paymentData['payment_method'] = 'Stripe';
+
+                $result = $this->service->processPayment((int) $existingOrderId, $paymentData);
+                $order = $result['order'];
+                $isFinalPayment = $result['is_final_payment'];
+            } else {
+                // New order creation flow
+                $data['full_payment'] = ! $isPartialPayment;
+                $data['paid_item_ids'] = $paidItemIds;
+                $data['paid_product_ids'] = $paidProductIds ?: $selectedItemIds;
+                $order = $this->service->create($data);
+                $isFinalPayment = $order->refresh()->isPaid();
+            }
+        } catch (\Throwable $e) {
+            \Log::error('Stripe Order Processing Error:', ['error' => $e->getMessage()]);
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()]);
+            }
+
+            return redirect()->route('pos.order')->with('error', $e->getMessage());
+        }
+
+        \Log::info('🟢 Stripe Payment Result', [
+            'order_id' => $order->id,
+            'order_status' => $order->status,
+            'payment_status' => $order->payment_status,
+            'is_final_payment' => $isFinalPayment,
+        ]);
 
         // ✅ Build promo names string for receipt
-        $promoNames = ! empty($appliedPromos)
-            ? implode(', ', array_column($appliedPromos, 'promo_name'))
-            : null;
+        $promoNames = ! empty($appliedPromos) ? implode(', ', array_column($appliedPromos, 'promo_name')) : 'None';
 
-        // for printing receipt
+        // Print Payload
         $printPayload = [
             'id' => $order->id,
             'customer_name' => $data['customer_name'] ?? null,
-            'phone_number' => $data['phone_number'] ?? null,
-            'delivery_location' => $data['delivery_location'] ?? null,
             'order_type' => $data['order_type'] ?? null,
-            'payment_method' => 'Card', // display text for receipt
-            'card_brand' => $data['brand'] ?? null,
-            'last4' => $data['last_digits'] ?? null,
-            'sub_total' => $data['sub_total'] ?? 0,
-            'total_amount' => $data['total_amount'] ?? 0,
-            'sale_discount' => $data['sale_discount'] ?? 0,
-            'items' => $data['items'] ?? [],
-            'payment_type' => $data['payment_type'] ?? 'Card',
-
-            // ✅ Updated promo fields for receipt
+            'payment_method' => 'Card',
+            'card_brand' => $brand,
+            'last4' => $last4,
+            'total_amount' => $order->total_amount,
+            'items' => $order->items,
             'promo_discount' => $totalPromoDiscount,
             'promo_names' => $promoNames,
-            'applied_promos' => $appliedPromos,
-
-            // ✅ Split payment amounts for receipt
-            'cash_amount' => $data['cash_amount'] ?? null,
-            'card_amount' => $data['card_amount'] ?? null,
-            'cash_received' => $data['cash_received'] ?? 0,
-
-            'note' => $data['note'] ?? null,
-            'kitchen_note' => $data['kitchen_note'] ?? null,
-            'item_kitchen_note' => $data['item_kitchen_note'] ?? null,
         ];
 
-        // 🔔 Flash for the frontend toast
-        $promoMsg = $totalPromoDiscount > 0 ? " with £{$totalPromoDiscount} promo discount" : '';
-        $msg = "Payment successful! Order #{$order->id} placed{$promoMsg}. Card {$brand} •••• {$last4}.";
+        $msg = $isFinalPayment
+            ? 'Order placed & paid successfully via Stripe!'
+            : 'Partial payment processed via Stripe! Some items remain unpaid.';
 
-        return redirect()
-            ->route('pos.order')
-            ->with([
-                'success' => $msg,
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'order' => $order->load(['items', 'payments', 'type', 'deliveryDetail', 'promo']),
+                'is_final_payment' => $isFinalPayment,
                 'print_payload' => $printPayload,
             ]);
+        }
+
+        return redirect()->route('pos.order')->with([
+            'success' => $msg,
+            'print_payload' => $printPayload,
+        ]);
     }
 
     public function cancel(Request $request, $orderId)
@@ -1017,6 +1230,42 @@ class PosOrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get current number',
+            ], 500);
+        }
+    }
+
+    public function payForItems(Request $request, $orderId)
+    {
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|exists:pos_order_items,id',
+            'items.*.amount' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|string',
+            'cash_received' => 'nullable|numeric',
+            'payment_type' => 'nullable|string',
+            'cash_amount' => 'nullable|numeric',
+            'card_amount' => 'nullable|numeric',
+        ]);
+
+        try {
+            $result = $this->service->payForItems($orderId, $request->all());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment successful',
+                'order' => $result['order'],
+                'receipt' => $result['receipt'] ?? null,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Pay for items failed', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
