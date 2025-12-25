@@ -13,6 +13,11 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
+import { useModal } from "@/composables/useModal";
+
+const { closeModal } = useModal();
+
+
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
@@ -26,10 +31,9 @@ const selectedItem = ref(null);
 // ADD THIS SECTION AFTER THE EXISTING REFS (around line 20)
 // ==========================================
 
-// Active tab for status filtering
+
 const activeStatusTab = ref('All');
 
-// Available status tabs
 const statusTabs = ref([
     { label: 'All', value: 'All', icon: 'bi-list-ul' },
     { label: 'Waiting', value: 'Waiting', icon: 'bi-hourglass-split' },
@@ -37,8 +41,6 @@ const statusTabs = ref([
     { label: 'Done', value: 'Done', icon: 'bi-check-circle' },
     { label: 'Cancelled', value: 'Cancelled', icon: 'bi-x-circle' }
 ]);
-
-
 const statistics = ref({
     status_counts: {
         'All': 0,
@@ -56,7 +58,6 @@ const statistics = ref({
         cancelled_items: 0
     }
 });
-
 const handleStatusTabChange = (status) => {
     activeStatusTab.value = status;
 
@@ -69,11 +70,8 @@ const handleStatusTabChange = (status) => {
     pagination.value.current_page = 1;
 
     fetchOrders(1);
-};
-
-
+}
 const exportOption = ref(null)
-
 const exportOptions = [
     { label: 'PDF', value: 'pdf' },
     { label: 'Excel', value: 'excel' },
@@ -83,7 +81,7 @@ const exportOptions = [
 const onExportChange = (e) => {
     if (e.value) {
         onDownload(e.value)
-        exportOption.value = null // reset after click
+        exportOption.value = null
     }
 }
 
@@ -176,7 +174,8 @@ const fetchOrders = async (page = null) => {
                         ingredients: kotItem.ingredients || []
                     };
                 }),
-                item_count: ko.items?.length || 0
+                item_count: ko.items?.length || 0,
+                addons: posOrder?.items[0]?.addons,
             };
         });
 
@@ -226,18 +225,6 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrders();
-    const filterModal = document.getElementById('kotFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            filters.value = {
-                sortBy: appliedFilters.value.sortBy || "",
-                orderType: appliedFilters.value.orderType || "",
-                status: appliedFilters.value.status || "",
-                dateFrom: appliedFilters.value.dateFrom || "",
-                dateTo: appliedFilters.value.dateTo || "",
-            };
-        });
-    }
 });
 
 const q = ref("");
@@ -271,13 +258,6 @@ const handleFilterApply = (appliedFiltersData) => {
     appliedFilters.value = { ...filters.value };
     pagination.value.current_page = 1;
     fetchOrders(1);
-
-    const modal = bootstrap.Modal.getInstance(
-        document.getElementById("kotFilterModal")
-    );
-    modal?.hide();
-
-    console.log("Filters applied:", filters.value);
 };
 
 const handleFilterClear = () => {
@@ -298,8 +278,7 @@ const handleFilterClear = () => {
     pagination.value.current_page = 1;
     pagination.value.per_page = 10;
     fetchOrders(1);
-
-    console.log("Filters cleared");
+    closeModal('kotFilterModal');
 };
 
 const sortedOrders = computed(() => {
@@ -310,8 +289,6 @@ const filterOptions = computed(() => ({
     sortOptions: [
         { value: "order_desc", label: "Total Amount: High to Low" },
         { value: "order_asc", label: "Total Amount: Low to High" },
-        { value: "date_desc", label: "Date: Newest First" },
-        { value: "date_asc", label: "Date: Oldest First" },
     ],
     orderTypeOptions: [
         { value: "Eat In", label: "Eat In" },
@@ -1193,7 +1170,7 @@ const downloadExcel = (data) => {
                                 <div class="col-md-3">
                                     <small class="text-muted d-block dark:text-gray-400">Table Number</small>
                                     <strong class="dark:text-white">{{ selectedOrder.type?.table_number || '-'
-                                    }}</strong>
+                                        }}</strong>
                                 </div>
                                 <div class="col-md-3">
                                     <small class="text-muted d-block dark:text-gray-400">Order Status</small>
@@ -1221,6 +1198,7 @@ const downloadExcel = (data) => {
                                             <th class="px-3">#</th>
                                             <th>Item Name</th>
                                             <th>Variant</th>
+                                            <th>Addons</th>
                                             <th>Quantity</th>
                                             <th>Kitchen Note</th>
                                             <th>Status</th>
@@ -1230,14 +1208,22 @@ const downloadExcel = (data) => {
                                     <tbody>
                                         <tr v-for="(item, idx) in selectedOrder.items" :key="item.id"
                                             class="dark:border-gray-700">
+
+
                                             <td class="px-3">{{ idx + 1 }}</td>
                                             <td class="fw-semibold">{{ item.item_name }}</td>
                                             <td>{{ item.variant_name }}</td>
                                             <td>
+                                                {{selectedOrder?.addons?.map(a => a.addon_name).join(', ')}}
+                                            </td>
+
+                                            <td>
                                                 <span class="badge bg-secondary">{{ item.quantity }}</span>
                                             </td>
                                             <td>
-                                                <small class="text-muted dark:text-gray-400">{{ item.item_kitchen_note.substring(item.item_kitchen_note.indexOf('No')) }}</small>
+                                                <small class="text-muted dark:text-gray-400">{{
+                                                    item.item_kitchen_note.substring(item.item_kitchen_note.indexOf('No'))
+                                                    }}</small>
                                             </td>
                                             <td>
                                                 <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"

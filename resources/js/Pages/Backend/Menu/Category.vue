@@ -7,9 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
 import Dropdown from 'primevue/dropdown'
-
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
-
 import {
     Shapes,
     Package,
@@ -23,6 +21,10 @@ import { toast } from "vue3-toastify";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { useModal } from "@/composables/useModal";
+const { closeModal } = useModal();
+
+
 
 /* ---------------- Demo data (swap with API later) ---------------- */
 const manualCategories = ref([]);
@@ -196,12 +198,6 @@ onMounted(async () => {
     }, 100);
     fetchCategories();
     fetchAllParentCategories()
-    const filterModal = document.getElementById('categoryFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            filters.value = { ...appliedFilters.value };
-        });
-    }
 });
 
 // Get only parent categories (main categories) for dropdown
@@ -244,13 +240,8 @@ const loading = ref(false);
 
 const handleFilterApply = () => {
     appliedFilters.value = { ...filters.value };
-    pagination.value.current_page = 1; // ✅ Reset to page 1
-    fetchCategories(1); // ✅ Fetch with new filters
-
-    const modal = bootstrap.Modal.getInstance(
-        document.getElementById("categoryFilterModal")
-    );
-    modal?.hide();
+    pagination.value.current_page = 1; 
+    fetchCategories(1);
 };
 
 const filterOptions = computed(() => ({
@@ -271,9 +262,10 @@ const filterOptions = computed(() => ({
 const handleFilterClear = () => {
     filters.value = { ...defaultCategoryFilters };
     appliedFilters.value = { ...defaultCategoryFilters };
-    pagination.value.current_page = 1; // ✅ Reset to page 1
-    pagination.value.per_page = 10; // ✅ Reset per_page
-    fetchCategories(1); // ✅ Fetch without filters
+    pagination.value.current_page = 1; 
+    pagination.value.per_page = 10; 
+    fetchCategories(1); 
+    closeModal('categoryFilterModal');
 };
 
 /* ---------------- Helpers ---------------- */

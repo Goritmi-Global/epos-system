@@ -16,7 +16,8 @@ import Accordion from 'primevue/accordion';
 import AccordionPanel from 'primevue/accordionpanel';
 import AccordionHeader from 'primevue/accordionheader';
 import AccordionContent from 'primevue/accordioncontent';
-
+import { useModal } from "@/composables/useModal";
+const { closeModal } = useModal();
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
 
@@ -1112,6 +1113,8 @@ const handleClearFilters = () => {
         priceMin: null,
         priceMax: null,
     };
+    searchQuery.value = '';
+    closeModal('menuFilterModal');
 };
 
 
@@ -2535,6 +2538,58 @@ const checkMissingIngredientsForItem = async (item, requestedQty = 1) => {
 
 const pendingOrderData = ref(null);
 
+// ✅ ADD: Track current order ID
+const currentOrderId = ref(null);
+
+// ✅ ADD: Refresh order items after partial payment
+const refreshOrderItems = async (orderId) => {
+    try {
+        const res = await axios.get(`/pos/orders/${orderId}`);
+        if (res.data.success && res.data.order) {
+            const serverItems = res.data.order.items;
+
+            orderItems.value = orderItems.value.map(item => {
+                const serverItem = serverItems.find(si =>
+                    si.menu_item_id === item.id || si.deal_id === item.dealId
+                );
+
+                if (serverItem) {
+                    return {
+                        ...item,
+                        payment_status: serverItem.payment_status,
+                        amount_paid: serverItem.amount_paid,
+                        server_item_id: serverItem.id // ✅ CRITICAL: This maps to backend IDs
+                    };
+                }
+                return item;
+            });
+
+            // ✅ ALSO UPDATE selectedUnpaidOrder if it exists
+            if (selectedUnpaidOrder.value && selectedUnpaidOrder.value.order_items) {
+                const updatedItems = selectedUnpaidOrder.value.order_items.map(item => {
+                    const serverItem = serverItems.find(si => si.id === item.server_item_id);
+                    if (serverItem) {
+                        return {
+                            ...item,
+                            payment_status: serverItem.payment_status,
+                            amount_paid: serverItem.amount_paid
+                        };
+                    }
+                    return item;
+                });
+
+                selectedUnpaidOrder.value = {
+                    ...selectedUnpaidOrder.value,
+                    order_items: updatedItems
+                };
+            }
+        }
+    } catch (err) {
+        console.error('Failed to refresh order items:', err);
+    }
+};
+
+// ✅ MODIFIED: confirmOrder function
 const confirmOrder = async ({
     paymentMethod,
     cashReceived,
@@ -2542,98 +2597,107 @@ const confirmOrder = async ({
     changeAmount,
     items,
     autoPrintKot,
+    isPartialPayment,
+    selectedItemIds,
+    paidItemIds,
+    paidProductIds,
+    paidDealIds,
+    existingOrderId,
     done
 }) => {
     formErrors.value = {};
 
     try {
-        const payload = {
-            customer_name: customer.value,
-            phone_number: phoneNumber.value,
-            delivery_location: deliveryLocation.value,
-            sub_total: subTotal.value,
-            tax: totalTax.value,
-            service_charges: serviceCharges.value,
-            delivery_charges: deliveryCharges.value,
-            sales_discount: totalResaleSavings.value,
+        let orderId = existingOrderId;
 
-            approved_discounts: approvedDiscountTotal.value,
-            approved_discount_details: selectedDiscounts.value.map(discount => ({
-                discount_id: discount.id,
-                discount_name: discount.name,
-                discount_percentage: discount.percentage,
-                discount_amount: getDiscountAmount(discount.percentage),
-                approval_id: discount.approval_id
-            })),
+        // STEP 1: CREATE ORDER ONLY IF IT DOESN'T EXIST
+        if (!orderId) {
+            console.log('📤 Creating new order...');
 
-            promo_discount: promoDiscount.value,
-            applied_promos: selectedPromos.value.map(promo => ({
-                promo_id: promo.id,
-                promo_name: promo.name,
-                promo_type: promo.type,
-                discount_amount: promo.applied_discount || 0,
-                applied_to_items: promo.applied_to_items || []
-            })),
+            const orderPayload = {
+                customer_name: customer.value,
+                phone_number: phoneNumber.value,
+                delivery_location: deliveryLocation.value,
+                sub_total: subTotal.value,
+                tax: totalTax.value,
+                service_charges: serviceCharges.value,
+                delivery_charges: deliveryCharges.value,
+                sales_discount: totalResaleSavings.value,
+                approved_discounts: approvedDiscountTotal.value,
+                approved_discount_details: selectedDiscounts.value.map(discount => ({
+                    discount_id: discount.id,
+                    discount_name: discount.name,
+                    discount_percentage: discount.percentage,
+                    discount_amount: getDiscountAmount(discount.percentage),
+                    approval_id: discount.approval_id
+                })),
+                promo_discount: promoDiscount.value,
+                applied_promos: selectedPromos.value.map(promo => ({
+                    promo_id: promo.id,
+                    promo_name: promo.name,
+                    promo_type: promo.type,
+                    discount_amount: promo.applied_discount || 0,
+                    applied_to_items: promo.applied_to_items || []
+                })),
+                total_amount: grandTotal.value,
+                note: note.value,
+                kitchen_note: kitchenNote.value,
+                order_date: new Date().toISOString().split("T")[0],
+                order_time: new Date().toTimeString().split(" ")[0],
+                order_type: orderType.value === "Eat_in"
+                    ? "Eat In"
+                    : orderType.value === "Delivery"
+                        ? "Delivery"
+                        : orderType.value === "Takeaway"
+                            ? "Takeaway"
+                            : "Collection",
+                table_number: selectedTable.value?.name || null,
+                items: (orderItems.value ?? []).map((it) => {
+                    if (it.isDeal) {
+                        return {
+                            product_id: it.dealId,
+                            title: it.title,
+                            quantity: it.qty,
+                            price: it.price,
+                            note: it.note ?? "",
+                            kitchen_note: kitchenNote.value ?? "",
+                            unit_price: it.unit_price,
+                            item_kitchen_note: it.item_kitchen_note ?? "",
+                            tax_percentage: 0,
+                            tax_amount: 0,
+                            variant_id: null,
+                            variant_name: null,
+                            addons: [],
+                            sale_discount_per_item: 0,
+                            removed_ingredients: [],
+                            is_deal: true,
+                            deal_id: it.dealId,
+                            menu_items: it.menu_items || []
+                        };
+                    }
 
-            total_amount: grandTotal.value,
-            note: note.value,
-            kitchen_note: kitchenNote.value,
-            order_date: new Date().toISOString().split("T")[0],
-            order_time: new Date().toTimeString().split(" ")[0],
-            order_type: orderType.value === "Eat_in"
-                ? "Eat In"
-                : orderType.value === "Delivery"
-                    ? "Delivery"
-                    : orderType.value === "Takeaway"
-                        ? "Takeaway"
-                        : "Collection",
-            table_number: selectedTable.value?.name || null,
-            payment_method: paymentMethod,
-            auto_print_kot: autoPrintKot,
-            cash_received: cashReceived,
-            change: changeAmount,
+                    const menuItem = menuItems.value.find(m => m.id === it.id);
+                    let sourceItem = menuItem;
 
-            ...(paymentMethod === 'Split' && {
-                payment_type: 'split',
-                cash_amount: cashReceived,
-                card_amount: cardAmount
-            }),
+                    if (it.variant_id && menuItem?.variants) {
+                        const variant = menuItem.variants.find(v => v.id === it.variant_id);
+                        if (variant) sourceItem = variant;
+                    }
 
-            // items: (orderItems.value ?? []).map((it) => {
-            //     const menuItem = menuItems.value.find(m => m.id === it.id);
-            //     let sourceItem = menuItem;
+                    const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
 
-            //     if (it.variant_id && menuItem?.variants) {
-            //         const variant = menuItem.variants.find(v => v.id === it.variant_id);
-            //         if (variant) sourceItem = variant;
-            //     }
+                    const removedIngredientsWithNames = (it.removed_ingredients || []).map(removedId => {
+                        const ingredient = (it.ingredients || []).find(
+                            ing => (ing.id === removedId || ing.inventory_item_id === removedId)
+                        );
+                        return {
+                            id: removedId,
+                            name: ingredient ? (ingredient.product_name || ingredient.name) : 'Unknown Ingredient'
+                        };
+                    });
 
-            //     const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
-
-            //     return {
-            //         product_id: it.id,
-            //         title: it.title,
-            //         quantity: it.qty,
-            //         price: it.price,
-            //         note: it.note ?? "",
-            //         kitchen_note: kitchenNote.value ?? "",
-            //         unit_price: it.unit_price,
-            //         item_kitchen_note: it.item_kitchen_note ?? "",
-            //         tax_percentage: getItemTaxPercentage(it),
-            //         tax_amount: getItemTax(it),
-            //         variant_id: it.variant_id || null,
-            //         variant_name: it.variant_name || null,
-            //         addons: it.addons || [],
-            //         sale_discount_per_item: resaleDiscount,
-            //         removed_ingredients: it.removed_ingredients || [],
-            //     };
-            // }),
-
-            items: (orderItems.value ?? []).map((it) => {
-                //  Check if this is a deal FIRST
-                if (it.isDeal) {
                     return {
-                        product_id: it.dealId,
+                        product_id: it.id,
                         title: it.title,
                         quantity: it.qty,
                         price: it.price,
@@ -2641,118 +2705,192 @@ const confirmOrder = async ({
                         kitchen_note: kitchenNote.value ?? "",
                         unit_price: it.unit_price,
                         item_kitchen_note: it.item_kitchen_note ?? "",
-                        tax_percentage: 0,
-                        tax_amount: 0,
-                        variant_id: null,
-                        variant_name: null,
-                        addons: [],
-                        sale_discount_per_item: 0,
-                        removed_ingredients: [],
-
-                        // CRITICAL: These fields tell backend this is a deal
-                        is_deal: true,
-                        deal_id: it.dealId,
-                        menu_items: it.menu_items || []
+                        tax_percentage: getItemTaxPercentage(it),
+                        tax_amount: getItemTax(it),
+                        variant_id: it.variant_id || null,
+                        variant_name: it.variant_name || null,
+                        addons: it.addons || [],
+                        sale_discount_per_item: resaleDiscount,
+                        removed_ingredients: removedIngredientsWithNames || [],
+                        is_deal: false
                     };
-                }
+                }),
+                confirm_missing_ingredients: true
+            };
 
-                //  Regular menu item handling
-                const menuItem = menuItems.value.find(m => m.id === it.id);
-                let sourceItem = menuItem;
+            const orderRes = await axios.post("/pos/order", orderPayload);
+            console.log('✅ Order created:', orderRes.data);
 
-                if (it.variant_id && menuItem?.variants) {
-                    const variant = menuItem.variants.find(v => v.id === it.variant_id);
-                    if (variant) sourceItem = variant;
-                }
+            if (orderRes.data.logout === true) {
+                toast.success(orderRes.data.message || "Order created successfully. Logging out...");
+                setTimeout(() => {
+                    window.location.href = orderRes.data.redirect || '/login';
+                }, 1000);
+                if (done) done();
+                return;
+            }
 
-                const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
-
-                const removedIngredientsWithNames = (it.removed_ingredients || []).map(removedId => {
-                    const ingredient = (it.ingredients || []).find(
-                        ing => (ing.id === removedId || ing.inventory_item_id === removedId)
-                    );
-
-                    return {
-                        id: removedId,
-                        name: ingredient ? (ingredient.product_name || ingredient.name) : 'Unknown Ingredient'
-                    };
-                });
-
-                return {
-                    product_id: it.id,
-                    title: it.title,
-                    quantity: it.qty,
-                    price: it.price,
-                    note: it.note ?? "",
-                    kitchen_note: kitchenNote.value ?? "",
-                    unit_price: it.unit_price,
-                    item_kitchen_note: it.item_kitchen_note ?? "",
-                    tax_percentage: getItemTaxPercentage(it),
-                    tax_amount: getItemTax(it),
-                    variant_id: it.variant_id || null,
-                    variant_name: it.variant_name || null,
-                    addons: it.addons || [],
-                    sale_discount_per_item: resaleDiscount,
-                    removed_ingredients: removedIngredientsWithNames || [],
-
-                    // Explicitly set is_deal to false for regular items
-                    is_deal: false
-                };
-            }),
-
-            // Since we check on increment, always confirm missing ingredients
-            confirm_missing_ingredients: true
-        };
-
-        console.log('📤 Sending order');
-
-        const res = await axios.post("/pos/order", payload);
-        console.log(' Order created successfully:', res.data);
-
-        if (res.data.logout === true) {
-            toast.success(res.data.message || "Order created successfully. Logging out...");
-            setTimeout(() => {
-                window.location.href = res.data.redirect || '/login';
-            }, 1000);
-            if (done) done();
-            return;
+            orderId = orderRes.data.order.id;
+        } else {
+            console.log('✅ Using existing order ID:', orderId);
         }
-        resetCart();
-        showConfirmModal.value = false;
-        toast.success(res.data.message || "Order placed successfully!");
 
-        lastOrder.value = {
-            ...res.data.order,
-            ...payload,
-            items: payload.items,
+        // STEP 2: PROCESS PAYMENT
+        const paymentPayload = {
+            full_payment: !isPartialPayment,
+            paid_item_ids: isPartialPayment ? (paidItemIds || []) : [],
+            paid_product_ids: isPartialPayment ? (paidProductIds || []) : [],
+            paid_deal_ids: isPartialPayment ? (paidDealIds || []) : [],
+            payment_method: paymentMethod,
+            cash_received: cashReceived,
             payment_type: paymentMethod === 'Split' ? 'split' : paymentMethod.toLowerCase(),
-            cash_amount: paymentMethod === 'Split' ? cashReceived : null,
-            card_amount: paymentMethod === 'Split' ? cardAmount : null,
+
+            ...(paymentMethod === 'Split' && {
+                cash_amount: cashReceived,
+                card_amount: cardAmount
+            }),
         };
 
-        printReceipt(
-            JSON.parse(JSON.stringify(lastOrder.value)),
-            autoPrintKot === true
-        );
-        kotData.value = await openPosOrdersModal();
-        printKot(JSON.parse(JSON.stringify(lastOrder.value)));
+        console.log('💳 Processing payment for order:', orderId, paymentPayload);
+        const paymentRes = await axios.post(`/pos/orders/${orderId}/payment`, paymentPayload);
+        console.log('✅ Payment processed:', paymentRes.data);
+
+        // STEP 3: HANDLE RESPONSE
+        // Ensure is_final_payment is strictly boolean
+        const isFinal = paymentRes.data.is_final_payment === true || paymentRes.data.is_final_payment === 1;
+        console.log('📊 is_final_payment:', isFinal);
+
+        if (isFinal) {
+            // FULL PAYMENT COMPLETE
+            toast.success("Order fully paid! Generating final receipt...");
+
+            resetCart();
+            showConfirmModal.value = false;
+            showPaymentModal.value = false; // ✅ Close second modal
+            showPendingOrdersModal.value = false; // ✅ Close pending orders modal
+            selectedUnpaidOrder.value = null; // ✅ Reset unpaid order
+            currentOrderId.value = null; // ✅ Reset order ID
+
+            // ✅ Refresh pending orders list & count
+            fetchPendingOrders();
+
+            lastOrder.value = {
+                id: orderId,
+                payment: paymentRes.data.payment,
+                payment_type: paymentMethod === 'Split' ? 'split' : paymentMethod.toLowerCase(),
+                cash_amount: paymentMethod === 'Split' ? cashReceived : null,
+                card_amount: paymentMethod === 'Split' ? cardAmount : null,
+            };
+
+            printReceipt(JSON.parse(JSON.stringify(lastOrder.value)), autoPrintKot === true);
+            kotData.value = await openPosOrdersModal();
+            printKot(JSON.parse(JSON.stringify(paymentRes.data.order)));
+
+        } else {
+            // PARTIAL PAYMENT - Keep modal open
+            console.log('🔄 Partial payment received. Keeping modal open.');
+            toast.info(
+                `Partial payment received (${paymentRes.data.paid_items?.length || 0} items). 
+                Remaining: £${(paymentRes.data.remaining_balance || 0).toFixed(2)}`
+            );
+
+            // ✅ STORE ORDER ID FOR NEXT PAYMENT
+            currentOrderId.value = orderId;
+
+            // ✅ REFRESH ITEMS FROM SERVER
+            await refreshOrderItems(orderId);
+
+            // Explicitly ensure correct modal stays open
+            if (selectedUnpaidOrder.value) {
+                showPaymentModal.value = true;
+            } else {
+                showConfirmModal.value = true;
+            }
+        }
+
         initializeWalkInCounter();
-
-
         selectedPromos.value = [];
         selectedDiscounts.value = [];
         pendingDiscountApprovals.value = [];
         stopApprovalPolling();
 
     } catch (err) {
-        console.error("❌ Order submission error:", err);
-        toast.error(err.response?.data?.message || "Failed to place order");
+        console.error("❌ Order/Payment error:", err);
+        toast.error(err.response?.data?.message || "Failed to process order/payment");
     } finally {
-        if (done) {
-            done();
-        }
+        if (done) done();
     }
 };
+
+const onStripeSuccess = async (data) => {
+    console.log('🟢 onStripeSuccess called:', data);
+    const { order, is_final_payment, print_payload } = data;
+
+    // Ensure is_final_payment is strictly boolean
+    const isFinal = is_final_payment === true || is_final_payment === 1;
+    console.log('📊 is_final_payment:', isFinal);
+
+    if (isFinal) {
+        toast.success(data.message || "Order fully paid!");
+        resetCart();
+        showConfirmModal.value = false;
+        showPaymentModal.value = false;
+        showPendingOrdersModal.value = false; // ✅ Close pending orders modal
+        selectedUnpaidOrder.value = null;
+        currentOrderId.value = null;
+
+        // ✅ Refresh pending orders list & count
+        fetchPendingOrders();
+
+        selectedPromos.value = [];
+        selectedDiscounts.value = [];
+        pendingDiscountApprovals.value = [];
+
+        if (print_payload) {
+            printReceipt(JSON.parse(JSON.stringify(print_payload)), true);
+        }
+
+        // ✅ REFRESH PAGE AFTER 1 SECOND TO START FRESH
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    } else {
+        toast.info(data.message || "Partial payment processed!");
+        if (order && order.id) {
+            currentOrderId.value = order.id;
+
+            // ✅ IMMEDIATE SYNC: Update the local selectedUnpaidOrder with the server response
+            if (selectedUnpaidOrder.value && order.items) {
+                const mappedItems = order.items.map(item => ({
+                    ...item,
+                    server_item_id: item.id // Ensure IDs are mapped for consistent selection key
+                }));
+
+                selectedUnpaidOrder.value = {
+                    ...selectedUnpaidOrder.value,
+                    order_items: mappedItems,
+                    total_amount: order.total_amount,
+                    sub_total: order.sub_total,
+                    payment_status: order.payment_status
+                };
+            }
+
+            // Background refresh for other lists
+            fetchPendingOrders();
+        }
+
+        // Explicitly ensure the correct modal stays open
+        if (selectedUnpaidOrder.value) {
+            showPaymentModal.value = true;
+        } else {
+            showConfirmModal.value = true;
+        }
+    }
+
+    initializeWalkInCounter();
+};
+
+
 
 const handleConfirmMissingIngredients = async () => {
     console.log(' User confirmed missing ingredients');
@@ -2968,6 +3106,22 @@ onMounted(async () => {
     fetchMenuCategories();
     fetchMenuItems();
     fetchProfileTables();
+
+    // ✅ NEW: Handle Stripe redirect recovery
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderIdParam = urlParams.get('order_id');
+    const redirectStatus = urlParams.get('redirect_status');
+
+    if (orderIdParam && redirectStatus === 'succeeded') {
+        currentOrderId.value = orderIdParam;
+        await refreshOrderItems(orderIdParam);
+        showConfirmModal.value = true;
+
+        // Clean URL to avoid re-triggering
+        window.history.replaceState({}, document.title, window.location.pathname);
+        toast.success("Payment succeeded! Restoring modal context.");
+    }
+
     const filterModal = document.getElementById('menuFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
@@ -3278,7 +3432,7 @@ const grandTotal = computed(() => {
         - totalResaleSavings.value
         - promoDiscount.value
         - approvedDiscountTotal.value;
-    return Math.max(0, total);
+    return Math.round(Math.max(0, total) * 100) / 100;
 });
 
 const getItemTax = (item) => {
@@ -5006,7 +5160,9 @@ const resumePendingOrder = async (pendingOrder) => {
 
         // Restore order items
         orderItems.value = pendingOrder.order_items.map(item => ({
-            id: item.product_id,
+            id: item.id || item.product_id, // Use database ID if available
+            product_id: item.product_id,
+            server_item_id: item.id, // Explicitly store database ID
             title: item.title,
             qty: item.quantity,
             price: item.price,
@@ -5254,7 +5410,16 @@ const placeOrderWithoutPayment = async () => {
 
 // Handle payment for unpaid order
 const handlePayUnpaidOrder = (order) => {
-    selectedUnpaidOrder.value = order;
+    // Ensure items have server_item_id which is the actual database primary key
+    const mappedItems = (order.order_items || []).map(item => ({
+        ...item,
+        server_item_id: item.id // Critical: Map POS item PK to server_item_id
+    }));
+
+    selectedUnpaidOrder.value = {
+        ...order,
+        order_items: mappedItems
+    };
     cashReceived.value = parseFloat(order.total_amount).toFixed(2);
     showPaymentModal.value = true;
 };
@@ -5292,6 +5457,83 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
         toast.error(error.response?.data?.message || 'Failed to complete payment');
     } finally {
         if (done) done();
+    }
+};
+
+// ========================================================
+//                Single item payment order
+// ========================================================
+const handlePayItem = async (item) => {
+    try {
+        const payload = {
+            customer_name: customer.value,
+            phone_number: phoneNumber.value,
+            delivery_location: deliveryLocation.value,
+            sub_total: (Number(item.unit_price) || 0) * (Number(item.qty) || 0),
+            tax: getItemTax(item), // calculate tax for this item
+            service_charges: serviceCharges.value, // optionally split proportionally
+            delivery_charges: deliveryCharges.value, // optionally split proportionally
+            sales_discount: 0, // or calculate discount if applicable
+
+            approved_discounts: 0,
+            approved_discount_details: [],
+
+            promo_discount: 0,
+            applied_promos: [],
+
+            total_amount: (Number(item.unit_price) || 0) * (Number(item.qty) || 0) + getItemTax(item),
+            note: item.note ?? "",
+            kitchen_note: kitchenNote.value ?? "",
+            order_date: new Date().toISOString().split("T")[0],
+            order_time: new Date().toTimeString().split(" ")[0],
+            order_type: orderType.value === "Eat_in"
+                ? "Eat In"
+                : orderType.value === "Delivery"
+                    ? "Delivery"
+                    : orderType.value === "Takeaway"
+                        ? "Takeaway"
+                        : "Collection",
+            table_number: selectedTable.value?.name || null,
+            is_paid: true,
+            payment_method: 'Cash',
+            auto_print_kot: true,
+            cash_received: (Number(item.unit_price) || 0) * (Number(item.qty) || 0),
+            change: 0, // assume full payment for now
+
+            items: [{
+                product_id: item.id,
+                title: item.title,
+                quantity: item.qty,
+                price: item.price,
+                note: item.note ?? "",
+                kitchen_note: item.kitchen_note ?? "",
+                unit_price: item.unit_price,
+                item_kitchen_note: item.item_kitchen_note ?? "",
+                tax_percentage: getItemTaxPercentage(item),
+                tax_amount: getItemTax(item),
+                variant_id: item.variant_id || null,
+                variant_name: item.variant_name || null,
+                addons: item.addons || [],
+                sale_discount_per_item: 0,
+                removed_ingredients: item.removed_ingredients || [],
+                is_deal: item.isDeal || false
+            }],
+
+            confirm_missing_ingredients: true
+        };
+
+        console.log('📤 Sending single item order:', payload);
+
+        const res = await axios.post("/pos/order", payload);
+        toast.success(res.data.message || "Item order placed successfully!");
+
+        // Optional: update UI to mark this item as paid
+        item.isPaid = true;
+        initializeWalkInCounter();
+
+    } catch (err) {
+        console.error("❌ Single item order error:", err);
+        toast.error(err.response?.data?.message || "Failed to place item order");
     }
 };
 
@@ -5430,9 +5672,6 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                     </button>
                                 </div>
                             </div>
-
-
-
                             <!--  MENU ITEMS GRID (Show when showDeals is false - your existing code) -->
                             <div class="row g-3">
                                 <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"
@@ -5894,7 +6133,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                             Add-ons Total:
                                         </span>
                                         <span class="text-success fw-semibold">{{ formatCurrencySymbol(totalAddons)
-                                        }}</span>
+                                            }}</span>
                                     </div>
 
                                     <!-- Tax Row -->
@@ -7225,7 +7464,8 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                 :promo-discount-amount="promoDiscount" :note="note" :kitchen-note="kitchenNote"
                 :order-date="new Date().toISOString().split('T')[0]"
                 :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
-                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder"
+                :change="changeAmount" :current-order-id="currentOrderId" @close="showConfirmModal = false"
+                @confirm="confirmOrder" @pay-item="handlePayItem" @payment-success="onStripeSuccess"
                 :appliedPromos="getAppliedPromosData" :approved-discounts="approvedDiscountTotal"
                 :approved-discount-details="selectedDiscounts.map(d => ({
                     discount_id: d.id,
@@ -7262,8 +7502,9 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                 :delivery-charges="selectedUnpaidOrder.delivery_charges"
                 :promo-discount="selectedUnpaidOrder.promo_discount" :note="selectedUnpaidOrder.note"
                 :kitchen-note="selectedUnpaidOrder.kitchen_note" v-model:cashReceived="cashReceived" :money="money"
-                @close="showPaymentModal = false; selectedUnpaidOrder = null" @confirm="completeOrderPayment"
-                :is-payment-only="true" />
+                @close="showPaymentModal = false; selectedUnpaidOrder = null" @confirm="confirmOrder"
+                @payment-success="onStripeSuccess" :is-payment-only="true"
+                :current-order-id="selectedUnpaidOrder.pos_order_id" />
         </div>
     </Master>
 </template>

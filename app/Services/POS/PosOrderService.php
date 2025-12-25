@@ -33,11 +33,53 @@ class PosOrderService
             ->withQueryString();
     }
 
-    public function create(array $data): PosOrder|array
+    // PosOrderService.php - Modified create method
+    public function create(array $data): PosOrder
+    {
+        return DB::transaction(function () use ($data) {
+            // 1. Create the order without payment first
+            $order = $this->createOrderWithoutPayment($data);
+
+            // 2. Prepare payment data
+            $paymentData = [
+                'payment_method' => $data['payment_method'] ?? 'Stripe',
+                'full_payment' => $data['full_payment'] ?? true,
+                'paid_item_ids' => $data['paid_item_ids'] ?? [],
+                'paid_product_ids' => $data['paid_product_ids'] ?? [],
+                'payment_status' => $data['payment_status'] ?? 'completed',
+                'order_code' => $data['order_code'] ?? null,
+                'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? null,
+                'last_digits' => $data['last_digits'] ?? null,
+                'brand' => $data['brand'] ?? null,
+                'currency_code' => $data['currency_code'] ?? 'GBP',
+                'exp_month' => $data['exp_month'] ?? null,
+                'exp_year' => $data['exp_year'] ?? null,
+                'payment_type' => $data['payment_type'] ?? null,
+                'cash_amount' => $data['cash_amount'] ?? 0,
+                'card_amount' => $data['card_amount'] ?? 0,
+                'cash_received' => $data['cash_received'] ?? 0,
+            ];
+
+            // 3. CRITICAL: Map frontend product/deal IDs to backend item IDs
+            if (! $paymentData['full_payment']) {
+                $dbMapped = $this->mapDatabaseIds($order, (array) ($paymentData['paid_item_ids'] ?? []));
+                $productMapped = $this->mapProductIds($order, (array) ($paymentData['paid_product_ids'] ?? []));
+                $dealMapped = $this->mapDealIds($order, (array) ($paymentData['paid_deal_ids'] ?? []));
+                $paymentData['paid_item_ids'] = array_unique(array_merge($dbMapped, $productMapped, $dealMapped));
+            }
+
+            // 4. Process the payment
+            $this->processPayment($order->id, $paymentData);
+
+            return $order->fresh(['items', 'payments', 'type', 'deliveryDetail', 'kot.items', 'promo']);
+        });
+    }
+
+    public function createOrderWithoutPayment(array $data): PosOrder
     {
         return DB::transaction(function () use ($data) {
 
-            // ✅ CHECK IF INVENTORY TRACKING IS ENABLED
+            // ✅ CHECK INVENTORY (your existing logic)
             $superAdmin = \App\Models\User::where('is_first_super_admin', true)->first();
             $inventoryTrackingEnabled = false;
 
@@ -46,49 +88,29 @@ class PosOrderService
                 $inventoryTrackingEnabled = $settings && $settings->enable_inventory_tracking == 1;
             }
 
-            // Use strict comparison instead of empty()
             $confirmMissing = $data['confirm_missing_ingredients'] ?? false;
 
-            // 1. Check for missing ingredients (if not already confirmed AND if tracking is enabled)
             if ($inventoryTrackingEnabled && $confirmMissing !== true) {
                 $missingIngredients = $this->checkStockAvailability($data['items'] ?? []);
-
                 if (! empty($missingIngredients)) {
                     throw new MissingIngredientsException($missingIngredients);
                 }
-            } else {
-                if (! $inventoryTrackingEnabled) {
-                    Log::info('⏭️ Skipping ingredient check - Inventory tracking disabled');
-                } else {
-                    Log::info('⏭️ Skipping ingredient check', [
-                        'reason' => 'User confirmed to proceed with missing ingredients',
-                        'confirm_flag_value' => $confirmMissing,
-                    ]);
-                }
             }
 
-            // 2. Check for active shift
+            // ✅ CHECK ACTIVE SHIFT
             $activeShift = Shift::where('status', 'open')->latest()->first();
-
             if (! $activeShift) {
                 throw new \Exception('No active shift found. Please start a shift before creating an order.');
             }
 
-            // ✅ WALK-IN CUSTOMER NUMBER GENERATION (SERVER-SIDE)
-            if (
-                empty($data['customer_name']) ||
-                str_starts_with($data['customer_name'], 'Walk In')
-            ) {
-                $counter = DB::table('walk_in_counters')
-                    ->lockForUpdate()
-                    ->first();
-
+            // ✅ WALK-IN CUSTOMER NUMBER
+            if (empty($data['customer_name']) || str_starts_with($data['customer_name'], 'Walk In')) {
+                $counter = DB::table('walk_in_counters')->lockForUpdate()->first();
                 if (! $counter) {
                     throw new \Exception('Walk-in counter not initialized.');
                 }
 
                 $nextNumber = $counter->current_number + 1;
-
                 DB::table('walk_in_counters')
                     ->where('id', $counter->id)
                     ->update([
@@ -99,7 +121,7 @@ class PosOrderService
                 $data['customer_name'] = 'Walk In-'.str_pad($nextNumber, 3, '0');
             }
 
-            // 3. Create the main order
+            // ✅ CREATE ORDER (NO PAYMENT YET)
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
                 'shift_id' => $activeShift->id,
@@ -109,9 +131,9 @@ class PosOrderService
                 'tax' => $data['tax'] ?? null,
                 'service_charges' => $data['service_charges'] ?? null,
                 'delivery_charges' => $data['delivery_charges'] ?? null,
-                'sales_discount' => $data['sale_discount'] ?? $data['sales_discount'] ?? 0,
+                'sales_discount' => $data['sale_discount'] ?? 0,
                 'approved_discounts' => $data['approved_discounts'] ?? 0,
-                'status' => $data['status'] ?? 'paid',
+                'status' => 'unpaid', // ⭐ START AS UNPAID
                 'note' => $data['note'] ?? null,
                 'kitchen_note' => $data['kitchen_note'] ?? null,
                 'order_date' => $data['order_date'] ?? now()->toDateString(),
@@ -119,7 +141,7 @@ class PosOrderService
                 'source' => $data['source'] ?? 'Pos System',
             ]);
 
-            // 4. Handle delivery details
+            // ✅ DELIVERY DETAILS
             if (($data['order_type'] ?? '') === 'Delivery') {
                 $order->deliveryDetail()->create([
                     'phone_number' => $data['phone_number'] ?? null,
@@ -127,21 +149,18 @@ class PosOrderService
                 ]);
             }
 
-            // 5. Create order type
+            // ✅ ORDER TYPE
             $orderType = PosOrderType::create([
                 'pos_order_id' => $order->id,
                 'order_type' => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
-            // 6. Process order items and inventory
+            // ✅ PROCESS ORDER ITEMS (your existing logic)
             foreach ($data['items'] as $item) {
-
-                // ✅ Check if this is a deal
                 $isDeal = $item['is_deal'] ?? false;
 
                 if ($isDeal) {
-                    // ✅ Handle Deal Order Item
                     $orderItem = $order->items()->create([
                         'menu_item_id' => null,
                         'deal_id' => $item['deal_id'],
@@ -149,6 +168,8 @@ class PosOrderService
                         'title' => $item['title'],
                         'quantity' => $item['quantity'],
                         'price' => $item['price'],
+                        'amount_paid' => 0, // ⭐ INITIALIZE AS UNPAID
+                        'payment_status' => 'unpaid', // ⭐ UNPAID STATUS
                         'sale_discount_per_item' => 0,
                         'note' => $item['note'] ?? null,
                         'variant_name' => null,
@@ -156,52 +177,32 @@ class PosOrderService
                         'item_kitchen_note' => $item['item_kitchen_note'] ?? null,
                     ]);
 
-                    // ✅ ONLY PROCESS INVENTORY IF TRACKING IS ENABLED
+                    // Process ingredients for deals (your existing logic)
                     if ($inventoryTrackingEnabled) {
-                        // ✅ GET REMOVED INGREDIENTS FOR THIS DEAL and extract IDs
                         $removedIngredientsRaw = $item['removed_ingredients'] ?? [];
+                        $removedIngredients = collect($removedIngredientsRaw)->pluck('id')->filter()->toArray();
 
-                        // Convert array of objects to array of IDs
-                        $removedIngredients = collect($removedIngredientsRaw)
-                            ->pluck('id')
-                            ->filter()
-                            ->toArray();
-
-                        // ✅ Process ingredients for each menu item in the deal
                         if (! empty($item['menu_items']) && is_array($item['menu_items'])) {
                             foreach ($item['menu_items'] as $dealMenuItem) {
                                 $ingredients = $dealMenuItem['ingredients'] ?? [];
-
                                 if (! empty($ingredients)) {
                                     foreach ($ingredients as $ingredient) {
-                                        // FIX: Handle both 'id' and 'inventory_item_id' keys
                                         $inventoryItemId = $ingredient['inventory_item_id'] ?? $ingredient['id'] ?? null;
-
                                         if (! $inventoryItemId) {
-                                            Log::warning('Missing inventory_item_id for ingredient in deal', [
-                                                'ingredient' => $ingredient,
-                                                'deal_menu_item' => $dealMenuItem['name'],
-                                            ]);
-
                                             continue;
                                         }
 
-                                        // ✅ SKIP IF INGREDIENT WAS REMOVED BY CUSTOMER
                                         if (in_array($inventoryItemId, $removedIngredients) ||
                                             in_array($ingredient['id'] ?? null, $removedIngredients)) {
-                                            Log::info("Skipping stockout for removed ingredient in deal: {$ingredient['product_name']} in Order #{$order->id}");
-
                                             continue;
                                         }
 
                                         $inventoryItem = InventoryItem::find($inventoryItemId);
-
                                         if ($inventoryItem) {
                                             $requiredQty = ($ingredient['quantity'] ?? 1) * $item['quantity'];
                                             $availableStock = (float) $inventoryItem->stock;
 
                                             if ($availableStock >= $requiredQty) {
-                                                // Full stock available
                                                 $this->stockEntryService->create([
                                                     'product_id' => $inventoryItem->id,
                                                     'name' => $inventoryItem->name,
@@ -215,11 +216,9 @@ class PosOrderService
                                                     'user_id' => Auth::id(),
                                                 ]);
                                             } else {
-                                                // Partial/No stock - Handle missing ingredients
                                                 $deductedQty = min($availableStock, $requiredQty);
                                                 $pendingQty = $requiredQty - $deductedQty;
 
-                                                // Deduct whatever is available
                                                 if ($deductedQty > 0) {
                                                     $this->stockEntryService->create([
                                                         'product_id' => $inventoryItem->id,
@@ -235,9 +234,7 @@ class PosOrderService
                                                     ]);
                                                 }
 
-                                                // Record pending deduction
                                                 $unit = $ingredient['unit'] ?? 'units';
-
                                                 PendingIngredientDeduction::create([
                                                     'order_id' => $order->id,
                                                     'order_item_id' => $orderItem->id,
@@ -250,12 +247,6 @@ class PosOrderService
                                                     'notes' => "Order #{$order->id} - Deal: {$item['title']} - Item: {$dealMenuItem['name']} - Missing {$pendingQty} {$unit}",
                                                 ]);
                                             }
-                                        } else {
-                                            Log::warning('Inventory item not found', [
-                                                'inventory_item_id' => $inventoryItemId,
-                                                'ingredient' => $ingredient,
-                                                'deal_menu_item' => $dealMenuItem['name'],
-                                            ]);
                                         }
                                     }
                                 }
@@ -263,7 +254,7 @@ class PosOrderService
                         }
                     }
                 } else {
-                    // ✅ Handle Regular Menu Item
+                    // Regular menu item
                     $orderItem = $order->items()->create([
                         'menu_item_id' => $item['product_id'],
                         'deal_id' => null,
@@ -271,6 +262,8 @@ class PosOrderService
                         'title' => $item['title'],
                         'quantity' => $item['quantity'],
                         'price' => $item['price'],
+                        'amount_paid' => 0, // ⭐ INITIALIZE AS UNPAID
+                        'payment_status' => 'unpaid', // ⭐ UNPAID STATUS
                         'sale_discount_per_item' => $item['sale_discount_per_item'] ?? 0,
                         'note' => $item['note'] ?? null,
                         'variant_name' => $item['variant_name'] ?? null,
@@ -290,52 +283,20 @@ class PosOrderService
                         }
                     }
 
-                    // ✅ ONLY PROCESS INVENTORY IF TRACKING IS ENABLED
+                    // Process ingredients (your existing logic)
                     if ($inventoryTrackingEnabled) {
-                        // Get removed ingredients from request and extract IDs
                         $removedIngredientsRaw = $item['removed_ingredients'] ?? [];
-
-                        // Convert array of objects to array of IDs
-                        $removedIngredients = collect($removedIngredientsRaw)
-                            ->pluck('id')
-                            ->filter()
-                            ->toArray();
-
-                        // 🐛 DEBUG: Log removed ingredients
-                        Log::info('Processing regular item stockout', [
-                            'item_title' => $item['title'],
-                            'removed_ingredients_raw' => $removedIngredientsRaw,
-                            'removed_ingredient_ids' => $removedIngredients,
-                            'removed_count' => count($removedIngredients),
-                        ]);
-
-                        // Get ingredients for this item
+                        $removedIngredients = collect($removedIngredientsRaw)->pluck('id')->filter()->toArray();
                         $ingredients = $this->getIngredientsForItem($item);
 
-                        // Process ingredient stockout with missing ingredient handling
                         if (! empty($ingredients)) {
                             foreach ($ingredients as $ingredient) {
-                                // 🐛 DEBUG: Log each ingredient check
-                                Log::info('Checking ingredient', [
-                                    'ingredient_id' => $ingredient->id,
-                                    'inventory_item_id' => $ingredient->inventory_item_id,
-                                    'product_name' => $ingredient->product_name,
-                                    'is_in_removed_list' => in_array($ingredient->id, $removedIngredients) ||
-                                                            in_array($ingredient->inventory_item_id, $removedIngredients),
-                                ]);
-
-                                // Skip if ingredient was removed by customer
-                                if (
-                                    in_array($ingredient->id, $removedIngredients) ||
-                                    in_array($ingredient->inventory_item_id, $removedIngredients)
-                                ) {
-                                    Log::info("✅ SKIPPED: Removed ingredient will not be deducted: {$ingredient->product_name} in Order #{$order->id}");
-
+                                if (in_array($ingredient->id, $removedIngredients) ||
+                                    in_array($ingredient->inventory_item_id, $removedIngredients)) {
                                     continue;
                                 }
 
                                 $inventoryItem = InventoryItem::find($ingredient->inventory_item_id);
-
                                 if ($inventoryItem) {
                                     $requiredQty = $ingredient->quantity * $item['quantity'];
                                     $availableStock = (float) $inventoryItem->stock;
@@ -355,11 +316,9 @@ class PosOrderService
                                             'user_id' => Auth::id(),
                                         ]);
                                     } else {
-                                        // Partial/No stock - Create pending deduction
                                         $deductedQty = min($availableStock, $requiredQty);
                                         $pendingQty = $requiredQty - $deductedQty;
 
-                                        // Deduct whatever is available
                                         if ($deductedQty > 0) {
                                             $this->stockEntryService->create([
                                                 'product_id' => $inventoryItem->id,
@@ -376,9 +335,7 @@ class PosOrderService
                                             ]);
                                         }
 
-                                        // Record pending deduction
                                         $unit = $ingredient->unit ?? 'units';
-
                                         PendingIngredientDeduction::create([
                                             'order_id' => $order->id,
                                             'order_item_id' => $orderItem->id,
@@ -400,7 +357,7 @@ class PosOrderService
 
             $order->load('items');
 
-            // 7. Create KOT
+            // ✅ CREATE KOT
             $kot = KitchenOrder::create([
                 'pos_order_type_id' => $orderType->id,
                 'order_time' => now()->toTimeString(),
@@ -409,7 +366,7 @@ class PosOrderService
                 'kitchen_note' => $data['kitchen_note'] ?? null,
             ]);
 
-            // 8. Create KOT items with removed ingredients filtered
+            // ✅ CREATE KOT ITEMS
             foreach ($order->items as $orderItem) {
                 $itemData = collect($data['items'])->firstWhere('product_id', $orderItem->menu_item_id);
 
@@ -426,24 +383,15 @@ class PosOrderService
                     continue;
                 }
 
-                // Get ingredients for this item
                 $ingredients = $this->getIngredientsForItem($itemData);
-
-                // Filter out removed ingredients from KOT display - Extract IDs from objects
                 $removedIngredientsRaw = $itemData['removed_ingredients'] ?? [];
-                $removedIngredients = collect($removedIngredientsRaw)
-                    ->pluck('id')
-                    ->filter()
-                    ->toArray();
+                $removedIngredients = collect($removedIngredientsRaw)->pluck('id')->filter()->toArray();
 
                 $ingredientsArray = [];
                 if (! empty($ingredients)) {
                     foreach ($ingredients as $ingredient) {
-                        // Only show ingredients that were NOT removed
-                        if (
-                            ! in_array($ingredient->id, $removedIngredients) &&
-                            ! in_array($ingredient->inventory_item_id, $removedIngredients)
-                        ) {
+                        if (! in_array($ingredient->id, $removedIngredients) &&
+                            ! in_array($ingredient->inventory_item_id, $removedIngredients)) {
                             $ingredientsArray[] = $ingredient->product_name;
                         }
                     }
@@ -461,43 +409,7 @@ class PosOrderService
 
             $kot->load('items');
 
-            // 9. Payment handling
-            $cashAmount = null;
-            $cardAmount = null;
-
-            if (($data['payment_type'] ?? '') === 'split') {
-                $cashAmount = $data['cash_amount'] ?? 0;
-                $cardAmount = $data['card_amount'] ?? 0;
-                $payedUsing = 'Split';
-            } elseif (($data['payment_method'] ?? 'Cash') === 'Cash') {
-                $cashAmount = $data['cash_received'] ?? $data['total_amount'];
-                $payedUsing = 'Cash';
-                $cardAmount = 0;
-            } elseif (in_array($data['payment_method'] ?? '', ['Card', 'Stripe'])) {
-                $cashAmount = 0;
-                $cardAmount = $data['cash_received'] ?? $data['total_amount'];
-                $payedUsing = 'Card';
-            }
-
-            Payment::create([
-                'order_id' => $order->id,
-                'user_id' => Auth::id(),
-                'amount_received' => $data['total_amount'],
-                'payment_type' => $payedUsing,
-                'payment_date' => now(),
-                'cash_amount' => $cashAmount,
-                'card_amount' => $cardAmount,
-                'payment_status' => $data['payment_status'] ?? null,
-                'code' => $data['order_code'] ?? ($data['code'] ?? null),
-                'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? ($data['payment_intent'] ?? null),
-                'last_digits' => $data['last_digits'] ?? null,
-                'brand' => $data['brand'] ?? null,
-                'currency_code' => $data['currency_code'] ?? null,
-                'exp_month' => $data['exp_month'] ?? null,
-                'exp_year' => $data['exp_year'] ?? null,
-            ]);
-
-            // 10. Store promo details
+            // ✅ STORE PROMO DETAILS
             if (! empty($data['applied_promos']) && is_array($data['applied_promos'])) {
                 foreach ($data['applied_promos'] as $promoData) {
                     \App\Models\OrderPromo::create([
@@ -508,43 +420,325 @@ class PosOrderService
                         'discount_amount' => $promoData['discount_amount'] ?? 0,
                     ]);
                 }
-            } elseif (! empty($data['promo_id']) && ! empty($data['promo_discount'])) {
-                \App\Models\OrderPromo::create([
-                    'order_id' => $order->id,
-                    'promo_id' => $data['promo_id'],
-                    'promo_name' => $data['promo_name'] ?? null,
-                    'promo_type' => $data['promo_type'] ?? 'flat',
-                    'discount_amount' => $data['promo_discount'],
-                ]);
             }
 
             $order->load(['items', 'kot.items', 'promo']);
 
-            // 11. Handle Auto Logout for Cashier Role
-            $currentUser = Auth::user();
+            return $order;
+        });
+    }
 
-            if ($currentUser && $currentUser->hasRole('Cashier')) {
-                $superAdmin = \App\Models\User::where('is_first_super_admin', true)->first();
+    public function processPayment(int $orderId, array $paymentData): array
+    {
+        return DB::transaction(function () use ($orderId, $paymentData) {
 
-                if ($superAdmin) {
-                    $settings = \App\Models\ProfileStep7::where('user_id', $superAdmin->id)->first();
+            $order = PosOrder::with('items')->lockForUpdate()->findOrFail($orderId);
 
-                    if ($settings && $settings->logout_after_order) {
-                        Auth::logout();
-                        request()->session()->invalidate();
-                        request()->session()->regenerateToken();
+            \Log::info('🔍 Processing payment', [
+                'order_id' => $orderId,
+                'order_status' => $order->status,
+                'total_items' => $order->items->count(),
+                'payment_data' => $paymentData,
+            ]);
 
-                        return [
-                            'order' => $order,
-                            'kot' => $kot,
-                            'logout' => true,
-                        ];
+            // ✅ VALIDATE ORDER STATUS
+            if ($order->status === 'paid') {
+                throw new \Exception('This order has already been fully paid.');
+            }
+
+            // ✅ DETERMINE PAYMENT TYPE
+            $isFullPayment = $paymentData['full_payment'] ?? false;
+            $paidItemIds = $paymentData['paid_item_ids'] ?? [];
+
+            // ✅ MAP FRONTEND IDS IF NECESSARY
+            if (! $isFullPayment) {
+                $paidItemIdsRaw = (array) ($paymentData['paid_item_ids'] ?? []);
+                $paidProductIdsRaw = (array) ($paymentData['paid_product_ids'] ?? []);
+                $paidDealIdsRaw = (array) ($paymentData['paid_deal_ids'] ?? []);
+
+                $dbMapped = $this->mapDatabaseIds($order, $paidItemIdsRaw);
+                $productMapped = $this->mapProductIds($order, $paidProductIdsRaw);
+                $dealMapped = $this->mapDealIds($order, $paidDealIdsRaw);
+
+                $paidItemIds = array_unique(array_merge($dbMapped, $productMapped, $dealMapped));
+            }
+
+            \Log::info('💳 Payment details', [
+                'is_full_payment' => $isFullPayment,
+                'paid_item_ids' => $paidItemIds,
+                'paid_item_ids_count' => count($paidItemIds),
+                'request_is_partial' => $paymentData['is_partial_payment'] ?? 'N/A',
+            ]);
+
+            if (! $isFullPayment && empty($paidItemIds)) {
+                throw new \Exception('Please select at least one item to pay for.');
+            }
+
+            // ✅ GET ITEMS TO PAY
+            $itemsToPay = collect();
+            $totalPaymentAmount = 0;
+
+            if ($isFullPayment) {
+                // Pay all unpaid items
+                $itemsToPay = $order->items->where('payment_status', 'unpaid');
+                \Log::info('📦 Full payment - unpaid items', [
+                    'unpaid_count' => $itemsToPay->count(),
+                ]);
+            } else {
+                // Pay selected items only
+                foreach ($paidItemIds as $itemId) {
+                    \Log::info('🔍 Looking for item', [
+                        'looking_for_id' => $itemId,
+                        'all_item_ids' => $order->items->pluck('id', 'payment_status')->toArray(),
+                    ]);
+
+                    $item = $order->items->where('id', $itemId)
+                        ->where('payment_status', 'unpaid')
+                        ->first();
+
+                    if ($item) {
+                        $itemsToPay->push($item);
+                        \Log::info('✅ Found unpaid item', [
+                            'item_id' => $item->id,
+                            'title' => $item->title,
+                            'payment_status' => $item->payment_status,
+                        ]);
+                    } else {
+                        \Log::warning('⚠️ Item not found or already paid', [
+                            'item_id' => $itemId,
+                        ]);
                     }
                 }
             }
 
-            return $order;
+            \Log::info('📊 Items to pay summary', [
+                'items_to_pay_count' => $itemsToPay->count(),
+                'items_to_pay_ids' => $itemsToPay->pluck('id')->toArray(),
+            ]);
+
+            if ($itemsToPay->isEmpty()) {
+                \Log::error('❌ No unpaid items found', [
+                    'requested_ids' => $paidItemIds,
+                    'all_items' => $order->items->map(function ($item) {
+                        return [
+                            'id' => $item->id,
+                            'title' => $item->title,
+                            'payment_status' => $item->payment_status,
+                            'amount_paid' => $item->amount_paid,
+                        ];
+                    })->toArray(),
+                ]);
+                throw new \Exception('No unpaid items found to process payment.');
+            }
+
+            // ✅ CALCULATE PAYMENT AMOUNT
+            foreach ($itemsToPay as $item) {
+                $itemTotal = $item->price * $item->quantity;
+                $totalPaymentAmount += $itemTotal;
+            }
+            $totalPaymentAmount = round($totalPaymentAmount, 2);
+
+            \Log::info('💰 Payment amount calculated', [
+                'total_payment_amount' => $totalPaymentAmount,
+            ]);
+
+            // Rest of your payment processing code...
+            // (Keep the existing code for payment method, updating items, creating payment record, etc.)
+
+            // ✅ PARSE PAYMENT METHOD
+            $paymentMethod = $paymentData['payment_method'] ?? 'Cash';
+            $cashAmount = 0;
+            $cardAmount = 0;
+            $paymentType = $paymentMethod;
+
+            if (($paymentData['payment_type'] ?? '') === 'split') {
+                \Log::info('🔄 Processing Split Payment', [
+                    'cash_amount' => $paymentData['cash_amount'] ?? 0,
+                    'card_amount' => $paymentData['card_amount'] ?? 0,
+                    'payment_data' => $paymentData,
+                ]);
+                $cashAmount = $paymentData['cash_amount'] ?? 0;
+                $cardAmount = $paymentData['card_amount'] ?? 0;
+                $paymentType = 'Split';
+
+                if (round($cashAmount + $cardAmount, 2) < round($totalPaymentAmount, 2)) {
+                    throw new \Exception('Split payment amounts are insufficient.');
+                }
+            } elseif ($paymentMethod === 'Cash') {
+                $cashAmount = $paymentData['cash_received'] ?? $totalPaymentAmount;
+                $cardAmount = 0;
+
+                if (round($cashAmount, 2) < round($totalPaymentAmount, 2)) {
+                    throw new \Exception('Cash received is less than payment amount.');
+                }
+            } else {
+                $cashAmount = 0;
+                $cardAmount = $totalPaymentAmount;
+                $paymentType = 'Card';
+            }
+
+            // ✅ UPDATE ITEMS AS PAID
+            $paidItemsPayload = [];
+            foreach ($itemsToPay as $item) {
+                $itemTotal = $item->price * $item->quantity;
+
+                $item->update([
+                    'amount_paid' => $itemTotal,
+                    'payment_status' => 'paid',
+                ]);
+
+                $paidItemsPayload[] = [
+                    'id' => $item->id,
+                    'title' => $item->title,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'amount' => $itemTotal,
+                ];
+            }
+
+            // ✅ CREATE PAYMENT RECORD
+            $payment = Payment::create([
+                'order_id' => $order->id,
+                'user_id' => Auth::id(),
+                'amount_received' => $totalPaymentAmount,
+                'payment_type' => $paymentType,
+                'cash_amount' => $cashAmount,
+                'card_amount' => $cardAmount,
+                'paid_items' => json_encode($paidItemsPayload),
+                'payment_date' => now(),
+                'payment_status' => 'completed',
+                'code' => $paymentData['order_code'] ?? null,
+                'stripe_payment_intent_id' => $paymentData['stripe_payment_intent_id'] ?? null,
+                'last_digits' => $paymentData['last_digits'] ?? null,
+                'brand' => $paymentData['brand'] ?? null,
+                'currency_code' => $paymentData['currency_code'] ?? 'GBP',
+                'exp_month' => $paymentData['exp_month'] ?? null,
+                'exp_year' => $paymentData['exp_year'] ?? null,
+            ]);
+
+            // ✅ UPDATE ORDER STATUS
+            $order->updatePaymentStatusFromItems();
+            $order->refresh();
+
+            $isFinalPayment = $order->payment_status === 'paid';
+
+            \Log::info('🔄 Order status updated', [
+                'order_id' => $order->id,
+                'payment_status' => $order->payment_status,
+                'status' => $order->status,
+                'is_final_payment' => $isFinalPayment,
+                'total_items' => $order->items->count(),
+                'unpaid_items' => $order->items()->where('payment_status', 'unpaid')->count(),
+            ]);
+
+            $payment->update(['is_final_receipt' => $isFinalPayment]);
+
+            \Log::info('✅ Payment completed', [
+                'is_final_payment' => $isFinalPayment,
+                'remaining_unpaid' => $order->items->where('payment_status', 'unpaid')->count(),
+            ]);
+
+            return [
+                'success' => true,
+                'payment' => $payment,
+                'order' => $order->fresh(['items', 'payments']),
+                'is_final_payment' => $isFinalPayment,
+                'paid_items' => $paidItemsPayload,
+                'remaining_balance' => $order->total_amount - $order->getTotalPaidAmount(),
+                'receipt_type' => $isFinalPayment ? 'final_invoice' : 'payment_slip',
+            ];
         });
+    }
+
+    /**
+     * Map frontend product/deal IDs to actual database PosOrderItem IDs
+     */
+    private function mapDatabaseIds(PosOrder $order, array $dbIds): array
+    {
+        $mappedItemIds = [];
+        $unpaidItems = $order->items->where('payment_status', 'unpaid');
+
+        foreach ($dbIds as $id) {
+            $item = $unpaidItems->where('id', (int) $id)->first();
+            if ($item) {
+                $mappedItemIds[] = $item->id;
+                // Temporarily mark so we don't pick it again if IDs duplicated
+                $item->payment_status = 'pending_map';
+            }
+        }
+
+        // Reset temporary status
+        foreach ($order->items as $it) {
+            if ($it->payment_status === 'pending_map') {
+                $it->payment_status = 'unpaid';
+            }
+        }
+
+        return $mappedItemIds;
+    }
+
+    private function mapDealIds(PosOrder $order, array $dealIds): array
+    {
+        $mappedItemIds = [];
+        $unpaidItems = $order->items->where('payment_status', 'unpaid');
+
+        foreach ($dealIds as $fid) {
+            $item = $unpaidItems->filter(function ($it) use ($fid) {
+                return $it->is_deal && (int) $it->deal_id === (int) $fid;
+            })->first();
+
+            if ($item) {
+                $mappedItemIds[] = $item->id;
+                $item->payment_status = 'pending_map';
+            }
+        }
+
+        // Reset temporary status
+        foreach ($order->items as $it) {
+            if ($it->payment_status === 'pending_map') {
+                $it->payment_status = 'unpaid';
+            }
+        }
+
+        return $mappedItemIds;
+    }
+
+    private function mapProductIds(PosOrder $order, array $productIds): array
+    {
+        $mappedItemIds = [];
+        $unpaidItems = $order->items->where('payment_status', 'unpaid');
+
+        foreach ($productIds as $fid) {
+            $item = $unpaidItems->filter(function ($it) use ($fid) {
+                return ! $it->is_deal && (int) $it->menu_item_id === (int) $fid;
+            })->first();
+
+            if ($item) {
+                $mappedItemIds[] = $item->id;
+                $item->payment_status = 'pending_map';
+            }
+        }
+
+        // Reset temporary status
+        foreach ($order->items as $it) {
+            if ($it->payment_status === 'pending_map') {
+                $it->payment_status = 'unpaid';
+            }
+        }
+
+        return $mappedItemIds;
+    }
+
+    /**
+     * Map frontend product/deal IDs to actual database PosOrderItem IDs
+     * DEPRECATED: Use mapDatabaseIds or mapProductIds
+     */
+    private function mapFrontendIdsToDatabaseIds(PosOrder $order, array $frontendIds): array
+    {
+        // For backward compatibility, prioritize product mapping but log a warning
+        \Log::warning('⚠️ Using deprecated mapFrontendIdsToDatabaseIds. Ambiguity possible.', ['ids' => $frontendIds]);
+
+        return $this->mapProductIds($order, $frontendIds);
     }
 
     /**
@@ -918,6 +1112,10 @@ class PosOrderService
 
             $order->load('items');
 
+            foreach ($order->items as $item) {
+                $item->update(['amount_paid' => 0, 'payment_status' => 'unpaid']);
+            }
+
             // Create KOT
             $kot = $this->createKitchenOrder($order, $orderType, $data);
 
@@ -935,76 +1133,10 @@ class PosOrderService
      */
     public function completePayment(int $orderId, array $paymentData): PosOrder
     {
-        return DB::transaction(function () use ($orderId, $paymentData) {
-            $order = PosOrder::with(['items', 'type', 'deliveryDetail'])->findOrFail($orderId);
+        // Reuse the robust processPayment logic
+        $result = $this->processPayment($orderId, $paymentData);
 
-            if ($order->payment_status === 'paid') {
-                throw new \Exception('This order has already been paid.');
-            }
-
-            // Calculate amounts
-            $totalAmount = $order->total_amount;
-            $alreadyPaid = $order->getTotalPaidAmount();
-            $remainingAmount = $totalAmount - $alreadyPaid;
-
-            // Determine payment type and amounts
-            $cashAmount = 0;
-            $cardAmount = 0;
-            $paymentType = $paymentData['payment_method'] ?? 'Cash';
-
-            if (($paymentData['payment_type'] ?? '') === 'split') {
-                $cashAmount = $paymentData['cash_amount'] ?? 0;
-                $cardAmount = $paymentData['card_amount'] ?? 0;
-                $paymentType = 'Split';
-                $amountReceived = $cashAmount + $cardAmount;
-            } elseif ($paymentType === 'Cash') {
-                $cashAmount = $paymentData['cash_received'] ?? $remainingAmount;
-                $cardAmount = 0;
-                $amountReceived = $cashAmount;
-            } else { // Card/Stripe
-                $cashAmount = 0;
-                $cardAmount = $paymentData['cash_received'] ?? $remainingAmount;
-                $amountReceived = $cardAmount;
-                $paymentType = 'Card';
-            }
-
-            // Create payment record
-            Payment::create([
-                'order_id' => $order->id,
-                'user_id' => Auth::id(),
-                'amount_received' => $amountReceived,
-                'payment_type' => $paymentType,
-                'payment_date' => now(),
-                'cash_amount' => $cashAmount,
-                'card_amount' => $cardAmount,
-                'payment_status' => $paymentData['payment_status'] ?? 'completed',
-                'code' => $paymentData['order_code'] ?? $paymentData['code'] ?? null,
-                'stripe_payment_intent_id' => $paymentData['stripe_payment_intent_id'] ?? $paymentData['payment_intent'] ?? null,
-                'last_digits' => $paymentData['last_digits'] ?? null,
-                'brand' => $paymentData['brand'] ?? null,
-                'currency_code' => $paymentData['currency_code'] ?? 'GBP',
-                'exp_month' => $paymentData['exp_month'] ?? null,
-                'exp_year' => $paymentData['exp_year'] ?? null,
-            ]);
-
-            // Update order status
-            $newTotalPaid = $order->getTotalPaidAmount() + $amountReceived;
-
-            if ($newTotalPaid >= $totalAmount) {
-                // Fully paid
-                $order->update([
-                    'status' => 'paid',
-                    'payment_status' => 'paid',
-                ]);
-            } else {
-                // Partially paid
-                $order->update([
-                    'payment_status' => 'partial',
-                ]);
-            }
-
-            return $order->fresh(['items', 'kot.items', 'promo', 'payments']);
-        });
+        return $result['order'];
     }
 
     /**
@@ -1293,5 +1425,56 @@ class PosOrderService
                 'discount_amount' => $data['promo_discount'],
             ]);
         }
+    }
+
+    public function payForItems(int $orderId, array $data): PosOrder
+    {
+        return DB::transaction(function () use ($orderId, $data) {
+            $order = PosOrder::with('items')->findOrFail($orderId);
+
+            // Calculate payment
+            $totalAmount = collect($data['items'])->sum('amount');
+            $paymentType = $data['payment_method'];
+            $cashAmount = 0;
+            $cardAmount = 0;
+
+            if ($data['payment_type'] === 'split') {
+                $cashAmount = $data['cash_amount'] ?? 0;
+                $cardAmount = $data['card_amount'] ?? 0;
+                $paymentType = 'Split';
+            } elseif ($paymentType === 'Cash') {
+                $cashAmount = $data['cash_received'] ?? $totalAmount;
+            } else {
+                $cardAmount = $data['cash_received'] ?? $totalAmount;
+                $paymentType = 'Card';
+            }
+
+            // Create payment
+            $payment = Payment::create([
+                'order_id' => $order->id,
+                'user_id' => Auth::id(),
+                'amount_received' => $totalAmount,
+                'payment_type' => $paymentType,
+                'cash_amount' => $cashAmount,
+                'card_amount' => $cardAmount,
+                'payment_date' => now(),
+                'payment_status' => 'completed',
+                'paid_items' => $data['items'],
+            ]);
+
+            // Update items
+            foreach ($data['items'] as $itemData) {
+                $item = $order->items()->find($itemData['id']);
+                if ($item) {
+                    $item->amount_paid += $itemData['amount'];
+                    $item->updatePaymentStatus();
+                }
+            }
+
+            // Update order status
+            $order->updatePaymentStatusFromItems();
+
+            return $order->fresh(['items', 'payments']);
+        });
     }
 }

@@ -25,6 +25,10 @@ import { Head } from "@inertiajs/vue3";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
 
+import { useModal } from "@/composables/useModal";
+
+const { closeModal } = useModal();
+
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 /* ---------------- Demo data (swap with API later) ---------------- */
@@ -100,6 +104,7 @@ const handleFilterClear = () => {
     pagination.value.current_page = 1;
     pagination.value.per_page = 10; 
     fetchCategories(1); 
+    closeModal('categoryFilterModal');
 };
 
 
@@ -225,14 +230,6 @@ onMounted(async () => {
     }, 100);
     fetchAllCategories();
     fetchCategories();
-     const filterModal = document.getElementById('categoryFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            // Reset filters to last applied state when modal closes
-            filters.value = { ...appliedFilters.value };
-        });
-    }
-    
 });
 
 // Get only parent categories (main categories) for dropdown

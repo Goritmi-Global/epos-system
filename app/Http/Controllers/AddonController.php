@@ -171,36 +171,59 @@ class AddonController extends Controller
     //     }
     // }
 
-    public function getStats(Request $request)
+    public function getGlobalStats(): JsonResponse
     {
-        $query = Addon::query();
+        try {
+            $stats = [
+                'total' => Addon::count(),
+                'active' => Addon::where('status', 'active')->count(),
+                'inactive' => Addon::where('status', 'inactive')->count(),
+                'avgPrice' => round(Addon::avg('price') ?? 0, 2),
+            ];
 
-        // Apply same filters as main query
-        if ($request->filled('q')) {
-            $query->where('name', 'like', '%'.$request->q.'%');
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch global statistics',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('category')) {
-            $query->where('addon_group_id', $request->category);
-        }
-        if ($request->filled('price_min')) {
-            $query->where('price', '>=', $request->price_min);
-        }
-        if ($request->filled('price_max')) {
-            $query->where('price', '<=', $request->price_max);
-        }
-
-        return response()->json([
-            'data' => [
-                'total' => $query->count(),
-                'active' => (clone $query)->where('status', 'active')->count(),
-                'inactive' => (clone $query)->where('status', 'inactive')->count(),
-                'avgPrice' => round($query->avg('price') ?? 0, 2),
-            ],
-        ]);
     }
+
+    // public function getStats(Request $request)
+    // {
+    //     $query = Addon::query();
+
+    //     // Apply same filters as main query
+    //     if ($request->filled('q')) {
+    //         $query->where('name', 'like', '%'.$request->q.'%');
+    //     }
+    //     if ($request->filled('status')) {
+    //         $query->where('status', $request->status);
+    //     }
+    //     if ($request->filled('category')) {
+    //         $query->where('addon_group_id', $request->category);
+    //     }
+    //     if ($request->filled('price_min')) {
+    //         $query->where('price', '>=', $request->price_min);
+    //     }
+    //     if ($request->filled('price_max')) {
+    //         $query->where('price', '<=', $request->price_max);
+    //     }
+
+    //     return response()->json([
+    //         'data' => [
+    //             'total' => $query->count(),
+    //             'active' => (clone $query)->where('status', 'active')->count(),
+    //             'inactive' => (clone $query)->where('status', 'inactive')->count(),
+    //             'avgPrice' => round($query->avg('price') ?? 0, 2),
+    //         ],
+    //     ]);
+    // }
 
     /**
      * Store a new addon

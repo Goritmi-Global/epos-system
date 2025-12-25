@@ -276,7 +276,7 @@ const hasAnyAlerts = computed(() => {
 onMounted(() => {
   checkReminder()
 
-  if (showModal.value) {
+  if (showModal.value && hasAnyAlerts) {
     showModal.value = true
   }
 

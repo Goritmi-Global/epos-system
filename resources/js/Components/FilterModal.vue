@@ -90,20 +90,25 @@
               </div>
 
               <!-- Price/Stock Value Range -->
+              <!-- Price/Stock Value Range -->
               <div v-if="showPriceRange" class="col-md-6">
                 <label class="form-label fw-semibold text-dark">
                   <i class="fas fa-dollar-sign me-2 text-muted"></i>{{ priceRangeLabel }}
                 </label>
                 <div class="row g-2">
                   <div class="col-6">
-                    <input v-model.number="localFilters.priceMin" type="number" class="form-control" placeholder="Min"
-                      min="0" step="0.01" />
+                    <input v-model.number="localFilters.priceMin" type="number" class="form-control"
+                      :class="{ 'is-invalid': priceRangeError }" placeholder="Min" min="0" step="0.01" />
                   </div>
                   <div class="col-6">
-                    <input v-model.number="localFilters.priceMax" type="number" class="form-control" placeholder="Max"
-                      min="0" step="0.01" />
+                    <input v-model.number="localFilters.priceMax" type="number" class="form-control"
+                      :class="{ 'is-invalid': priceRangeError }" placeholder="Max" min="0" step="0.01" />
                   </div>
                 </div>
+                <!-- ✅ Error message -->
+                <small v-if="priceRangeError" class="text-danger d-block mt-1">
+                  <i class="fas fa-exclamation-circle me-1"></i>{{ priceRangeError }}
+                </small>
               </div>
 
               <!-- Date Range -->
@@ -162,6 +167,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { toast } from 'vue3-toastify';
 
 // Props
 const props = defineProps({
@@ -260,9 +266,33 @@ const hasActiveFilters = computed(() => {
 })
 
 const activeFilterCount = computed(() => {
-  return Object.values(localFilters.value).filter(value =>
-    value !== '' && value !== null && value !== undefined
-  ).length
+  let count = 0
+
+  if (localFilters.value.sortBy) count++
+  if (localFilters.value.category) count++
+  if (localFilters.value.supplier) count++
+  if (localFilters.value.stockStatus) count++
+
+  if (localFilters.value.priceMin !== null || localFilters.value.priceMax !== null) {
+    count++
+  }
+
+  if (localFilters.value.dateFrom || localFilters.value.dateTo) {
+    count++
+  }
+
+  return count
+})
+
+
+const priceRangeError = computed(() => {
+  const min = localFilters.value.priceMin
+  const max = localFilters.value.priceMax
+
+  if (min !== null && max !== null && min > max) {
+    return 'Minimum value cannot be greater than maximum value'
+  }
+  return null
 })
 
 const activeFiltersDisplay = computed(() => {
@@ -339,6 +369,12 @@ const openModal = () => {
 }
 
 const applyFilters = () => {
+
+  if (priceRangeError.value) {
+
+    toast.error(priceRangeError.value)
+    return
+  }
   emit('update:modelValue', { ...localFilters.value })
   emit('apply', { ...localFilters.value })
 
