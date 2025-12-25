@@ -53,9 +53,11 @@ class InventoryService
         $hasStockStatus = ! empty($filters['stockStatus']);
         $hasPriceRange = ! empty($filters['priceMin']) || ! empty($filters['priceMax']);
         $hasSorting = ! empty($filters['sortBy']);
+
+        $isExportRequest = ! empty($filters['per_page']) && (int) $filters['per_page'] >= 1000;
         $hasFilterOnly = $hasCategory || $hasSupplier || $hasStockStatus || $hasPriceRange || $hasSorting;
 
-        if ($hasFilterOnly) {
+        if ($hasFilterOnly || ($isExportRequest && ($hasCategory || $hasSupplier || $hasStockStatus || $hasPriceRange))) {
             $items = $query->get();
             $productIds = $items->pluck('id')->toArray();
             $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);

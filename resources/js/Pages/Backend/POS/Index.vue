@@ -16,7 +16,8 @@ import Accordion from 'primevue/accordion';
 import AccordionPanel from 'primevue/accordionpanel';
 import AccordionHeader from 'primevue/accordionheader';
 import AccordionContent from 'primevue/accordioncontent';
-
+import { useModal } from "@/composables/useModal";
+const { closeModal } = useModal();
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
 
@@ -1112,6 +1113,8 @@ const handleClearFilters = () => {
         priceMin: null,
         priceMax: null,
     };
+    searchQuery.value = '';
+    closeModal('menuFilterModal');
 };
 
 
@@ -2968,18 +2971,6 @@ onMounted(async () => {
     fetchMenuCategories();
     fetchMenuItems();
     fetchProfileTables();
-    const filterModal = document.getElementById('menuFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            // Only clear if filters were NOT just applied
-            if (!filtersJustApplied.value) {
-                handleClearFilters();
-            }
-            // Reset the flag for next time
-            filtersJustApplied.value = false;
-        });
-    }
-
 });
 
 function bumpToasts() {
@@ -5430,9 +5421,6 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
                                     </button>
                                 </div>
                             </div>
-
-
-
                             <!--  MENU ITEMS GRID (Show when showDeals is false - your existing code) -->
                             <div class="row g-3">
                                 <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"

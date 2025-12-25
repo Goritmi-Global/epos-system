@@ -13,6 +13,11 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
+import { useModal } from "@/composables/useModal";
+
+const { closeModal } = useModal();
+
+
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
@@ -26,10 +31,9 @@ const selectedItem = ref(null);
 // ADD THIS SECTION AFTER THE EXISTING REFS (around line 20)
 // ==========================================
 
-// Active tab for status filtering
+
 const activeStatusTab = ref('All');
 
-// Available status tabs
 const statusTabs = ref([
     { label: 'All', value: 'All', icon: 'bi-list-ul' },
     { label: 'Waiting', value: 'Waiting', icon: 'bi-hourglass-split' },
@@ -37,8 +41,6 @@ const statusTabs = ref([
     { label: 'Done', value: 'Done', icon: 'bi-check-circle' },
     { label: 'Cancelled', value: 'Cancelled', icon: 'bi-x-circle' }
 ]);
-
-
 const statistics = ref({
     status_counts: {
         'All': 0,
@@ -56,7 +58,6 @@ const statistics = ref({
         cancelled_items: 0
     }
 });
-
 const handleStatusTabChange = (status) => {
     activeStatusTab.value = status;
 
@@ -69,11 +70,8 @@ const handleStatusTabChange = (status) => {
     pagination.value.current_page = 1;
 
     fetchOrders(1);
-};
-
-
+}
 const exportOption = ref(null)
-
 const exportOptions = [
     { label: 'PDF', value: 'pdf' },
     { label: 'Excel', value: 'excel' },
@@ -83,7 +81,7 @@ const exportOptions = [
 const onExportChange = (e) => {
     if (e.value) {
         onDownload(e.value)
-        exportOption.value = null // reset after click
+        exportOption.value = null
     }
 }
 
@@ -226,18 +224,6 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrders();
-    const filterModal = document.getElementById('kotFilterModal');
-    if (filterModal) {
-        filterModal.addEventListener('hidden.bs.modal', () => {
-            filters.value = {
-                sortBy: appliedFilters.value.sortBy || "",
-                orderType: appliedFilters.value.orderType || "",
-                status: appliedFilters.value.status || "",
-                dateFrom: appliedFilters.value.dateFrom || "",
-                dateTo: appliedFilters.value.dateTo || "",
-            };
-        });
-    }
 });
 
 const q = ref("");
@@ -271,13 +257,6 @@ const handleFilterApply = (appliedFiltersData) => {
     appliedFilters.value = { ...filters.value };
     pagination.value.current_page = 1;
     fetchOrders(1);
-
-    const modal = bootstrap.Modal.getInstance(
-        document.getElementById("kotFilterModal")
-    );
-    modal?.hide();
-
-    console.log("Filters applied:", filters.value);
 };
 
 const handleFilterClear = () => {
@@ -298,8 +277,7 @@ const handleFilterClear = () => {
     pagination.value.current_page = 1;
     pagination.value.per_page = 10;
     fetchOrders(1);
-
-    console.log("Filters cleared");
+    closeModal('kotFilterModal');
 };
 
 const sortedOrders = computed(() => {
