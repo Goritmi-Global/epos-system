@@ -58,19 +58,8 @@ const handlePasswordVerify = async (password) => {
     passwordError.value = '';
 
     try {
-        // First, verify the password
-        const verifyResponse = await fetch(route('settings.verify-password'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ password })
-        });
-
-        const verifyData = await verifyResponse.json();
+        // First, verify the password using axios
+        const { data: verifyData } = await axios.post(route('settings.verify-password'), { password });
 
         if (!verifyData.success) {
             passwordError.value = verifyData.message;
@@ -84,21 +73,8 @@ const handlePasswordVerify = async (password) => {
         passwordError.value = ''; // Clear any previous errors
         isRestoring.value = true;
 
-        const restoreResponse = await fetch(route('settings.restore'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-        });
-
-        if (!restoreResponse.ok) {
-            throw new Error(`HTTP error! status: ${restoreResponse.status}`);
-        }
-
-        const restoreData = await restoreResponse.json();
+        // Proceed to restore system using axios
+        const { data: restoreData } = await axios.post(route('settings.restore'));
 
         if (restoreData.success === true) {
             toast.success(restoreData.message, {
@@ -117,10 +93,16 @@ const handlePasswordVerify = async (password) => {
         }
     } catch (error) {
         console.error('Error:', error);
-        toast.error('An error occurred while restoring the system.', {
-            autoClose: 4000,
-            position: toast.POSITION.BOTTOM_RIGHT,
-        });
+
+        // Handle axios specific errors
+        if (error.response?.data?.message) {
+            passwordError.value = error.response.data.message;
+        } else {
+            toast.error('An error occurred while restoring the system.', {
+                autoClose: 4000,
+                position: toast.POSITION.BOTTOM_RIGHT,
+            });
+        }
     } finally {
         isVerifying.value = false;
         isRestoring.value = false;
@@ -139,22 +121,7 @@ const handleRestoreSystem = async () => {
     isRestoring.value = true;
 
     try {
-        const response = await fetch(route('settings.restore'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-        });
-
-        // Check if response is ok (status 200-299)
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const { data } = await axios.post(route('settings.restore'));
 
         // Check the success flag from the response
         if (data.success === true) {
@@ -176,7 +143,8 @@ const handleRestoreSystem = async () => {
         }
     } catch (error) {
         console.error('Error restoring system:', error);
-        toast.error('An error occurred while restoring the system.', {
+        const message = error.response?.data?.message || 'An error occurred while restoring the system.';
+        toast.error(message, {
             autoClose: 4000,
             position: toast.POSITION.BOTTOM_RIGHT,
         });

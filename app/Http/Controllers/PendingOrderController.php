@@ -122,7 +122,7 @@ class PendingOrderController extends Controller
 
             // Get unpaid POS orders (from pos_orders table)
             $unpaidOrders = PosOrder::with(['items', 'type', 'deliveryDetail', 'promo'])
-                ->where('payment_status', 'pending')
+                ->whereIn('payment_status', ['pending', 'partial'])
                 ->where('user_id', Auth::id())
                 ->orderBy('created_at', 'desc')
                 ->get()
@@ -160,11 +160,16 @@ class PendingOrderController extends Controller
                                 'item_kitchen_note' => $item->item_kitchen_note,
                                 'is_deal' => $item->is_deal ?? false,
                                 'deal_id' => $item->deal_id ?? null,
+                                'payment_status' => $item->payment_status,
+                                'amount_paid' => $item->amount_paid,
                             ];
                         }),
                         'held_at' => $order->created_at,
                         'created_at' => $order->created_at,
                         'pos_order_id' => $order->id,
+                        'total_paid' => $order->getTotalPaidAmount(),
+                        'remaining_balance' => $order->getRemainingBalance(),
+                        'payment_status' => $order->payment_status,
                     ];
                 });
 

@@ -44,16 +44,9 @@
 
                     <!-- Pending Orders List -->
                     <div v-else class="row g-3">
-                        <div v-for="order in pendingOrders" :key="order.id" class="col-4">
+                        <div v-for="order in filteredOrders" :key="order.id" class="col-4">
                             <div class="card shadow-sm border-warning border-2 hover-shadow">
                                 <div class="card-body p-3">
-                                    <!-- Badge to show order type -->
-                                    <span v-if="order.type === 'unpaid'"
-                                        class="badge bg-danger position-absolute top-0 end-0 m-2">
-                                        <i class="bi bi-credit-card me-1"></i>
-                                        Payment Pending
-                                    </span>
-
                                     <div class="align-items-center">
                                         <div class="col-lg-12">
                                             <div class="d-flex align-items-start gap-3">
@@ -71,8 +64,7 @@
 
                                                     <p class="text-muted small mb-2">
                                                         <i class="bi bi-clock me-1"></i>
-                                                        {{ order.type === 'unpaid' ? 'Created' : 'Held' }} {{
-                                                            formatRelativeTime(order.held_at) }}
+                                                        Held {{ formatRelativeTime(order.held_at) }}
                                                     </p>
 
                                                     <!-- Items Summary -->
@@ -100,34 +92,18 @@
 
                                             <!-- Action Buttons -->
                                             <div class="d-flex gap-2 mt-2">
-                                                <!-- Show different buttons based on order type -->
-                                                <template v-if="order.type === 'unpaid'">
-                                                    <button
-                                                        class="btn btn-success btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
-                                                        @click="$emit('pay-now', order)">
-                                                        <i class="bi bi-credit-card-fill"></i>
-                                                        Pay Now
-                                                    </button>
-                                                    <button
-                                                        class="btn btn-danger btn-sm d-flex align-items-center justify-content-center"
-                                                        style="width: 40px;" @click="confirmReject(order)">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
-                                                </template>
-                                                <template v-else>
-                                                    <button
-                                                        class="btn btn-success btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
-                                                        @click="$emit('resume', order)">
-                                                        <i class="bi bi-play-fill"></i>
-                                                        Resume
-                                                    </button>
-                                                    <button
-                                                        class="btn btn-danger btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
-                                                        @click="confirmReject(order)">
-                                                        <i class="bi bi-trash"></i>
-                                                        Reject
-                                                    </button>
-                                                </template>
+                                                <button
+                                                    class="btn btn-success btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
+                                                    @click="$emit('resume', order)">
+                                                    <i class="bi bi-play-fill"></i>
+                                                    Resume
+                                                </button>
+                                                <button
+                                                    class="btn btn-danger btn-sm flex-fill d-flex align-items-center justify-content-center gap-2"
+                                                    @click="confirmReject(order)">
+                                                    <i class="bi bi-trash"></i>
+                                                    Reject
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -166,7 +142,11 @@ const props = defineProps({
     loading: Boolean
 });
 
-const emit = defineEmits(['close', 'resume', 'reject', 'pay-now']);
+const emit = defineEmits(['close', 'resume', 'reject']);
+
+const filteredOrders = computed(() => {
+    return props.pendingOrders.filter(order => order.type === 'held');
+});
 
 const formatRelativeTime = (date) => {
     const now = new Date();
