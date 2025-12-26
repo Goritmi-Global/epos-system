@@ -13,7 +13,21 @@ import * as XLSX from "xlsx";
 import Pagination from "@/Components/Pagination.vue";
 import Dropdown from 'primevue/dropdown'
 import { useModal } from "@/composables/useModal";
+import { Eye } from "lucide-vue-next";
 const { closeModal } = useModal();
+
+const selectedOrder = ref(null);
+const showDetailModal = ref(false);
+
+const openDetailModal = (group) => {
+    selectedOrder.value = group;
+    // We'll use Bootstrap modal directly since useModal only has closeModal
+    const modalEl = document.getElementById('paymentDetailModal');
+    if (modalEl) {
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modalInstance.show();
+    }
+};
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const orders = ref([]);
@@ -74,29 +88,8 @@ const fetchOrdersWithPayment = async (page = null) => {
 
         const response = await axios.get("/api/payments/all", { params });
 
-        // ✅ Map payment data to order structure
-        orders.value = response.data.data.map(payment => {
-            const order = payment.order || {};
-            return {
-                id: order.id,
-                customer_name: order.customer_name,
-                promo: order.promo,
-                service_charges: order.service_charges,
-                delivery_charges: order.delivery_charges,
-                tax: order.tax,
-                sub_total: order.sub_total,
-                sales_discount: order.sales_discount,
-                approved_discounts: order.approved_discounts,
-                total_amount: order.total_amount,
-                status: order.status,
-                type: order.type,
-                // Payment specific fields
-                payment_type: payment.payment_type,
-                amount_received: payment.amount_received,
-                payment_date: payment.payment_date,
-                user: payment.user
-            };
-        });
+        // Store the raw order data from the backend
+        orders.value = response.data.data;
 
         // ✅ Update stats from API response
         if (response.data.stats) {
@@ -178,25 +171,45 @@ const payments = computed(() =>
         return {
             orderId: o.id,
             customer: o.customer_name,
-            user: o.user?.name || "—",
-            type: o.payment_type || "—",  // ✅ This should now come from payment
             serviceCharges: Number(o.service_charges || 0),
             deliveryCharges: Number(o.delivery_charges || 0),
             tax: Number(o.tax || 0),
-            amountReceived: Number(o.amount_received || 0),  // ✅ From payment
             promoDiscount: promo ? Number(promo.discount_amount || 0) : 0,
             salesDiscount: Number(o.sales_discount || 0),
             approvedDiscount: Number(o.approved_discounts || 0),
             grandTotal: Number(o.total_amount || 0),
             promoName: promo ? promo.promo_name : "—",
-            paidAt: o.payment_date || null,  // ✅ From payment
             status: o.status,
+            payments: o.payments || []
         };
     })
 );
 
-const sortedPayments = computed(() => {
-    return payments.value;
+const groupedPayments = computed(() => {
+    return payments.value.map(p => {
+        const amountReceived = p.payments.reduce((sum, pay) => sum + Number(pay.amount_received || 0), 0);
+        const paymentTypes = [...new Set(p.payments.map(pay => pay.payment_type))];
+        const latestPayment = p.payments.length > 0
+            ? p.payments.reduce((latest, current) =>
+                new Date(current.payment_date) > new Date(latest.payment_date) ? current : latest
+            )
+            : null;
+
+        return {
+            ...p,
+            amountReceived,
+            paidAt: latestPayment ? latestPayment.payment_date : null,
+            type: paymentTypes.length > 0 ? paymentTypes[0] : '—',
+            paymentTypeDisplay: paymentTypes.length > 1 ? `Multiple (${p.payments.length})` : (paymentTypes[0] || '—'),
+            details: p.payments.map(pay => ({
+                paidAt: pay.payment_date,
+                amount: pay.amount_received,
+                type: pay.payment_type,
+                status: pay.status || 'Paid',
+                user: pay.user?.name || '—'
+            }))
+        };
+    });
 });
 
 const handleFilterApply = (appliedFiltersData) => {
@@ -320,25 +333,34 @@ const onDownload = async (type) => {
         const response = await axios.get("/api/payments/all", { params });
 
         // Transform the data same way as fetchOrdersWithPayment
-        const allPayments = response.data.data.map(payment => {
-            const order = payment.order || {};
+        const allPayments = response.data.data.map(order => {
+            const promo = Array.isArray(order.promo) && order.promo.length > 0 ? order.promo[0] : null;
+            const payments = order.payments || [];
+            const amountReceived = payments.reduce((sum, pay) => sum + Number(pay.amount_received || 0), 0);
+            const paymentTypes = [...new Set(payments.map(pay => pay.payment_type))];
+            const latestPayment = payments.length > 0
+                ? payments.reduce((latest, current) =>
+                    new Date(current.payment_date) > new Date(latest.payment_date) ? current : latest
+                )
+                : null;
+
             return {
-                id: order.id,
+                orderId: order.id,
                 customer_name: order.customer_name,
-                promo: order.promo,
-                service_charges: order.service_charges,
-                delivery_charges: order.delivery_charges,
-                tax: order.tax,
-                sub_total: order.sub_total,
-                sales_discount: order.sales_discount,
-                approved_discounts: order.approved_discounts,
-                total_amount: order.total_amount,
+                promo_discount: promo ? Number(promo.discount_amount || 0) : 0,
+                promo_name: promo ? promo.promo_name : "—",
+                service_charges: Number(order.service_charges || 0),
+                delivery_charges: Number(order.delivery_charges || 0),
+                tax: Number(order.tax || 0),
+                sub_total: Number(order.sub_total || 0),
+                sales_discount: Number(order.sales_discount || 0),
+                approved_discounts: Number(order.approved_discounts || 0),
+                total_amount: Number(order.total_amount || 0),
                 status: order.status,
-                type: order.type,
-                payment_type: payment.payment_type,
-                amount_received: payment.amount_received,
-                payment_date: payment.payment_date,
-                user: payment.user
+                payment_type: paymentTypes.join(', '),
+                amount_received: amountReceived,
+                payment_date: latestPayment ? latestPayment.payment_date : null,
+                username: latestPayment ? (latestPayment.user?.name || "—") : "—"
             };
         });
 
@@ -347,13 +369,16 @@ const onDownload = async (type) => {
             return;
         }
 
-        // Now download with all records
+        // Now download with transformed records (already grouped by backend)
+        const groupedData = allPayments;
+
+        // Now download with grouped records
         if (type === "pdf") {
-            downloadPaymentsPDF(allPayments);
+            downloadPaymentsPDF(groupedData);
         } else if (type === "excel") {
-            downloadPaymentsExcel(allPayments);
+            downloadPaymentsExcel(groupedData);
         } else if (type === "csv") {
-            downloadPaymentsCSV(allPayments);
+            downloadPaymentsCSV(groupedData);
         } else {
             toast.error("Invalid download type");
         }
@@ -363,6 +388,27 @@ const onDownload = async (type) => {
     } finally {
         loading.value = false;
     }
+};
+
+const groupDataForDownload = (data) => {
+    const groups = {};
+    data.forEach(p => {
+        if (!groups[p.orderId]) {
+            groups[p.orderId] = {
+                ...p,
+                amount_received: 0,
+                payment_types: []
+            };
+        }
+        groups[p.orderId].amount_received += p.amount_received;
+        if (!groups[p.orderId].payment_types.includes(p.payment_type)) {
+            groups[p.orderId].payment_types.push(p.payment_type);
+        }
+    });
+    return Object.values(groups).map(g => ({
+        ...g,
+        payment_type: g.payment_types.join(', ')
+    }));
 };
 
 
@@ -386,12 +432,12 @@ const downloadPaymentsCSV = (data) => {
 
         const rows = data.map((order) => {
             return [
-                `"${order.id || ""}"`,
+                `"${order.orderId || ""}"`,
                 `"${dateFmt(order.payment_date)}"`,
                 `"${order.customer_name || "Walk In"}"`,
                 `"${order.payment_type || "-"}"`,
                 `"${Number(order.amount_received || 0).toFixed(2)}"`,
-                `"${Number(order.promo?.[0]?.discount_amount || 0).toFixed(2)}"`,
+                `"${Number(order.promo_discount || 0).toFixed(2)}"`,
                 `"${Number(order.sales_discount || 0).toFixed(2)}"`,
                 `"${Number(order.approved_discounts || 0).toFixed(2)}"`,
                 `"${Number(order.tax || 0).toFixed(2)}"`,
@@ -463,12 +509,12 @@ const downloadPaymentsPDF = (data) => {
 
         const tableRows = data.map((order) => {
             return [
-                order.id || "",
+                order.orderId || "",
                 dateFmt(order.payment_date),
                 order.customer_name || "Walk In",
                 order.payment_type || "-",
                 `£${Number(order.amount_received || 0).toFixed(2)}`,
-                `£${Number(order.promo?.[0]?.discount_amount || 0).toFixed(2)}`,
+                `£${Number(order.promo_discount || 0).toFixed(2)}`,
                 `£${Number(order.sales_discount || 0).toFixed(2)}`,
                 `£${Number(order.tax || 0).toFixed(2)}`,
                 `£${Number(order.total_amount || 0).toFixed(2)}`,
@@ -523,14 +569,14 @@ const downloadPaymentsExcel = (data) => {
 
         const worksheetData = data.map((order) => {
             return {
-                "Order ID": order.id || "",
+                "Order ID": order.orderId || "",
                 "Date": dateFmt(order.payment_date),
                 "Customer": order.customer_name || "Walk In",
                 "Order Type": order.type || "-",
                 "Payment Type": order.payment_type || "-",
                 "Amount Received": Number(order.amount_received || 0).toFixed(2),
-                "Promo Name": order.promo?.[0]?.promo_name || "-",
-                "Promo Discount": Number(order.promo?.[0]?.discount_amount || 0).toFixed(2),
+                "Promo Name": order.promo_name || "-",
+                "Promo Discount": Number(order.promo_discount || 0).toFixed(2),
                 "Sales Discount": Number(order.sales_discount || 0).toFixed(2),
                 "Approved Discount": Number(order.approved_discounts || 0).toFixed(2),
                 "Tax": Number(order.tax || 0).toFixed(2),
@@ -538,7 +584,6 @@ const downloadPaymentsExcel = (data) => {
                 "Delivery Charges": Number(order.delivery_charges || 0).toFixed(2),
                 "Grand Total": Number(order.total_amount || 0).toFixed(2),
                 "Status": order.status || "",
-                "User": order.user?.name || "—"
             };
         });
 
@@ -568,7 +613,7 @@ const downloadPaymentsExcel = (data) => {
 
         const totalRevenue = data.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
         const totalReceived = data.reduce((sum, o) => sum + Number(o.amount_received || 0), 0);
-        const totalPromoDiscount = data.reduce((sum, o) => sum + Number(o.promo?.[0]?.discount_amount || 0), 0);
+        const totalPromoDiscount = data.reduce((sum, o) => sum + Number(o.promo_discount || 0), 0);
         const totalSalesDiscount = data.reduce((sum, o) => sum + Number(o.sales_discount || 0), 0);
 
         const metaData = [
@@ -610,7 +655,7 @@ const downloadPaymentsExcel = (data) => {
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <h3 class="mb-0 fw-bold">{{ stats.total_payments }}</h3>
-                                <p class="text-muted mb-0 small">Total Payments</p>
+                                <p class="text-muted mb-0 small">Total Paid Orders</p>
                             </div>
                             <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
                                 style="width: 56px; height: 56px">
@@ -626,7 +671,7 @@ const downloadPaymentsExcel = (data) => {
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <h3 class="mb-0 fw-bold">{{ stats.todays_payments }}</h3>
-                                <p class="text-muted mb-0 small">Today's Payments</p>
+                                <p class="text-muted mb-0 small">Today's Paid Orders</p>
                             </div>
                             <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
                                 style="width: 56px; height: 56px">
@@ -720,13 +765,14 @@ const downloadPaymentsExcel = (data) => {
                                     <th>Grand Total</th>
                                     <th>Payment Date</th>
                                     <th>Payment Type</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
 
                             <tbody>
 
                                 <tr v-if="loading">
-                                    <td colspan="11" class="text-center py-5">
+                                    <td colspan="14" class="text-center py-5">
                                         <div class="d-flex flex-column align-items-center justify-content-center">
                                             <div class="spinner-border mb-3" role="status"
                                                 style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;">
@@ -738,7 +784,7 @@ const downloadPaymentsExcel = (data) => {
                                 </tr>
 
                                 <template v-else>
-                                    <tr v-for="(p, idx) in sortedPayments" :key="p.orderId">
+                                    <tr v-for="(p, idx) in groupedPayments" :key="p.orderId">
                                         <td>{{ (pagination.current_page - 1) * pagination.per_page + idx + 1 }}</td>
                                         <td>{{ p.orderId }}</td>
                                         <td>{{ formatCurrencySymbol(p.amountReceived) }}</td>
@@ -758,12 +804,24 @@ const downloadPaymentsExcel = (data) => {
                                         <td>{{ formatCurrencySymbol(p.grandTotal) }}</td>
 
                                         <td>{{ dateFmt(p.paidAt) }}</td>
-                                        <td class="text-capitalize">{{ p.type }}</td>
+                                        <td class="text-capitalize">
+                                            <span v-if="p.paymentTypeDisplay?.includes('Multiple')"
+                                                class="badge bg-info-subtle text-info">
+                                                {{ p.paymentTypeDisplay }}
+                                            </span>
+                                            <span v-else>{{ p.paymentTypeDisplay }}</span>
+                                        </td>
+                                        <td>
+                                            <button @click="openDetailModal(p)" title="View Details"
+                                                class="p-2 rounded-full text-primary hover:bg-gray-100">
+                                                <Eye class="w-4 h-4" />
+                                            </button>
+                                        </td>
                                     </tr>
 
-                                    <tr v-if="!loading && sortedPayments.length === 0">
-                                        <td colspan="13" class="text-center text-muted py-4">
-                                            No payments found.
+                                    <tr v-if="!loading && groupedPayments.length === 0">
+                                        <td colspan="14" class="text-center text-muted py-4">
+                                            No orders found.
                                         </td>
                                     </tr>
                                 </template>
@@ -782,12 +840,89 @@ const downloadPaymentsExcel = (data) => {
                 </div>
             </div>
         </div>
+
+        <!-- Detail Modal -->
+        <div class="modal fade" id="paymentDetailModal" tabindex="-1" aria-labelledby="paymentDetailModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                    <div class="modal-header border-0 pb-0">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle bg-primary-subtle text-primary p-3 d-flex align-items-center justify-content-center"
+                                style="width: 56px; height: 56px">
+                                <i class="bi bi-credit-card fs-4"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold mb-0" id="paymentDetailModalLabel">Order #{{
+                                    selectedOrder?.orderId }} Payments</h5>
+                                <p class="text-muted small mb-0">Total Received: {{
+                                    formatCurrencySymbol(selectedOrder?.amountReceived || 0) }}</p>
+                            </div>
+                        </div>
+                        <button type="button"
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110 border-0 bg-transparent"
+                            data-bs-dismiss="modal" aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                                style="width: 24px; height: 24px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="small text-muted">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Method</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(detail, dIdx) in selectedOrder?.details" :key="dIdx">
+                                        <td class="py-3">
+                                            <div class="fw-semibold">{{ dateFmt(detail.paidAt) }}</div>
+                                        </td>
+                                        <td class="py-3 fw-bold">
+                                            {{ formatCurrencySymbol(detail.amount) }}
+                                        </td>
+                                        <td class="py-3">
+                                            <span
+                                                class="badge rounded-pill bg-light dark:bg-neutral-800 text-dark dark:text-light px-3 py-2 border text-capitalize method-badge">
+                                                {{ detail.type }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3">
+                                            <span class="badge rounded-pill px-3 py-2 text-capitalize"
+                                                :class="detail.status?.toLowerCase() === 'paid' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'">
+                                                {{ detail.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 px-4 py-2">
+                        <button type="button" class="btn btn-secondary px-4 py-2 close-btn"
+                            data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </Master>
 </template>
 
 <style scoped>
 .dark h4 {
     color: white;
+}
+
+.close-btn:hover {
+    color: #fff !important;
 }
 
 .dark .card {
@@ -973,6 +1108,53 @@ const downloadPaymentsExcel = (data) => {
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
+}
+
+.dark .method-badge {
+    background-color: #212121 !important;
+    color: #fff !important;
+    border-color: #333 !important;
+}
+
+.absolute {
+    position: absolute;
+}
+
+.top-2 {
+    top: 0.5rem;
+}
+
+.right-2 {
+    right: 0.5rem;
+}
+
+.rounded-full {
+    border-radius: 9999px;
+}
+
+.p-2 {
+    padding: 0.5rem;
+}
+
+.transition {
+    transition-property: all;
+    transition-duration: 150ms;
+}
+
+.transform {
+    transform: var(--tw-transform);
+}
+
+.hover\:scale-110:hover {
+    transform: scale(1.1);
+}
+
+.hover\:bg-gray-100:hover {
+    background-color: #f3f4f6;
+}
+
+.dark .dark\:hover\:bg-neutral-800:hover {
+    background-color: #262626;
 }
 
 :global(.dark .form-control:focus) {

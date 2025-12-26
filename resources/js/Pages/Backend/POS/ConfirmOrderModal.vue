@@ -52,9 +52,37 @@ const formErrors = ref({});
 //          Track selected items for partial payment
 // =========================================================
 const selectedItems = ref([]);
-const isPartialPayment = ref(false);
+const isPartialPayment = ref(props.isPartialPayment || false);
+
+// Helper to check if item is fully paid
+const isItemPaid = (item) => {
+    if (String(item.payment_status).toLowerCase() === 'paid') return true;
+
+    // Check if amount_paid covers total item cost
+    const price = Number(item.unit_price || item.price) || 0;
+    const qty = Number(item.qty || item.quantity) || 0;
+    const itemTotal = price * qty;
+    const amountPaid = Number(item.amount_paid) || 0;
+
+    // Use a small epsilon for float comparison if needed, but here simple >= should suffice
+    return amountPaid >= (itemTotal - 0.01) && itemTotal > 0;
+};
+
+const alreadyPaidTotal = computed(() => {
+    if (!Array.isArray(props.orderItems)) return 0;
+    const sum = props.orderItems.reduce((sum, item) => {
+        if (isItemPaid(item)) {
+            const p = Number(item.unit_price || item.price) || 0;
+            const q = Number(item.qty || item.quantity) || 0;
+            return sum + (p * q);
+        }
+        return sum + (Number(item.amount_paid) || 0);
+    }, 0);
+    return parseFloat(sum.toFixed(2));
+});
 
 // Removed: onMounted pre-selection as requested
+
 
 const emit = defineEmits([
     "close",
@@ -74,28 +102,43 @@ const cashReceived = computed({
 
 const changeAmount = computed(() => {
     if (paymentMethod.value === "Cash") {
-        return cashReceived.value - currentPaymentTotal.value;
+        const diff = cashReceived.value - currentPaymentTotal.value;
+        return parseFloat(diff.toFixed(2));
     }
     return 0;
 });
 
-// =================================================================
-//      Calculate total based on selected items or full order
-// =================================================================
 const currentPaymentTotal = computed(() => {
+    const rawItems = Array.isArray(props.orderItems) ? props.orderItems : [];
     let total = 0;
+
     if (isPartialPayment.value) {
         if (selectedItems.value.length > 0) {
             total = selectedItems.value.reduce((sum, item) => {
                 const price = Number(item.unit_price || item.price) || 0;
                 const qty = Number(item.qty || item.quantity) || 0;
-                return sum + (price * qty);
+                const itemTotal = price * qty;
+                const paid = Number(item.amount_paid) || 0;
+                const remaining = itemTotal - paid;
+                return sum + (remaining > 0 ? remaining : 0);
             }, 0);
         }
     } else {
-        total = props.grandTotal - (props.promoDiscount || 0);
+        // Full pay MUST exclude already paid items
+        const unpaidSum = rawItems.reduce((sum, item) => {
+            if (isItemPaid(item)) return sum;
+
+            const price = Number(item.unit_price || item.price) || 0;
+            const qty = Number(item.qty || item.quantity) || 0;
+            const itemTotal = price * qty;
+            const paid = Number(item.amount_paid) || 0;
+            const remaining = itemTotal - paid;
+            return sum + (remaining > 0 ? remaining : 0);
+        }, 0);
+
+        total = Math.max(0, unpaidSum - (props.promoDiscount || 0));
     }
-    return Math.round(total * 100) / 100;
+    return parseFloat(total.toFixed(2));
 });
 
 // Auto-sync cash received with total in partial mode
@@ -110,7 +153,7 @@ watch(() => props.orderItems, (newItems) => {
     if (newItems && Array.isArray(newItems)) {
         selectedItems.value = selectedItems.value.filter(selected => {
             const currentItem = newItems.find(i => getItemSelectionKey(i) === getItemSelectionKey(selected));
-            return currentItem && String(currentItem.payment_status).toLowerCase() !== 'paid';
+            return currentItem && !isItemPaid(currentItem);
         });
     }
 }, { deep: true });
@@ -125,11 +168,11 @@ watch(isPartialPayment, (isActive) => {
             cashReceived.value = 0;
         }
     } else {
-        // Sync with grand total when partial is off
-        cashReceived.value = props.grandTotal - (props.promoDiscount || 0);
+        // Sync with remaining balance when partial is off
+        cashReceived.value = currentPaymentTotal.value;
         selectedItems.value = [];
     }
-});
+}, { immediate: true });
 
 
 const handleStripeSuccess = (data) => {
@@ -148,6 +191,8 @@ const subTotal = computed(() =>
 
 const isLoading = ref(false);
 
+// Helper to check if item is fully paid (Removed duplicate)
+
 // Helper for unique selection key
 const getItemSelectionKey = (item) => {
     if (item.server_item_id) return `server-${item.server_item_id}`;
@@ -157,7 +202,7 @@ const getItemSelectionKey = (item) => {
 // Toggle item selection for partial payment
 const toggleItemSelection = (item) => {
     // ULTRA PARANOID: Ensure we can't select paid items
-    if (String(item.payment_status).toLowerCase() === 'paid') return;
+    if (isItemPaid(item)) return;
 
     const itemKey = getItemSelectionKey(item);
     const index = selectedItems.value.findIndex(i => getItemSelectionKey(i) === itemKey);
@@ -213,7 +258,7 @@ const handleOrderAndPrint = async () => {
 const handleConfirm = async () => {
     formErrors.value.cashReceived = null;
 
-    const paymentTotal = isPartialPayment.value ? currentPaymentTotal.value : props.grandTotal;
+    const paymentTotal = currentPaymentTotal.value;
 
     if (!props.cashReceived || props.cashReceived <= 0) {
         formErrors.value.cashReceived = "Enter a valid cash amount.";
@@ -377,11 +422,12 @@ const formattedOrderType = computed(() => {
                                                 <table class="table align-middle table-hover mb-0">
                                                     <thead class="table-light">
                                                         <tr>
-                                                            <!-- Checkbox column for partial payment -->
-                                                            <th v-if="isPartialPayment" style="width: 40px;">
-                                                                <input type="checkbox" class="form-check-input"
-                                                                    @change="$event.target.checked ? (selectedItems = orderItems.filter(i => i.payment_status !== 'paid')) : (selectedItems = [])"
-                                                                    :checked="selectedItems.length > 0 && selectedItems.length === orderItems.filter(i => i.payment_status !== 'paid').length">
+                                                            <th style="width: 70px;">
+                                                                <input v-if="isPartialPayment" type="checkbox"
+                                                                    class="form-check-input"
+                                                                    @change="$event.target.checked ? (selectedItems = orderItems.filter(i => !isItemPaid(i))) : (selectedItems = [])"
+                                                                    :checked="selectedItems.length > 0 && selectedItems.length === orderItems.filter(i => !isItemPaid(i)).length">
+                                                                <span v-else class="text-muted small">Status</span>
                                                             </th>
                                                             <th>#</th>
                                                             <th>Item</th>
@@ -394,21 +440,24 @@ const formattedOrderType = computed(() => {
                                                         <tr v-for="(item, index) in availableItems"
                                                             :key="getItemSelectionKey(item) || index" :class="{
                                                                 'table-primary shadow-sm': isPartialPayment && isItemSelected(item),
-                                                                'bg-success-subtle border-success-subtle transition-all duration-300': String(item.payment_status).toLowerCase() === 'paid'
+                                                                'bg-success-subtle border-success-subtle transition-all duration-300': isItemPaid(item)
                                                             }">
-                                                            <!-- Checkbox (only show for unpaid items in partial payment mode) -->
-                                                            <td v-if="isPartialPayment">
-                                                                <template
-                                                                    v-if="String(item.payment_status).toLowerCase() !== 'paid'">
+                                                            <td>
+                                                                <template v-if="!isItemPaid(item) && isPartialPayment">
                                                                     <input type="checkbox"
                                                                         class="form-check-input cursor-pointer"
                                                                         :checked="isItemSelected(item)"
                                                                         @change="toggleItemSelection(item)">
                                                                 </template>
-                                                                <div v-else
-                                                                    class="text-success fw-bold d-flex align-items-center gap-1 bg-success-subtle p-1 rounded-pill">
-                                                                    <i class="bi bi-check-circle-fill"></i>
-                                                                    <small>Paid</small>
+                                                                <div v-else-if="isItemPaid(item)"
+                                                                    class="d-flex align-items-center justify-content-center gap-1 text-success px-3 py-1 rounded-pill"
+                                                                    style="min-width: 70px; font-weight: 700;">
+                                                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                                                    <span
+                                                                        style="font-size: 0.85rem; color: #198754 !important;">Paid</span>
+                                                                </div>
+                                                                <div v-else class="text-center">
+                                                                    <i class="bi bi-dash text-muted"></i>
                                                                 </div>
                                                             </td>
 
@@ -433,12 +482,12 @@ const formattedOrderType = computed(() => {
 
                                                             <td class="text-center">{{ item.qty || item.quantity }}</td>
 
-                                                            <td class="text-end">
+                                                            <td class="text-end text-nowrap">
                                                                 {{ formatCurrencySymbol(item.unit_price || item.price)
                                                                 }}
                                                             </td>
 
-                                                            <td class="text-end fw-bold">
+                                                            <td class="text-end fw-bold text-nowrap">
                                                                 {{ formatCurrencySymbol((Number(item.unit_price ||
                                                                     item.price) || 0) * (Number(item.qty || item.quantity)
                                                                         || 0)) }}
@@ -446,13 +495,22 @@ const formattedOrderType = computed(() => {
                                                         </tr>
                                                     </tbody>
                                                     <tfoot>
+                                                        <!-- Already Paid Row (Always visible for context) -->
+                                                        <tr v-if="alreadyPaidTotal > 0" class="">
+                                                            <td colspan="5"
+                                                                class="text-end text-muted small fw-semibold">
+                                                                Already Paid
+                                                            </td>
+                                                            <td class="text-end text-success fw-bold">
+                                                                -{{ formatCurrencySymbol(alreadyPaidTotal) }}
+                                                            </td>
+                                                        </tr>
+
                                                         <!-- Show selected items subtotal in partial payment mode -->
                                                         <tr v-if="isPartialPayment && selectedItems.length > 0"
-                                                            class="table-info">
-                                                            <td :colspan="isPartialPayment ? 5 : 4"
-                                                                class="text-end fw-semibold">
-                                                                Selected Items Subtotal ({{ selectedItems.length }}
-                                                                items)
+                                                            class="table-success">
+                                                            <td colspan="5" class="text-end fw-semibold">
+                                                                Selected to Pay ({{ selectedItems.length }} items)
                                                             </td>
                                                             <td class="text-end fw-bold text-primary">
                                                                 {{ formatCurrencySymbol(currentPaymentTotal) }}
@@ -460,8 +518,7 @@ const formattedOrderType = computed(() => {
                                                         </tr>
 
                                                         <tr v-if="promoDiscount > 0 && !isPartialPayment">
-                                                            <td :colspan="isPartialPayment ? 5 : 4"
-                                                                class="text-end text-muted">
+                                                            <td colspan="5" class="text-end text-muted">
                                                                 Promo <span v-if="promoName">({{ promoName }})</span>
                                                             </td>
                                                             <td class="text-end text-success">
@@ -469,12 +526,12 @@ const formattedOrderType = computed(() => {
                                                             </td>
                                                         </tr>
 
-                                                        <tr class="fw-bold">
-                                                            <td :colspan="isPartialPayment ? 5 : 4" class="text-end">
-                                                                {{ isPartialPayment ? 'Payment Amount' : 'Grand Total'
-                                                                }}
+                                                        <tr class="fw-bold border-top-0">
+                                                            <td colspan="5" class="text-end py-2">
+                                                                {{ isPartialPayment ? 'Amount to Pay' :
+                                                                    'Remaining Balance' }}
                                                             </td>
-                                                            <td class="text-end text-success">
+                                                            <td class="text-end text-success fs-5 py-2">
                                                                 {{ formatCurrencySymbol(currentPaymentTotal) }}
                                                             </td>
                                                         </tr>

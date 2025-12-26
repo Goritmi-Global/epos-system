@@ -18,8 +18,8 @@ use App\Models\RestaurantProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class SettingsController extends Controller
@@ -650,7 +650,7 @@ class SettingsController extends Controller
         return $data;
     }
 
-     public function verifyPassword(Request $request)
+    public function verifyPassword(Request $request)
     {
         $request->validate([
             'password' => 'required|string',
@@ -660,19 +660,19 @@ class SettingsController extends Controller
         if ($user->is_first_super_admin !== 1) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only Super Admins can perform this action.'
+                'message' => 'Only Super Admins can perform this action.',
             ], 403);
         }
-        if (!Hash::check($request->password, $user->password)) {
+        if (! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Incorrect password. Please try again.'
+                'message' => 'Incorrect password. Please try again.',
             ], 401);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Password verified successfully.'
+            'message' => 'Password verified successfully.',
         ]);
     }
 
@@ -688,7 +688,7 @@ class SettingsController extends Controller
             if ($user->is_first_super_admin !== 1) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthorized action.'
+                    'message' => 'Unauthorized action.',
                 ], 403);
             }
             DB::statement('SET FOREIGN_KEY_CHECKS=0;');
@@ -717,25 +717,25 @@ class SettingsController extends Controller
             }
             DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-            Log::info('System restored successfully by user: ' . $user->id . ' (' . $user->name . ')');
+            Log::info('System restored successfully by user: '.$user->id.' ('.$user->name.')');
 
             return response()->json([
                 'success' => true,
-                'message' => 'System restored successfully! All data has been cleared.'
+                'message' => 'System restored successfully! All data has been cleared.',
             ], 200);
 
         } catch (\Exception $e) {
             try {
                 DB::statement('SET FOREIGN_KEY_CHECKS=1;');
             } catch (\Exception $fkException) {
-                Log::error('Failed to re-enable foreign key checks: ' . $fkException->getMessage());
+                Log::error('Failed to re-enable foreign key checks: '.$fkException->getMessage());
             }
-            
-            Log::error('System restore failed: ' . $e->getMessage());
+
+            Log::error('System restore failed: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to restore system: ' . $e->getMessage()
+                'message' => 'Failed to restore system: '.$e->getMessage(),
             ], 500);
         }
     }

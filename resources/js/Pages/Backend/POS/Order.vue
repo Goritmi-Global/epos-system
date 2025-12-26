@@ -34,7 +34,7 @@ const exportOptions = [
 const onExportChange = (e) => {
     if (e.value) {
         onDownload(e.value)
-        exportOption.value = null 
+        exportOption.value = null
     }
 }
 
@@ -1155,7 +1155,9 @@ const downloadExcel = (data) => {
                                             <span class="badge px-4 py-2 rounded-pill" :class="{
                                                 'bg-danger': o?.status === 'cancelled',
                                                 'bg-warning text-dark': o?.status === 'refunded',
-                                                'bg-success': o?.status === 'paid'
+                                                'bg-success': o?.status === 'paid',
+                                                'bg-warning text-dark': o?.status === 'pending',
+                                                'bg-info text-white': o?.status === 'in_progress'
                                             }">
                                                 {{ o?.status.charAt(0).toUpperCase() + o?.status.slice(1) }}
                                             </span>
@@ -1250,7 +1252,7 @@ const downloadExcel = (data) => {
                                             <span class="value">{{
                                                 selectedPayment?.payment_type ??
                                                 "-"
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
 
@@ -1313,7 +1315,7 @@ const downloadExcel = (data) => {
                                             <span class="label">Card Brand</span>
                                             <span class="value text-capitalize">{{
                                                 selectedPayment.brand
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
 
@@ -1334,7 +1336,7 @@ const downloadExcel = (data) => {
                                             <span class="label">Expiry</span>
                                             <span class="value">{{
                                                 selectedPayment.exp_month
-                                            }}/{{
+                                                }}/{{
                                                     selectedPayment.exp_year
                                                 }}</span>
                                         </div>
@@ -1346,7 +1348,7 @@ const downloadExcel = (data) => {
                                             <span class="label">Currency</span>
                                             <span class="value">{{
                                                 selectedPayment.currency_code
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1607,19 +1609,19 @@ const downloadExcel = (data) => {
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Customer:</span>
                                     <span class="fw-semibold">{{ selectedOrderForRefund?.customer_name || 'Walk In'
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Total Amount:</span>
                                     <span class="fw-semibold">{{
                                         formatCurrencySymbol(selectedOrderForRefund?.total_amount)
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Payment Type:</span>
                                     <span class="fw-semibold text-capitalize">{{
                                         selectedOrderForRefund?.payment?.payment_type
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div v-if="selectedOrderForRefund?.payment?.payment_type?.toLowerCase() === 'split'"
                                     class="d-flex justify-content-between mb-2">

@@ -16,13 +16,11 @@ import Accordion from 'primevue/accordion';
 import AccordionPanel from 'primevue/accordionpanel';
 import AccordionHeader from 'primevue/accordionheader';
 import AccordionContent from 'primevue/accordioncontent';
-import { useModal } from "@/composables/useModal";
-const { closeModal } = useModal();
+
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
 
 const props = defineProps(["client_secret", "order_code"]);
-const page = usePage();
 
 import { Popover } from 'bootstrap';
 
@@ -1113,8 +1111,6 @@ const handleClearFilters = () => {
         priceMin: null,
         priceMax: null,
     };
-    searchQuery.value = '';
-    closeModal('menuFilterModal');
 };
 
 
@@ -2223,53 +2219,25 @@ async function printReceipt(order, shouldPrint) {
     }
 }
 
-// async function pushDataToCustomerView(cartData) {
-//     console.log("➡️ Cusstomer View (Cart Data):", cartData);
-//     try {
-//         const res = await axios.post(
-//             '/proxy/customer-view', // Use your Laravel proxy
-//             {cartData},
-//             {
-//                 headers: { 'Content-Type': 'application/json' },
-//                 timeout: 5000,
-//             },
-//         );
-//     } catch (error) {
-//         console.error("Customer View failed:", error);
-//         toast.error("Unable to connect to the customer view.");
-//     }
-// }
+async function printReceiptN(order, shouldPrint) {
 
-
-
-async function pushDataToCustomerView(cartData) {
-    console.log("➡️ Customer View (Cart Data):", cartData);
-
+    const printValue = shouldPrint ? 'yes' : 'no';
+    console.log("🖨️ printReceiptN called");
+    console.log("➡️ shouldPrint (boolean):", shouldPrint);
+    console.log("➡️ print value sent to printer:", printValue);
     try {
+
         const res = await axios.post(
-            customer_view_url.value,
-            { cartData },
+            'http://localhost:8085/print',
+            { order, type: 'customer', print: printValue },
             {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                timeout: 10000, // 10 seconds
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000,
             },
         );
-        res.setHeader('Access-Control-Allow-Origin', '*'); // or specific domain
-        res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-        console.log('✅ Data sent successfully');
     } catch (error) {
-        if (error.code === 'ECONNABORTED') {
-            console.error("Timeout: Customer view didn't respond");
-            // toast.error("Customer view is not responding. Please check the connection.");
-        } else if (error.code === 'ERR_NETWORK') {
-            console.error("Network error: Cannot reach customer view");
-            // toast.error("Cannot reach customer view. Please ensure it's running on the network.");
-        } else {
-            console.error("Customer View failed:", error);
-            //toast.error("Unable to connect to the customer view.");
-        }
+        console.error("Print failed:", error);
+        toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
     }
 }
 
@@ -2280,14 +2248,11 @@ const changeAmount = ref(0);
 
 async function printKot(order) {
     try {
-        const res = await axios.post(
-            'http://localhost:8085/print',
-            { order, type: 'KOT', print: 'yes' },
-            {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 5000,
-            },
-        );
+        const response = await axios.post("/api/kot/print-receipt", { order });
+        if (response.data.success) {
+        } else {
+            toast.error(response.data.message || "KOT print failed");
+        }
     } catch (error) {
         console.error("KOT print failed:", error);
         toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
@@ -2768,6 +2733,7 @@ const confirmOrder = async ({
             showConfirmModal.value = false;
             showPaymentModal.value = false; // ✅ Close second modal
             showPendingOrdersModal.value = false; // ✅ Close pending orders modal
+            showUnpaidOrdersModal.value = false; // ✅ Close unpaid orders modal
             selectedUnpaidOrder.value = null; // ✅ Reset unpaid order
             currentOrderId.value = null; // ✅ Reset order ID
 
@@ -2799,6 +2765,7 @@ const confirmOrder = async ({
 
             // ✅ REFRESH ITEMS FROM SERVER
             await refreshOrderItems(orderId);
+            await fetchPendingOrders(); // ✅ Refresh unpaid orders list to update balances
 
             // Explicitly ensure correct modal stays open
             if (selectedUnpaidOrder.value) {
@@ -3135,14 +3102,13 @@ onMounted(async () => {
     }
 
 });
-
+const page = usePage();
 function bumpToasts() {
     const s = page.props.flash?.success;
     const e = page.props.flash?.error;
     if (s) toast.success(s, { autoClose: 4000 });
     if (e) toast.error(e, { autoClose: 6000 });
 }
-
 onMounted(() => bumpToasts());
 onMounted(() => {
     const s = page.props.flash?.success;
@@ -3970,10 +3936,10 @@ import { debounce } from 'lodash';
 import DiscountModal from "./DiscountModal.vue";
 import ConfirmMissingIngredientsModal from "@/Components/ConfirmMissingIngredientsModal.vue";
 import PendingOrdersModal from "./PendingOrdersModal.vue";
+import UnpaidOrdersModal from "./UnpaidOrdersModal.vue";
 import { Eye, Pencil } from "lucide-vue-next";
 
 const user = computed(() => page.props.current_user);
-const customer_view_url = computed(() => page.props.onboarding.customer_view_url.url);
 
 const categoriesWithMenus = computed(() => {
     return menuCategories.value.filter(category => {
@@ -4047,14 +4013,9 @@ watch(
     (newCart) => {
         console.log('🔔 Cart changed:', newCart.items.length, 'items, Total:', newCart.total);
         debouncedBroadcastCart(newCart);
-        pushDataToCustomerView(newCart);
-
     },
     { deep: true, immediate: true }
 );
-
-
-
 
 // Watch for UI state changes
 watch(
@@ -4270,7 +4231,12 @@ const getDealQty = (deal) => {
 // Get total count of items (menu items + deals) in a category
 const getCategoryItemCount = (categoryId) => {
     const category = menuCategories.value.find(c => c.id === categoryId);
-    const menuCount = +(category?.menu_items_count || 0);
+    // Use total_items_count if available, otherwise calculate
+    if (category?.total_items_count !== undefined) {
+        return category.total_items_count;
+    }
+
+    const menuCount = category?.menu_items_count || 0;
     const dealsCount = getCategoryDealsCount(categoryId);
     return menuCount + dealsCount;
 };
@@ -4690,16 +4656,6 @@ const getRemainingDealIngredientsCount = () => {
     return ingredients.filter(ing => !removed.includes(ing.id)).length;
 };
 
-// // Get remaining ingredients count
-// const getRemainingIngredientsCount = () => {
-//      return getModalIngredients().filter(
-//         ing => !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
-//     ).length;
-//     // const ingredients = getCurrentIngredients();
-//     // const removed = dealRemovedIngredients.value[currentDealMenuItemIndex.value] || [];
-//     // return ingredients.filter(ing => !removed.includes(ing.id)).length;
-// };
-
 // Handle addon change
 const handleDealAddonChange = (addonGroupId, selectedAddons) => {
     const idx = currentDealMenuItemIndex.value;
@@ -5016,6 +4972,7 @@ const resetDealCustomization = () => {
 //                  Pending Orders 
 // ====================================================
 const showPendingOrdersModal = ref(false);
+const showUnpaidOrdersModal = ref(false);
 const pendingOrders = ref([]);
 const pendingOrdersLoading = ref(false);
 
@@ -5135,6 +5092,11 @@ const fetchPendingOrders = async () => {
 // Open pending orders modal
 const openPendingOrdersModal = async () => {
     showPendingOrdersModal.value = true;
+    await fetchPendingOrders();
+};
+
+const openUnpaidOrdersModal = async () => {
+    showUnpaidOrdersModal.value = true;
     await fetchPendingOrders();
 };
 
@@ -5420,7 +5382,13 @@ const handlePayUnpaidOrder = (order) => {
         ...order,
         order_items: mappedItems
     };
-    cashReceived.value = parseFloat(order.total_amount).toFixed(2);
+    // For unpaid orders, we only want to collect the REMAINING balance by default
+    const remaining = order.remaining_balance !== undefined
+        ? order.remaining_balance
+        : order.total_amount;
+
+    // Use Number.parseFloat().toFixed(2) to ensure 2 decimal precision and avoid floating point artifacts
+    cashReceived.value = parseFloat(parseFloat(remaining).toFixed(2));
     showPaymentModal.value = true;
 };
 
@@ -5672,6 +5640,9 @@ const handlePayItem = async (item) => {
                                     </button>
                                 </div>
                             </div>
+
+
+
                             <!--  MENU ITEMS GRID (Show when showDeals is false - your existing code) -->
                             <div class="row g-3">
                                 <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"
@@ -5963,8 +5934,16 @@ const handlePayItem = async (item) => {
                             < </button> -->
                             <button class="btn pending btn-info px-3 py-2" @click="openPendingOrdersModal">
                                 Pending
-                                <span v-if="pendingOrders.length > 0" class="badge bg-danger ms-1">
-                                    {{ pendingOrders.length }}
+                                <span v-if="pendingOrders.filter(o => o.type === 'held').length > 0"
+                                    class="badge bg-danger ms-1">
+                                    {{pendingOrders.filter(o => o.type === 'held').length}}
+                                </span>
+                            </button>
+                            <button class="btn btn-warning px-3 py-2" @click="openUnpaidOrdersModal">
+                                Unpaid
+                                <span v-if="pendingOrders.filter(o => o.type === 'unpaid').length > 0"
+                                    class="badge bg-danger ms-1">
+                                    {{pendingOrders.filter(o => o.type === 'unpaid').length}}
                                 </span>
                             </button>
                             <button class="btn btn-warning px-3 py-2 promos-btn" @click="openPromoModal">
@@ -7491,7 +7470,10 @@ const handlePayItem = async (item) => {
 
             <PendingOrdersModal :show="showPendingOrdersModal" :pending-orders="pendingOrders"
                 :loading="pendingOrdersLoading" @close="showPendingOrdersModal = false" @resume="resumePendingOrder"
-                @reject="rejectPendingOrder" @pay-now="handlePayUnpaidOrder" />
+                @reject="rejectPendingOrder" />
+            <UnpaidOrdersModal :show="showUnpaidOrdersModal" :pending-orders="pendingOrders"
+                :loading="pendingOrdersLoading" @close="showUnpaidOrdersModal = false" @pay-now="handlePayUnpaidOrder"
+                @reject="rejectPendingOrder" />
             <ConfirmOrderModal v-if="selectedUnpaidOrder" :show="showPaymentModal"
                 :customer="selectedUnpaidOrder.customer_name" :delivery-location="selectedUnpaidOrder.delivery_location"
                 :phone="selectedUnpaidOrder.phone_number" :order-type="selectedUnpaidOrder.order_type"
