@@ -8,149 +8,131 @@ class PaymentService
 {
     public function list(array $filters = [])
     {
-        $query = Payment::with([
-            'order.promo',
-            'order.items',
-            'order.type',
-            'user',
-        ]);
+        // Base query for unique order IDs that have payments
+        $orderQuery = Payment::query()
+            ->select('payments.order_id')
+            ->selectRaw('MAX(payments.payment_date) as latest_payment_date')
+            ->groupBy('payments.order_id');
 
-        // SEARCH FILTER
+        // Apply filters to the order query
         if (! empty($filters['q'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->where('id', 'like', "%{$filters['q']}%")
-                    ->orWhere('payment_type', 'like', "%{$filters['q']}%")
-                    ->orWhere('code', 'like', "%{$filters['q']}%")
-                    ->orWhereHas('order', function ($orderQuery) use ($filters) {
-                        $orderQuery->where('id', 'like', "%{$filters['q']}%")
-                            ->orWhere('customer_name', 'like', "%{$filters['q']}%");
-                    });
+            $search = $filters['q'];
+            $orderQuery->where(function ($q) use ($search) {
+                if (is_numeric($search)) {
+                    $q->where('payments.order_id', $search)
+                      ->orWhere('payments.order_id', 'like', "{$search}%");
+                } else {
+                    $q->where('payments.payment_type', 'like', "%{$search}%")
+                      ->orWhere('payments.code', 'like', "%{$search}%")
+                      ->orWhereHas('order', function ($oQ) use ($search) {
+                          $oQ->where('customer_name', 'like', "%{$search}%");
+                      });
+                }
             });
         }
 
-        // PAYMENT TYPE FILTER
         if (! empty($filters['payment_type'])) {
-            $query->where('payment_type', $filters['payment_type']);
+            $orderQuery->where('payments.payment_type', $filters['payment_type']);
         }
 
-        // DATE RANGE FILTER
         if (! empty($filters['date_from'])) {
-            $query->whereDate('payment_date', '>=', $filters['date_from']);
+            $orderQuery->whereDate('payments.payment_date', '>=', $filters['date_from']);
         }
         if (! empty($filters['date_to'])) {
-            $query->whereDate('payment_date', '<=', $filters['date_to']);
+            $orderQuery->whereDate('payments.payment_date', '<=', $filters['date_to']);
         }
 
-        // PRICE RANGE FILTER
-        if (! empty($filters['price_min'])) {
-            $query->where('amount_received', '>=', $filters['price_min']);
-        }
-        if (! empty($filters['price_max'])) {
-            $query->where('amount_received', '<=', $filters['price_max']);
-        }
-
-        // SORTING
-        if (! empty($filters['sort_by'])) {
-            switch ($filters['sort_by']) {
-                case 'date_desc':
-                    $query->orderBy('payment_date', 'desc');
-                    break;
-                case 'date_asc':
-                    $query->orderBy('payment_date', 'asc');
-                    break;
-                case 'amount_desc':
-                    $query->orderBy('amount_received', 'desc');
-                    break;
-                case 'amount_asc':
-                    $query->orderBy('amount_received', 'asc');
-                    break;
-                case 'order_desc':
-                    $query->orderBy('order_id', 'desc');
-                    break;
-                case 'order_asc':
-                    $query->orderBy('order_id', 'asc');
-                    break;
-                default:
-                    $query->orderBy('payment_date', 'desc');
-                    break;
-            }
-        } else {
-            $query->orderBy('payment_date', 'desc');
+        if (! empty($filters['price_min']) || ! empty($filters['price_max'])) {
+            $orderQuery->whereHas('order', function($q) use ($filters) {
+                if (! empty($filters['price_min'])) $q->where('total_amount', '>=', $filters['price_min']);
+                if (! empty($filters['price_max'])) $q->where('total_amount', '<=', $filters['price_max']);
+            });
         }
 
-        // EXPORT ALL
+        // Sorting
+        $sortBy = (isset($filters['sort_by']) && $filters['sort_by'] !== '') ? $filters['sort_by'] : 'date_desc';
+        
+        switch ($sortBy) {
+            case 'date_asc':
+                $orderQuery->orderByRaw('MAX(payments.payment_date) ASC');
+                break;
+            case 'order_desc':
+                $orderQuery->orderBy('payments.order_id', 'desc');
+                break;
+            case 'order_asc':
+                $orderQuery->orderBy('payments.order_id', 'asc');
+                break;
+            case 'amount_desc':
+            case 'amount_asc':
+                $orderQuery->leftJoin('pos_orders', 'payments.order_id', '=', 'pos_orders.id')
+                    ->orderByRaw('MAX(pos_orders.total_amount) ' . ($sortBy === 'amount_desc' ? 'desc' : 'asc'));
+                break;
+            default:
+                $orderQuery->orderByRaw('MAX(payments.payment_date) DESC');
+                break;
+        }
+
         // EXPORT ALL
         if (! empty($filters['export']) && $filters['export'] === 'all') {
-            $allPayments = $query->get();
-
-            return new \Illuminate\Pagination\LengthAwarePaginator(
-                $allPayments,
-                $allPayments->count(),
-                $allPayments->count(),
-                1,
-                [
-                    'path' => request()->url(),
-                    'query' => request()->query(),
-                ]
-            );
-        }
-
-        // ✅ FIX: Always use database pagination
-        $perPage = $filters['per_page'] ?? 10;
-        $paginator = $query->paginate($perPage);
-
-        return $paginator;
-
-        // Check if ANY filter is applied (excluding search)
-        $searchQuery = trim($filters['q'] ?? '');
-        $hasSearch = ! empty($searchQuery);
-        $hasPaymentType = ! empty($filters['payment_type']);
-        $hasDateRange = (! empty($filters['date_from']) || ! empty($filters['date_to']));
-        $hasPriceRange = (! empty($filters['price_min']) || ! empty($filters['price_max']));
-        $hasSorting = ! empty($filters['sort_by']);
-
-        // ✅ FIX: Only use manual pagination if we have actual filtering (not just sorting)
-        $hasActualFilters = $hasPaymentType || $hasDateRange || $hasPriceRange;
-
-        if ($hasActualFilters) {
-            // When filters are applied, fetch all and create manual paginator
-            $allPayments = $query->get();
-            $total = $allPayments->count();
-
-            $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
-                $allPayments,
-                $total,
-                $total > 0 ? $total : 1,
-                1,
-                [
-                    'path' => request()->url(),
-                    'query' => request()->query(),
-                ]
-            );
+            $allOrderIds = (clone $orderQuery)->get()->pluck('order_id');
+            $total = $allOrderIds->count();
+            $perPage = $total > 0 ? $total : 10;
+            $currentPage = 1;
         } else {
-            // When only search/sorting or no filters, use standard database pagination
             $perPage = $filters['per_page'] ?? 10;
-            $paginator = $query->paginate($perPage);
+            $paginatedOrders = $orderQuery->paginate($perPage);
+            $allOrderIds = collect($paginatedOrders->items())->pluck('order_id');
+            $total = $paginatedOrders->total();
+            $currentPage = $paginatedOrders->currentPage();
         }
 
-        return $paginator;
+        if ($allOrderIds->isEmpty()) {
+            return new \Illuminate\Pagination\LengthAwarePaginator(
+                collect([]), 0, $perPage, 1, ['path' => request()->url()]
+            );
+        }
+
+        // Fetch all unique orders and their payments
+        $paginatedItems = \App\Models\PosOrder::with([
+            'promo',
+            'items',
+            'type',
+            'payments.user',
+        ])
+        ->whereIn('id', $allOrderIds)
+        ->orderByRaw("FIELD(id, " . $allOrderIds->implode(',') . ")")
+        ->get();
+
+        // Create the paginator using orders as items
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $total,
+            $perPage,
+            $currentPage,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
     }
 
     public function getPaymentStats(array $filters = [])
     {
-        $query = Payment::with(['order']);
+        $query = Payment::query();
 
-        // Apply same filters as list() method (without pagination)
         if (! empty($filters['q'])) {
-            $query->where(function ($q) use ($filters) {
-                // ✅ Specify table name for ambiguous columns
-                $q->where('payments.id', 'like', "%{$filters['q']}%")
-                    ->orWhere('payments.payment_type', 'like', "%{$filters['q']}%")
-                    ->orWhere('payments.code', 'like', "%{$filters['q']}%")
-                    ->orWhereHas('order', function ($orderQuery) use ($filters) {
-                        $orderQuery->where('pos_orders.id', 'like', "%{$filters['q']}%")
-                            ->orWhere('customer_name', 'like', "%{$filters['q']}%");
-                    });
+            $search = $filters['q'];
+            $query->where(function ($q) use ($search) {
+                if (is_numeric($search)) {
+                    $q->where('payments.order_id', $search)
+                      ->orWhere('payments.order_id', 'like', "{$search}%");
+                } else {
+                    $q->where('payments.payment_type', 'like', "%{$search}%")
+                      ->orWhere('payments.code', 'like', "%{$search}%")
+                      ->orWhereHas('order', function ($oQ) use ($search) {
+                            $oQ->where('customer_name', 'like', "%{$search}%");
+                      });
+                }
             });
         }
 
@@ -161,36 +143,35 @@ class PaymentService
         if (! empty($filters['date_from'])) {
             $query->whereDate('payments.payment_date', '>=', $filters['date_from']);
         }
-
         if (! empty($filters['date_to'])) {
             $query->whereDate('payments.payment_date', '<=', $filters['date_to']);
         }
 
-        if (! empty($filters['price_min'])) {
-            $query->where('payments.amount_received', '>=', $filters['price_min']);
+        if (! empty($filters['price_min']) || ! empty($filters['price_max'])) {
+            $query->whereHas('order', function($q) use ($filters) {
+                if (! empty($filters['price_min'])) $q->where('total_amount', '>=', $filters['price_min']);
+                if (! empty($filters['price_max'])) $q->where('total_amount', '<=', $filters['price_max']);
+            });
         }
 
-        if (! empty($filters['price_max'])) {
-            $query->where('payments.amount_received', '<=', $filters['price_max']);
-        }
+        // Unique Order IDs matching the criteria
+        $matchedOrderIds = (clone $query)->distinct()->pluck('payments.order_id');
+        $totalOrders = $matchedOrderIds->count();
 
-        // Get today's date range
+        // Today's Orders among matched orders
         $today = now()->startOfDay();
-        $tomorrow = now()->addDay()->startOfDay();
+        $todaysOrders = (clone $query)->whereDate('payments.payment_date', '>=', $today)
+            ->distinct()
+            ->pluck('payments.order_id')
+            ->count();
+
+        // Total Amount (Sum of unique order totals)
+        $totalAmount = \App\Models\PosOrder::whereIn('id', $matchedOrderIds)->sum('total_amount');
 
         return [
-            'total_payments' => $query->count(),
-            'todays_payments' => (clone $query)
-                ->whereDate('payments.payment_date', '>=', $today)
-                ->whereDate('payments.payment_date', '<', $tomorrow)
-                ->count(),
-            // ✅ Fix: Use whereHas instead of join to avoid ambiguity
-            'total_amount' => (clone $query)
-                ->whereHas('order')
-                ->get()
-                ->sum(function ($payment) {
-                    return $payment->order->total_amount ?? 0;
-                }),
+            'total_payments' => $totalOrders,
+            'todays_payments' => $todaysOrders,
+            'total_amount' => $totalAmount,
         ];
     }
 

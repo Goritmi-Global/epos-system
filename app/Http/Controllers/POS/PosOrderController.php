@@ -23,8 +23,6 @@ class PosOrderController extends Controller
         return Inertia::render('Backend/POS/Index');
     }
 
-    // PosOrderController.php
-
     /**
      * Create order without payment
      */
@@ -387,7 +385,7 @@ class PosOrderController extends Controller
             }
         }
 
-        // ✅ NEW: Parse approved_discount_details
+        // NEW: Parse approved_discount_details
         $approvedDiscountDetails = [];
         if ($request->filled('approved_discount_details')) {
             try {
@@ -398,7 +396,7 @@ class PosOrderController extends Controller
             }
         }
 
-        // ✅ Parse applied_promos JSON
+        // Parse applied_promos JSON
         $appliedPromos = [];
         if ($request->filled('applied_promos')) {
             try {
@@ -409,7 +407,7 @@ class PosOrderController extends Controller
             }
         }
 
-        // ✅ Calculate total promo discount from array
+        // Calculate total promo discount from array
         $totalPromoDiscount = 0;
         if (! empty($appliedPromos)) {
             foreach ($appliedPromos as $promo) {
@@ -428,7 +426,7 @@ class PosOrderController extends Controller
         $expMonth = $pm->card->exp_month ?? null;
         $expYear = $pm->card->exp_year ?? null;
 
-        // ✅ NEW: Handle existing order context from callback query
+        // Handle existing order context from callback query
         $existingOrderId = $request->input('order_id');
         $isPartialPayment = $request->input('is_partial_payment') === '1';
         $selectedItemIds = [];
@@ -472,9 +470,9 @@ class PosOrderController extends Controller
             }
         }
 
-        // ✅ CONTEXT-AWARE FALLBACK: If explicit arrays are empty, infer from selected_item_ids
+        // CONTEXT-AWARE FALLBACK: If explicit arrays are empty, infer from selected_item_ids
         if (empty($paidItemIds) && empty($paidProductIds) && ! empty($selectedItemIds)) {
-            \Log::info('⚠️ Using context-aware fallback for ID arrays', [
+            \Log::info('Using context-aware fallback for ID arrays', [
                 'has_order_id' => ! empty($existingOrderId),
                 'selected_count' => count($selectedItemIds),
             ]);
@@ -529,15 +527,15 @@ class PosOrderController extends Controller
             'exp_month' => $expMonth,
             'exp_year' => $expYear,
 
-            // ✅ NEW: Pass the full applied_promos array
+            // Pass the full applied_promos array
             'applied_promos' => $appliedPromos,
 
-            // ✅ Keep these for backward compatibility (optional)
+            // Keep these for backward compatibility (optional)
             'promo_discount' => $totalPromoDiscount,
         ];
 
-        // ✅ NEW: If we have an existing order, we only need to process payment
-        \Log::info('🔵 Stripe Payment Attempt', [
+        // If we have an existing order, we only need to process payment
+        \Log::info('Stripe Payment Attempt', [
             'existing_order_id' => $existingOrderId,
             'is_partial_payment' => $isPartialPayment,
             'selected_item_count' => count($selectedItemIds),
@@ -572,14 +570,14 @@ class PosOrderController extends Controller
             return redirect()->route('pos.order')->with('error', $e->getMessage());
         }
 
-        \Log::info('🟢 Stripe Payment Result', [
+        \Log::info('Stripe Payment Result', [
             'order_id' => $order->id,
             'order_status' => $order->status,
             'payment_status' => $order->payment_status,
             'is_final_payment' => $isFinalPayment,
         ]);
 
-        // ✅ Build promo names string for receipt
+        // Build promo names string for receipt
         $promoNames = ! empty($appliedPromos) ? implode(', ', array_column($appliedPromos, 'promo_name')) : 'None';
 
         // Print Payload
@@ -634,7 +632,7 @@ class PosOrderController extends Controller
 
             \DB::beginTransaction();
 
-            // ✅ Find kitchen orders - with aggressive logging
+            // Find kitchen orders - with aggressive logging
             if ($order->type) {
 
                 // Get kitchen orders
@@ -695,7 +693,7 @@ class PosOrderController extends Controller
 
                     $requiredQty = ($ingredient->quantity ?? 1) * $item->quantity;
 
-                    // ✅ Find the original stockout entry for this order
+                    // Find the original stockout entry for this order
                     $stockOutEntry = \App\Models\StockEntry::where('product_id', $inventoryItem->id)
                         ->where('stock_type', 'stockout')
                         ->where('operation_type', 'pos_stockout')
@@ -703,11 +701,11 @@ class PosOrderController extends Controller
                         ->first();
 
                     if ($stockOutEntry) {
-                        // ✅ Get allocations to find which batches were used (with expiry dates)
+                        // Get allocations to find which batches were used (with expiry dates)
                         $allocations = \App\Models\StockOutAllocation::where('stock_out_entry_id', $stockOutEntry->id)
                             ->get();
 
-                        // ✅ Restore stock for each allocation (preserving expiry dates)
+                        // Restore stock for each allocation (preserving expiry dates)
                         foreach ($allocations as $allocation) {
                             \App\Models\StockEntry::create([
                                 'product_id' => $inventoryItem->id,
@@ -932,7 +930,7 @@ class PosOrderController extends Controller
      */
     public function updateTerminalCart(Request $request)
     {
-        // ✅ Use manual validation for better performance
+        // Use manual validation for better performance
         $validator = Validator::make($request->all(), [
             'terminal_id' => 'required|string|max:255',
             'cart' => 'required|array',
@@ -949,7 +947,7 @@ class PosOrderController extends Controller
         $validated = $validator->validated();
 
         try {
-            // ✅ Use firstOrCreate with proper defaults
+            // Use firstOrCreate with proper defaults
             $terminal = TerminalState::firstOrCreate(
                 ['terminal_id' => $validated['terminal_id']],
                 [
@@ -1070,7 +1068,7 @@ class PosOrderController extends Controller
                 ]
             );
 
-            // ✅ Update both in single transaction
+            // Update both in single transaction
             $terminal->updateBothData($validated['cart'], $validated['ui']);
 
             return response()->json([

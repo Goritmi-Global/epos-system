@@ -29,7 +29,8 @@ class DatabaseSeeder extends Seeder
             AllergySeeder::class,
             UnitSeeder::class,
             TagSeeder::class,
-            ShiftChecklistItemsSeeder::class
+            ShiftChecklistItemsSeeder::class,
+            WalkInCounterSeeder::class,
         ]);
     }
 }
