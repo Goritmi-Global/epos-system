@@ -1,0 +1,1 @@
+function a(){return{closeModal:n=>{const o=document.getElementById(n);if(!o){console.warn(`Modal with id "${n}" not found`);return}(bootstrap.Modal.getInstance(o)||new bootstrap.Modal(o)).hide()}}}export{a as u};

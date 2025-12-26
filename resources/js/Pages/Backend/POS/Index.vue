@@ -2247,7 +2247,7 @@ async function pushDataToCustomerView(cartData) {
 
     try {
         const res = await axios.post(
-            customer_view_url.value,
+            'http://localhost:8085/data',
             { cartData },
             {
                 headers: {
