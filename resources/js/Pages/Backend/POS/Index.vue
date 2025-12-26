@@ -3965,6 +3965,35 @@ const debouncedBroadcastCart = debounce((data) => {
     broadcastCartUpdate(data);
 }, 300); // Reduced from 500ms to 300ms
 
+async function pushDataToCustomerView(cartData) {
+    console.log("➡️ Customer View (Cart Data):", cartData);
+
+    try {
+        const res = await axios.post(
+            customer_view_url.value,
+            { cartData },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                timeout: 10000, // 10 seconds
+            },
+        );
+        console.log('✅ Data sent successfully');
+    } catch (error) {
+        if (error.code === 'ECONNABORTED') {
+            console.error("Timeout: Customer view didn't respond");
+            // toast.error("Customer view is not responding. Please check the connection.");
+        } else if (error.code === 'ERR_NETWORK') {
+            console.error("Network error: Cannot reach customer view");
+            // toast.error("Cannot reach customer view. Please ensure it's running on the network.");
+        } else {
+            console.error("Customer View failed:", error);
+            //toast.error("Unable to connect to the customer view.");
+        }
+    }
+}
+
 const debouncedBroadcastUI = debounce((data) => {
     console.log('📤 Broadcasting UI');
     broadcastUIUpdate(data);
@@ -4013,6 +4042,7 @@ watch(
     (newCart) => {
         console.log('🔔 Cart changed:', newCart.items.length, 'items, Total:', newCart.total);
         debouncedBroadcastCart(newCart);
+        pushDataToCustomerView(newCart);
     },
     { deep: true, immediate: true }
 );
