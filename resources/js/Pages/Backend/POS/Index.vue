@@ -2237,45 +2237,10 @@ async function printKot(order) {
     }
 }
 
-async function printReceiptN(order, shouldPrint) {
-
-    const printValue = shouldPrint ? 'yes' : 'no';
-    console.log("🖨️ printReceiptN called");
-    console.log("➡️ shouldPrint (boolean):", shouldPrint);
-    console.log("➡️ print value sent to printer:", printValue);
-    try {
-
-        const res = await axios.post(
-            'http://localhost:8085/print',
-            { order, type: 'customer', print: printValue },
-            {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 5000,
-            },
-        );
-    } catch (error) {
-        console.error("Print failed:", error);
-        toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
-    }
-}
-
-
 
 const paymentMethod = ref("cash");
 const changeAmount = ref(0);
 
-// async function printKot(order) {
-//     try {
-//         const response = await axios.post("/api/kot/print-receipt", { order });
-//         if (response.data.success) {
-//         } else {
-//             toast.error(response.data.message || "KOT print failed");
-//         }
-//     } catch (error) {
-//         console.error("KOT print failed:", error);
-//         toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
-//     }
-// }
 
 
 // ================================================
@@ -2833,6 +2798,7 @@ const onStripeSuccess = async (data) => {
 
         if (print_payload) {
             printReceipt(JSON.parse(JSON.stringify(print_payload)), true);
+            printKot(JSON.parse(JSON.stringify(print_payload)));
         }
 
         // ✅ REFRESH PAGE AFTER 1 SECOND TO START FRESH
@@ -5461,6 +5427,7 @@ const completeOrderPayment = async ({ paymentMethod, cashReceived, cardAmount, c
 
             // Print receipt
             printReceipt(JSON.parse(JSON.stringify(response.data.order)));
+            //printKot(JSON.parse(JSON.stringify(response.data.order)));
 
             showPaymentModal.value = false;
             selectedUnpaidOrder.value = null;
@@ -5817,24 +5784,7 @@ const handlePayItem = async (item) => {
                                             </div>
 
                                             <!--  Dynamic Price Badge with Resale -->
-                                            <span
-                                                class="position-absolute top-0 start-0 m-1 px-2 py-1 rounded-pill text-white fw-semibold"
-                                                :style="{ background: p.label_color || '#1B1670', fontSize: '0.58rem', letterSpacing: '0.3px' }">
-                                                <template
-                                                    v-if="getResaleBadgeInfo(getSelectedVariant(p) || p, !!p.variants?.length)">
-                                                    <span class="text-decoration-line-through opacity-75 me-1">
-                                                        {{ formatCurrencySymbol(getSelectedVariant(p)?.price || p.price)
-                                                        }}
-                                                    </span>
-                                                    <span class="fw-bold text-white">
-                                                        {{ formatCurrencySymbol(getTotalPriceWithResale(p)) }}
-                                                    </span>
-                                                </template>
-
-                                                <template v-else>
-                                                    {{ formatCurrencySymbol(getSelectedVariant(p)?.price || p.price) }}
-                                                </template>
-                                            </span>
+                                            
 
                                             <!-- OUT OF STOCK Badge -->
                                             <span v-if="getProductStock(p) <= 0"
@@ -5860,6 +5810,25 @@ const handlePayItem = async (item) => {
                                                 {{ p.variants && p.variants.length > 0
                                                     ? getResaleBadgeInfo(getSelectedVariant(p), true).display
                                                     : getResaleBadgeInfo(p, false).display }}
+                                            </span>
+
+                                            <span
+                                                class=" m-1 px-2 py-1 rounded-pill text-white fw-semibold"
+                                                :style="{ background: p.label_color || '#1B1670', fontSize: '0.58rem', letterSpacing: '0.3px' }">
+                                                <template
+                                                    v-if="getResaleBadgeInfo(getSelectedVariant(p) || p, !!p.variants?.length)">
+                                                    <span class="text-decoration-line-through opacity-75 me-1">
+                                                        {{ formatCurrencySymbol(getSelectedVariant(p)?.price || p.price)
+                                                        }}
+                                                    </span>
+                                                    <span class="fw-bold text-white">
+                                                        {{ formatCurrencySymbol(getTotalPriceWithResale(p)) }}
+                                                    </span>
+                                                </template>
+
+                                                <template v-else>
+                                                    {{ formatCurrencySymbol(getSelectedVariant(p)?.price || p.price) }}
+                                                </template>
                                             </span>
 
                                             <div>
