@@ -5934,340 +5934,286 @@ const handlePayItem = async (item) => {
                     </div>
 
                     <!-- RIGHT: Cart -->
+                    <!-- RIGHT: Cart - Optimized for Small Screens -->
                     <div class="col-lg-4 right-cart" v-if="!showCategories">
 
-                        <div class="col-12 d-flex align-items-center justify-content-end gap-2 mb-2">
-                            <!-- KOT Orders button -->
-                            <!-- <button class="btn btn-primary rounded-pill d-flex align-items-center gap-2 px-4"
-                                @click="openOrderModal">
-                                <Package class="lucide-icon" width="16" height="16" />
-                                KOT
-                            </button> -->
-
-                            <!-- POS Orders button -->
-                            <!-- <button class="btn btn-success rounded-pill d-flex align-items-center gap-2 px-3"
-                                @click="openPosOrdersModal">
-                                <ShoppingCart class="lucide-icon" width="16" height="16" />
-                                Orders
-                            < </button> -->
-                            <button class="btn pending btn-info px-3 py-2" @click="openPendingOrdersModal">
-                                Pending
+                        <!-- Compact Action Buttons Row -->
+                        <div class="action-buttons-compact mb-2">
+                            <button class="btn-compact btn-pending" @click="openPendingOrdersModal">
+                                <i class="bi bi-hourglass-split"></i>
+                                <span class="btn-label">Pending</span>
                                 <span v-if="pendingOrders.filter(o => o.type === 'held').length > 0"
-                                    class="badge bg-danger ms-1">
+                                    class="badge-count">
                                     {{pendingOrders.filter(o => o.type === 'held').length}}
                                 </span>
                             </button>
-                            <button class="btn btn-warning px-3 py-2" @click="openUnpaidOrdersModal">
-                                Unpaid
+
+                            <button class="btn-compact btn-unpaid" @click="openUnpaidOrdersModal">
+                                <i class="bi bi-cash-stack"></i>
+                                <span class="btn-label">Unpaid</span>
                                 <span v-if="pendingOrders.filter(o => o.type === 'unpaid').length > 0"
-                                    class="badge bg-danger ms-1">
+                                    class="badge-count">
                                     {{pendingOrders.filter(o => o.type === 'unpaid').length}}
                                 </span>
                             </button>
 
+                            <button class="btn-compact btn-promo" @click="openPromoModal">
+                                <i class="bi bi-gift"></i>
+                                <span class="btn-label">Promos</span>
+                            </button>
+
+                            <button class="btn-compact btn-discount" @click="openDiscountModal">
+                                <i class="bi bi-percent"></i>
+                                <span class="btn-label">Discounts</span>
+                            </button>
                         </div>
 
-                        <div class="col-12 d-flex align-items-center justify-content-end gap-2 mb-2">
-                            <button class="btn btn-warning px-3 py-2 promos-btn" @click="openPromoModal">
-                                Promos
-                            </button>
-                            <button class="btn btn-warning px-3 py-2 discount-btn" @click="openDiscountModal">
-                                Discounts
-                            </button>
-                        </div>
+                        <div class="cart card border-0 shadow-sm">
 
-                        <div class="cart card border-0 shadow-lg rounded-4">
-
-                            <div class="cart-header">
-
-                                <div class="order-type">
-                                    <button v-for="(type, i) in orderTypes" :key="i"
-                                        class="ot-pill btn cart-header-buttons" :class="{ active: orderType === type }"
-                                        @click="orderType = type">
+                            <!-- Compact Order Type Pills -->
+                            <div class="cart-header-compact">
+                                <div class="order-type-pills">
+                                    <button v-for="(type, i) in orderTypes" :key="i" class="type-pill"
+                                        :class="{ active: orderType === type }" @click="orderType = type">
                                         {{ type.replace(/_/g, " ") }}
                                     </button>
-                                    <div class="d-flex justify-content-between mb-3">
-
-                                    </div>
                                 </div>
                             </div>
 
-                            <div class="cart-body">
-                                <!-- Dine-in table / customer -->
-                                <div class="mb-3">
+                            <div class="cart-body-compact">
 
-                                    <div v-if="orderType === 'Eat_in'" class="row g-2 ">
-                                        <div class="col-6 table-dropdown">
-                                            <label class="form-label small">Table</label>
-                                            <select v-model="selectedTable" class="form-select form-select-sm">
-                                                <option :value="null">Select Table</option>
+                                <!-- Customer/Table Info - Condensed -->
+                                <div class="customer-section">
+
+                                    <!-- Eat In: Table + Customer in one row -->
+                                    <div v-if="orderType === 'Eat_in'" class="row g-2">
+                                        <div class="col-6">
+                                            <select v-model="selectedTable" class="form-select-compact">
+                                                <option :value="null">Table</option>
                                                 <option v-for="(table, idx) in profileTables.table_details" :key="idx"
                                                     :value="table">
                                                     {{ table.name }}
                                                 </option>
                                             </select>
-                                            <div v-if="formErrors.table_number" class="invalid-feedback d-block">
+                                            <div v-if="formErrors.table_number" class="error-text">
                                                 {{ formErrors.table_number[0] }}
                                             </div>
                                         </div>
-                                        <div class="col-6 table-dropdown">
-                                            <label class="form-label small">Customer</label>
-                                            <input v-model="customer" class="form-control form-control-sm"
-                                                placeholder="Walk In" />
+                                        <div class="col-6">
+                                            <input v-model="customer" class="form-control-compact"
+                                                placeholder="Customer" />
                                         </div>
                                     </div>
 
-                                    <div v-else>
-                                        <label class="form-label small">Customer</label>
-                                        <input v-model="customer" class="form-control form-control-sm"
-                                            placeholder="Walk In" :class="{ 'is-invalid': formErrors.customer }" />
-
-                                        <div v-if="formErrors.customer" class="invalid-feedback d-block">
+                                    <!-- Takeaway/Collection -->
+                                    <div v-else-if="orderType !== 'Delivery'">
+                                        <input v-model="customer" class="form-control-compact"
+                                            placeholder="Customer Name"
+                                            :class="{ 'is-invalid': formErrors.customer }" />
+                                        <div v-if="formErrors.customer" class="error-text">
                                             {{ formErrors.customer[0] }}
                                         </div>
                                     </div>
 
-                                    <!-- if delivery then show location and phone no  -->
-                                    <div v-if="orderType === 'Delivery'" class="mt-2">
-                                        <label class="form-label small">Delivery Location</label>
-                                        <input v-model="deliveryLocation" class="form-control form-control-sm"
-                                            placeholder="Enter delivery location" />
-                                        <div v-if="formErrors.delivery_location" class="invalid-feedback d-block">
-                                            {{ formErrors.delivery_location[0] }}
-                                        </div>
-                                        <label class="form-label small mt-2">Phone Number</label>
-                                        <input v-model="phoneNumber" class="form-control form-control-sm"
-                                            placeholder="Enter phone number" />
-                                        <div v-if="formErrors.phone_number" class="invalid-feedback d-block">
+                                    <!-- Delivery: Compact Grid -->
+                                    <div v-else class="delivery-grid">
+                                        <input v-model="customer" class="form-control-compact"
+                                            placeholder="Customer Name"
+                                            :class="{ 'is-invalid': formErrors.customer }" />
+
+                                        <input v-model="phoneNumber" class="form-control-compact"
+                                            placeholder="Phone Number" />
+                                        <div v-if="formErrors.phone_number" class="error-text">
                                             {{ formErrors.phone_number[0] }}
+                                        </div>
+
+                                        <input v-model="deliveryLocation" class="form-control-compact"
+                                            placeholder="Delivery Address" />
+                                        <div v-if="formErrors.delivery_location" class="error-text">
+                                            {{ formErrors.delivery_location[0] }}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="cart-lines">
-                                    <div v-if="orderItems.length === 0" class="empty">
-                                        Add items from the left
+                                <!-- Cart Items - Optimized Layout -->
+                                <div class="cart-items-compact">
+                                    <div v-if="orderItems.length === 0" class="empty-cart">
+                                        <i class="bi bi-cart3"></i>
+                                        <p>Tap items to add</p>
                                     </div>
 
-                                    <div v-for="(it, i) in orderItems" :key="it.title" class="line">
-                                        <!-- Left: Image + Meta -->
-                                        <!-- {{ it.title.length > 4 ? it.title.slice(0, 10) + '...' : it.title }} -->
-                                        <div class="line-left">
-                                            <img :src="it.img" alt="" />
-                                            <div class="meta">
-                                                <div class="name" :title="it.title">
-                                                    {{ it.title }}
-                                                </div>
-                                                <div v-if="it.resale_discount_per_item > 0">
-                                                    <span class="badge bg-success" style="font-size: 0.65rem;">
-                                                        <i class="bi bi-tag-fill"></i>
+                                    <div v-for="(it, i) in orderItems" :key="'item-' + i" class="cart-item">
+
+                                        <!-- Item Info -->
+                                        <div class="item-info">
+                                            <img :src="it.img" alt="" class="item-thumb" />
+                                            <div class="item-details">
+                                                <div class="item-name" :title="it.title">{{ it.title }}</div>
+
+                                                <!-- Badges Row -->
+                                                <div class="item-badges">
+                                                    <span v-if="it.resale_discount_per_item > 0" class="badge-sale">
                                                         Save {{ formatCurrencySymbol(it.resale_discount_per_item) }}
-
                                                     </span>
-                                                </div>
-                                                <!-- Addon Icons (clickable) -->
 
+                                                    <span v-if="it.variant_name" class="badge-variant">
+                                                        {{ it.variant_name }}
+                                                    </span>
 
-                                                <div v-if="it.addons && it.addons.length > 0" class="addon-icons mt-1">
-                                                    <button class="btn-link p-0 py-0 text-decoration-none"
-                                                        @click="openAddonModal(it, i)" :title="getAddonTooltip(it)">
-                                                        <i class="bi bi-plus-circle-fill text-primary me-1"
-                                                            style="font-size: 0.9rem;"></i>
-                                                        <span class="text-muted small">{{ it.addons.length }}
-                                                            addon(s)</span>
+                                                    <span v-if="isItemEligibleForPromo(it)" class="badge-promo">
+                                                        <i class="bi bi-tag-fill"></i>
+                                                    </span>
+
+                                                    <button v-if="it.addons && it.addons.length > 0" class="badge-addon"
+                                                        @click="openAddonModal(it, i)">
+                                                        <i class="bi bi-plus-circle-fill"></i> {{ it.addons.length }}
                                                     </button>
                                                 </div>
 
-                                                <span v-if="isItemEligibleForPromo(it)"
-                                                    class="badge bg-success mt-1 ms-1" style="font-size: 0.65rem;">
-                                                    <i class="bi bi-tag-fill"></i>
-                                                </span>
-
-                                                <!-- Show variant name badge (always show if exists) -->
-                                                <div v-if="it.variant_name" class="mt-1">
-                                                    <span class="badge"
-                                                        style="font-size: 0.65rem; background: #1B1670; color: white;">
-                                                        {{ it.variant_name }}
-                                                    </span>
-                                                </div>
-
-                                                <div class="note" v-if="it.note">
-                                                    {{ it.note }}
-                                                </div>
+                                                <div v-if="it.note" class="item-note">{{ it.note }}</div>
                                             </div>
                                         </div>
 
-                                        <!-- Right: Controls + Price (Stacked Vertically) -->
-                                        <div class="line-right">
-                                            <!-- Quantity Controls on Top -->
-                                            <div class="qty-controls">
+                                        <!-- Quantity & Price Controls -->
+                                        <div class="item-controls">
+                                            <div class="qty-row">
                                                 <button class="qty-btn" @click="decCart(i)">−</button>
-                                                <div class="qty">{{ it.qty }}</div>
+                                                <span class="qty-display">{{ it.qty }}</span>
                                                 <button class="qty-btn" @click="incCart(i)">+</button>
                                             </div>
-
-                                            <!-- Price and Delete Below -->
-                                            <div class="price-delete">
-                                                <div class="price">
-                                                    {{ formatCurrencySymbol(it.price) }}
-                                                </div>
-                                                <button class="del" @click="removeCart(i)">
-                                                    <i class="bi bi-trash"></i>
+                                            <div class="price-row">
+                                                <span class="item-price">{{ formatCurrencySymbol(it.price) }}</span>
+                                                <button class="btn-delete" @click="removeCart(i)">
+                                                    <i class="bi bi-trash3"></i>
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Totals -->
-                                <div class="totals">
+                                <!-- Totals Section - Compact -->
+                                <div class="totals-compact">
+
                                     <!-- Sub Total -->
-                                    <div class="trow">
-                                        <span>Sub Total</span>
-                                        <b class="sub-total">{{ formatCurrencySymbol(subTotal) }}</b>
+                                    <div class="total-row">
+                                        <span>Subtotal</span>
+                                        <strong>{{ formatCurrencySymbol(subTotal) }}</strong>
                                     </div>
 
-                                    <!-- Add-ons Total (Optional - for clarity) -->
-                                    <div v-if="totalAddons > 0" class="trow">
-                                        <span class="text-muted">
-                                            <!-- <i class="bi bi-plus-circle text-success"></i> -->
-                                            Add-ons Total:
-                                        </span>
-                                        <span class="text-success fw-semibold">{{ formatCurrencySymbol(totalAddons)
-                                            }}</span>
+                                    <!-- Add-ons -->
+                                    <div v-if="totalAddons > 0" class="total-row text-success">
+                                        <span>Add-ons</span>
+                                        <span>+{{ formatCurrencySymbol(totalAddons) }}</span>
                                     </div>
 
-                                    <!-- Tax Row -->
-                                    <div class="trow" v-if="totalTax > 0">
-                                        <span class="d-flex align-items-center gap-2">
-                                            <i class="bi bi-receipt text-info"></i>
-                                            Tax
-                                        </span>
-                                        <b class="text-info">{{ formatCurrencySymbol(totalTax) }}</b>
+                                    <!-- Tax -->
+                                    <div v-if="totalTax > 0" class="total-row">
+                                        <span>Tax</span>
+                                        <span>{{ formatCurrencySymbol(totalTax) }}</span>
                                     </div>
 
                                     <!-- Service Charges -->
-                                    <div v-if="serviceCharges > 0" class="trow">
-                                        <span class="text-muted">Service Charges:</span>
-                                        <span class="fw-semibold">{{ formatCurrencySymbol(serviceCharges) }}</span>
+                                    <div v-if="serviceCharges > 0" class="total-row">
+                                        <span>Service</span>
+                                        <span>{{ formatCurrencySymbol(serviceCharges) }}</span>
                                     </div>
 
                                     <!-- Delivery Charges -->
-                                    <div v-if="deliveryCharges > 0" class="trow">
-                                        <span class="text-muted">Delivery Charges:</span>
-                                        <span class="fw-semibold">{{ formatCurrencySymbol(deliveryCharges) }}</span>
+                                    <div v-if="deliveryCharges > 0" class="total-row">
+                                        <span>Delivery</span>
+                                        <span>{{ formatCurrencySymbol(deliveryCharges) }}</span>
                                     </div>
 
                                     <!-- Sale Discount -->
-                                    <div v-if="totalResaleSavings > 0" class="trow">
-                                        <span class="d-flex align-items-center gap-2">
-                                            <!-- <i class="bi bi-tag text-danger"></i> -->
-                                            <span class="text-danger">Sale Discount:</span>
-                                        </span>
-                                        <b class="text-danger">-{{ formatCurrencySymbol(totalResaleSavings) }}</b>
+                                    <div v-if="totalResaleSavings > 0" class="total-row text-danger">
+                                        <span>Sale Discount</span>
+                                        <strong>-{{ formatCurrencySymbol(totalResaleSavings) }}</strong>
                                     </div>
 
                                     <!-- Promo Discount -->
-                                    <div v-if="selectedPromos && selectedPromos.length > 0" class="promos-section mb-3">
-                                        <div class="promo-total mt-2 rounded-3 bg-success-subtle">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <span class="text-success">Promo Discount:</span>
-                                                <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
-                                            </div>
-                                        </div>
+                                    <div v-if="selectedPromos && selectedPromos.length > 0"
+                                        class="total-row discount-row">
+                                        <span class="text-success">
+                                            <i class="bi bi-gift me-1"></i>Promo
+                                        </span>
+                                        <strong class="text-success">-{{ formatCurrencySymbol(promoDiscount) }}</strong>
                                     </div>
 
-                                    <!--  Pending Percentage Discounts (NOT deducted yet) -->
-                                    <div v-if="pendingDiscountApprovals.length > 0"
-                                        class="pending-discounts-section mb-3">
-                                        <div class="alert alert-warning py-2 px-3 mb-2">
-                                            <div class="d-flex align-items-center gap-2">
-                                                <i class="bi bi-clock-history"></i>
-                                                <small class="fw-semibold">Pending Approval</small>
-                                            </div>
+                                    <!-- Pending Discounts -->
+                                    <div v-if="pendingDiscountApprovals.length > 0" class="pending-section">
+                                        <div class="pending-header">
+                                            <i class="bi bi-clock-history"></i>
+                                            <small>Pending Approval</small>
                                         </div>
                                         <div v-for="approval in pendingDiscountApprovals" :key="approval.id"
-                                            class="trow">
-                                            <span class="d-flex align-items-center gap-2 text-warning">
-                                                <i class="bi bi-hourglass-split"></i>
-                                                <span>{{ approval.discountData?.name || 'Discount' }} ({{
-                                                    approval.percentage }}%)</span>
-                                            </span>
-                                            <span class="text-warning">
-                                                -{{ formatCurrencySymbol(getDiscountAmount(approval.percentage)) }}
-                                            </span>
+                                            class="total-row text-warning">
+                                            <span>{{ approval.discountData?.name || 'Discount' }} ({{
+                                                approval.percentage }}%)</span>
+                                            <span>-{{ formatCurrencySymbol(getDiscountAmount(approval.percentage))
+                                                }}</span>
                                         </div>
-                                        <small class="text-muted d-block mt-1 ms-4">
-                                            <i class="bi bi-info-circle me-1"></i>
-                                            Will apply after Super Admin approval
-                                        </small>
                                     </div>
-                                    <!--  Approved Percentage Discounts (Dynamically calculated) -->
-                                    <div v-if="selectedDiscounts.length > 0" class="approved-discounts-section mb-3">
-                                        <!-- Total Approved Discount -->
-                                        <div class="trow border-top pt-2 mt-2">
-                                            <div class="d-flex align-items-center text-success gap-2">
-                                                <i class="bi bi-check-circle"></i>
-                                                <small class="fw-semibold">Approved Discounts</small>
 
-                                                <!-- NEW: Info Icon with Popover -->
-                                                <i class="bi bi-info-circle text-muted" tabindex="0" role="button"
-                                                    data-bs-toggle="popover" data-bs-trigger="click" data-bs-html="true"
-                                                    data-bs-placement="top" data-bs-container="body"
-                                                    data-bs-content="Auto-updates with cart changes<br>Approved Discounts">
-                                                </i>
-                                            </div>
-                                            <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                            }}</b>
-                                        </div>
+                                    <!-- Approved Discounts -->
+                                    <div v-if="selectedDiscounts.length > 0" class="total-row discount-row">
+                                        <span class="text-success">
+                                            <i class="bi bi-check-circle me-1"></i>Discounts
+                                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip"
+                                                title="Auto-updates with cart"></i>
+                                        </span>
+                                        <strong class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
+                                            }}</strong>
                                     </div>
-                                    <!-- Total After All Discounts -->
-                                    <div class="trow total">
-                                        <span>Total</span>
-                                        <b>{{ formatCurrencySymbol(grandTotal) }}</b>
+
+                                    <!-- Grand Total -->
+                                    <div class="total-row grand-total">
+                                        <span>TOTAL</span>
+                                        <strong>{{ formatCurrencySymbol(grandTotal) }}</strong>
                                     </div>
                                 </div>
 
-                                <div class="">
-                                    <Accordion>
-                                        <AccordionPanel value="0">
-                                            <AccordionHeader>Front Note</AccordionHeader>
-                                            <AccordionContent>
-                                                <div class="mb-3">
-                                                    <textarea id="frontNote" v-model="note" rows="3"
-                                                        class="form-control form-control-sm rounded-3"
-                                                        placeholder="Enter front note..."></textarea>
-                                                </div>
+                                <!-- Notes Section - Collapsible -->
+                                <div class="notes-section">
+                                    <details class="note-details">
+                                        <summary>
+                                            <i class="bi bi-chat-left-text me-2"></i>Front Note
+                                            <i class="bi bi-chevron-down ms-auto"></i>
+                                        </summary>
+                                        <textarea v-model="note" rows="2" class="form-control-compact"
+                                            placeholder="Add front note..."></textarea>
+                                    </details>
 
-                                            </AccordionContent>
-                                        </AccordionPanel>
-                                        <AccordionPanel value="1">
-                                            <AccordionHeader>Kitchen Note</AccordionHeader>
-                                            <AccordionContent>
-                                                <div class="mb-3">
-                                                    <textarea id="kitchenNote" v-model="kitchenNote" rows="3"
-                                                        class="form-control form-control-sm rounded-3"
-                                                        placeholder="Enter kitchen note..."></textarea>
-                                                </div>
-                                            </AccordionContent>
-                                        </AccordionPanel>
-                                    </Accordion>
+                                    <details class="note-details">
+                                        <summary>
+                                            <i class="bi bi-egg-fried me-2"></i>Kitchen Note
+                                            <i class="bi bi-chevron-down ms-auto"></i>
+                                        </summary>
+                                        <textarea v-model="kitchenNote" rows="2" class="form-control-compact"
+                                            placeholder="Add kitchen note..."></textarea>
+                                    </details>
                                 </div>
                             </div>
-                            <div class="cart-footer">
-                                <button class="btn btn-secondary btn-clear" @click="resetCart()">
-                                    Clear
+
+                            <!-- Action Buttons - Fixed Bottom -->
+                            <div class="cart-footer-compact">
+                                <button class="btn-action btn-clear" @click="resetCart()">
+                                    <i class="bi bi-x-circle"></i>
+                                    <span>Clear</span>
                                 </button>
-                                <button class="btn btn-warning" @click="holdOrderAsPending">
-                                    Pending
+
+                                <button class="btn-action btn-hold" @click="holdOrderAsPending">
+                                    <i class="bi bi-pause-circle"></i>
+                                    <span>Hold</span>
                                 </button>
-                                <button class="btn btn-primary btn-place" @click="openConfirmModal">
-                                    Place Order
+
+                                <button class="btn-action btn-later" @click="placeOrderWithoutPayment">
+                                    <i class="bi bi-clock"></i>
+                                    <span>Pay Later</span>
                                 </button>
-                                <button class="btn btn-info" @click="placeOrderWithoutPayment">
-                                    <i class="bi bi-clock me-1"></i>
-                                    Pay Later
+
+                                <button class="btn-action btn-place" @click="openConfirmModal">
+                                    <i class="bi bi-check-circle"></i>
+                                    <span>Place Order</span>
                                 </button>
                             </div>
                         </div>
@@ -6562,7 +6508,7 @@ const handlePayItem = async (item) => {
                                             <span class="text-muted">Add-ons</span>
                                             <strong class="text-success">+ {{
                                                 formatCurrencySymbol(getModalAddonsPrice())
-                                            }}</strong>
+                                                }}</strong>
                                         </div>
 
                                         <hr class="my-2">
@@ -6600,7 +6546,7 @@ const handlePayItem = async (item) => {
                                                             <div>
                                                                 <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
                                                                     variant.name
-                                                                }}</h6>
+                                                                    }}</h6>
                                                             </div>
                                                             <div
                                                                 class="d-flex justify-content-between align-items-center gap-2">
@@ -8892,5 +8838,556 @@ const handlePayItem = async (item) => {
         flex-direction: column;
     }
 
+}
+
+
+
+/* NEW STYLE */
+/* ===== COMPACT ACTION BUTTONS ===== */
+.action-buttons-compact {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+}
+
+.btn-compact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.3rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    position: relative;
+    transition: all 0.2s;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-compact i {
+    font-size: 1.1rem;
+    margin-bottom: 0.2rem;
+}
+
+.btn-compact .btn-label {
+    font-size: 0.7rem;
+}
+
+.btn-compact .badge-count {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.25rem;
+    background: #dc3545;
+    color: white;
+    border-radius: 10px;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+}
+
+.btn-pending {
+    color: #0dcaf0;
+}
+
+.btn-pending:active {
+    background: #e7f6f9;
+}
+
+.btn-unpaid {
+    color: #ffc107;
+}
+
+.btn-unpaid:active {
+    background: #fff9e6;
+}
+
+.btn-promo {
+    color: #198754;
+}
+
+.btn-promo:active {
+    background: #e8f5e9;
+}
+
+.btn-discount {
+    color: #fd7e14;
+}
+
+.btn-discount:active {
+    background: #fff4e6;
+}
+
+/* ===== CART CONTAINER ===== */
+.cart {
+    border-radius: 1rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 140px);
+    background: #f8f9fa;
+}
+
+/* ===== HEADER ===== */
+.cart-header-compact {
+    background: white;
+    padding: 0.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.order-type-pills {
+    display: flex;
+    gap: 0.3rem;
+    background: #f1f3f5;
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+}
+
+.type-pill {
+    flex: 1;
+    padding: 0.5rem 0.3rem;
+    border: none;
+    background: transparent;
+    border-radius: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6c757d;
+    transition: all 0.2s;
+    text-transform: capitalize;
+}
+
+.type-pill.active {
+    background: white;
+    color: #0d6efd;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== BODY ===== */
+.cart-body-compact {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem;
+}
+
+/* Customer Section */
+.customer-section {
+    margin-bottom: 0.75rem;
+}
+
+.form-select-compact,
+.form-control-compact {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+    width: 100%;
+}
+
+.form-select-compact:focus,
+.form-control-compact:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+.delivery-grid {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.error-text {
+    color: #dc3545;
+    font-size: 0.7rem;
+    margin-top: 0.2rem;
+}
+
+/* ===== CART ITEMS ===== */
+.cart-items-compact {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 0.5rem;
+    margin-bottom: 0.75rem;
+    max-height: 35vh;
+    overflow-y: auto;
+}
+
+.empty-cart {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #adb5bd;
+}
+
+.empty-cart i {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.cart-item {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid #f1f3f5;
+    align-items: flex-start;
+}
+
+.cart-item:last-child {
+    border-bottom: none;
+}
+
+/* Item Info */
+.item-info {
+    flex: 1;
+    display: flex;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.item-thumb {
+    width: 45px;
+    height: 45px;
+    object-fit: cover;
+    border-radius: 0.4rem;
+    flex-shrink: 0;
+}
+
+.item-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.item-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #212529;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.25rem;
+}
+
+.item-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.item-badges>* {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    border: none;
+    background: none;
+}
+
+.badge-sale {
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-variant {
+    background: #1B1670;
+    color: white;
+}
+
+.badge-promo {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.badge-addon {
+    background: #cfe2ff;
+    color: #084298;
+    cursor: pointer;
+}
+
+.badge-addon:active {
+    background: #b6d4fe;
+}
+
+.item-note {
+    font-size: 0.7rem;
+    color: #6c757d;
+    font-style: italic;
+    margin-top: 0.25rem;
+}
+
+/* Item Controls */
+.item-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: flex-end;
+}
+
+.qty-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #f8f9fa;
+    border-radius: 0.4rem;
+    padding: 0.15rem;
+}
+
+.qty-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: white;
+    border-radius: 0.3rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0d6efd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.qty-btn:active {
+    background: #e7f1ff;
+}
+
+.qty-display {
+    min-width: 28px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.price-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.item-price {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+.btn-delete {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: #fee;
+    color: #dc3545;
+    border-radius: 0.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+.btn-delete:active {
+    background: #fdd;
+}
+
+/* ===== TOTALS ===== */
+.totals-compact {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.total-row:last-child {
+    border-bottom: none;
+}
+
+.total-row.discount-row {
+    background: #e8f5e9;
+    margin: 0.25rem -0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.4rem;
+}
+
+.grand-total {
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 2px solid #dee2e6;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0d6efd;
+}
+
+.pending-section {
+    background: #fff3cd;
+    padding: 0.5rem;
+    border-radius: 0.4rem;
+    margin: 0.5rem 0;
+}
+
+.pending-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #856404;
+    margin-bottom: 0.25rem;
+}
+
+/* ===== NOTES ===== */
+.notes-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.note-details {
+    background: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.note-details summary {
+    padding: 0.6rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    user-select: none;
+}
+
+.note-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.note-details[open] summary {
+    border-bottom: 1px solid #e9ecef;
+}
+
+.note-details textarea {
+    margin: 0.5rem;
+    width: calc(100% - 1rem);
+    border: 1px solid #dee2e6;
+}
+
+/* ===== FOOTER ===== */
+.cart-footer-compact {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: white;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 0.5rem;
+    border: none;
+    border-radius: 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    gap: 0.25rem;
+}
+
+.btn-action i {
+    font-size: 1.3rem;
+}
+
+.btn-clear {
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+.btn-clear:active {
+    background: #e9ecef;
+}
+
+.btn-hold {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.btn-hold:active {
+    background: #ffe8a1;
+}
+
+.btn-later {
+    background: #cfe2ff;
+    color: #084298;
+}
+
+.btn-later:active {
+    background: #b6d4fe;
+}
+
+.btn-place {
+    background: #0d6efd;
+    color: white;
+}
+
+.btn-place:active {
+    background: #0b5ed7;
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+.cart-items-compact::-webkit-scrollbar,
+.cart-body-compact::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cart-items-compact::-webkit-scrollbar-track,
+.cart-body-compact::-webkit-scrollbar-track {
+    background: #f1f3f5;
+    border-radius: 10px;
+}
+
+.cart-items-compact::-webkit-scrollbar-thumb,
+.cart-body-compact::-webkit-scrollbar-thumb {
+    background: #dee2e6;
+    border-radius: 10px;
+}
+
+.cart-items-compact::-webkit-scrollbar-thumb:hover,
+.cart-body-compact::-webkit-scrollbar-thumb:hover {
+    background: #adb5bd;
+}
+
+/* ===== RESPONSIVE TWEAKS ===== */
+@media (max-width: 768px) {
+    .cart {
+        height: calc(100vh - 120px);
+    }
+
+    .cart-items-compact {
+        max-height: 30vh;
+    }
+}
+
+/* Tablet landscape optimization */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+    .cart {
+        height: calc(100vh - 100px);
+    }
+
+    .cart-items-compact {
+        max-height: 25vh;
+    }
+
+    .cart-footer-compact {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 </style>
