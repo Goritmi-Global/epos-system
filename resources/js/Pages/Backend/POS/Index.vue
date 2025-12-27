@@ -5368,7 +5368,7 @@ const placeOrderWithoutPayment = async () => {
 
         if (response.data.success) {
             toast.success('Order placed successfully! Payment pending.');
-            printKot(JSON.parse(JSON.stringify(response.data.order)));
+printKot(JSON.parse(JSON.stringify(response.data.order)));
             // // Print KOT
             // if (response.data.kot) {
             //     printKot(JSON.parse(JSON.stringify(response.data.order)));
@@ -5934,286 +5934,340 @@ const handlePayItem = async (item) => {
                     </div>
 
                     <!-- RIGHT: Cart -->
-                    <!-- RIGHT: Cart - Optimized for Small Screens -->
                     <div class="col-lg-4 right-cart" v-if="!showCategories">
 
-                        <!-- Compact Action Buttons Row -->
-                        <div class="action-buttons-compact mb-2">
-                            <button class="btn-compact btn-pending" @click="openPendingOrdersModal">
-                                <i class="bi bi-hourglass-split"></i>
-                                <span class="btn-label">Pending</span>
+                        <div class="col-12 d-flex align-items-center justify-content-end gap-2 mb-2">
+                            <!-- KOT Orders button -->
+                            <!-- <button class="btn btn-primary rounded-pill d-flex align-items-center gap-2 px-4"
+                                @click="openOrderModal">
+                                <Package class="lucide-icon" width="16" height="16" />
+                                KOT
+                            </button> -->
+
+                            <!-- POS Orders button -->
+                            <!-- <button class="btn btn-success rounded-pill d-flex align-items-center gap-2 px-3"
+                                @click="openPosOrdersModal">
+                                <ShoppingCart class="lucide-icon" width="16" height="16" />
+                                Orders
+                            < </button> -->
+                            <button class="btn pending btn-info px-3 py-2" @click="openPendingOrdersModal">
+                                Pending
                                 <span v-if="pendingOrders.filter(o => o.type === 'held').length > 0"
-                                    class="badge-count">
+                                    class="badge bg-danger ms-1">
                                     {{pendingOrders.filter(o => o.type === 'held').length}}
                                 </span>
                             </button>
-
-                            <button class="btn-compact btn-unpaid" @click="openUnpaidOrdersModal">
-                                <i class="bi bi-cash-stack"></i>
-                                <span class="btn-label">Unpaid</span>
+                            <button class="btn btn-warning px-3 py-2" @click="openUnpaidOrdersModal">
+                                Unpaid
                                 <span v-if="pendingOrders.filter(o => o.type === 'unpaid').length > 0"
-                                    class="badge-count">
+                                    class="badge bg-danger ms-1">
                                     {{pendingOrders.filter(o => o.type === 'unpaid').length}}
                                 </span>
                             </button>
 
-                            <button class="btn-compact btn-promo" @click="openPromoModal">
-                                <i class="bi bi-gift"></i>
-                                <span class="btn-label">Promos</span>
-                            </button>
+                        </div>
 
-                            <button class="btn-compact btn-discount" @click="openDiscountModal">
-                                <i class="bi bi-percent"></i>
-                                <span class="btn-label">Discounts</span>
+                        <div class="col-12 d-flex align-items-center justify-content-end gap-2 mb-2">
+                            <button class="btn btn-warning px-3 py-2 promos-btn" @click="openPromoModal">
+                                Promos
+                            </button>
+                            <button class="btn btn-warning px-3 py-2 discount-btn" @click="openDiscountModal">
+                                Discounts
                             </button>
                         </div>
 
-                        <div class="cart card border-0 shadow-sm">
+                        <div class="cart card border-0 shadow-lg rounded-4">
 
-                            <!-- Compact Order Type Pills -->
-                            <div class="cart-header-compact">
-                                <div class="order-type-pills">
-                                    <button v-for="(type, i) in orderTypes" :key="i" class="type-pill"
-                                        :class="{ active: orderType === type }" @click="orderType = type">
+                            <div class="cart-header">
+
+                                <div class="order-type">
+                                    <button v-for="(type, i) in orderTypes" :key="i"
+                                        class="ot-pill btn cart-header-buttons" :class="{ active: orderType === type }"
+                                        @click="orderType = type">
                                         {{ type.replace(/_/g, " ") }}
                                     </button>
+                                    <div class="d-flex justify-content-between mb-3">
+
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="cart-body-compact">
+                            <div class="cart-body">
+                                <!-- Dine-in table / customer -->
+                                <div class="mb-3">
 
-                                <!-- Customer/Table Info - Condensed -->
-                                <div class="customer-section">
-
-                                    <!-- Eat In: Table + Customer in one row -->
-                                    <div v-if="orderType === 'Eat_in'" class="row g-2">
-                                        <div class="col-6">
-                                            <select v-model="selectedTable" class="form-select-compact">
-                                                <option :value="null">Table</option>
+                                    <div v-if="orderType === 'Eat_in'" class="row g-2 ">
+                                        <div class="col-6 table-dropdown">
+                                            <label class="form-label small">Table</label>
+                                            <select v-model="selectedTable" class="form-select form-select-sm">
+                                                <option :value="null">Select Table</option>
                                                 <option v-for="(table, idx) in profileTables.table_details" :key="idx"
                                                     :value="table">
                                                     {{ table.name }}
                                                 </option>
                                             </select>
-                                            <div v-if="formErrors.table_number" class="error-text">
+                                            <div v-if="formErrors.table_number" class="invalid-feedback d-block">
                                                 {{ formErrors.table_number[0] }}
                                             </div>
                                         </div>
-                                        <div class="col-6">
-                                            <input v-model="customer" class="form-control-compact"
-                                                placeholder="Customer" />
+                                        <div class="col-6 table-dropdown">
+                                            <label class="form-label small">Customer</label>
+                                            <input v-model="customer" class="form-control form-control-sm"
+                                                placeholder="Walk In" />
                                         </div>
                                     </div>
 
-                                    <!-- Takeaway/Collection -->
-                                    <div v-else-if="orderType !== 'Delivery'">
-                                        <input v-model="customer" class="form-control-compact"
-                                            placeholder="Customer Name"
-                                            :class="{ 'is-invalid': formErrors.customer }" />
-                                        <div v-if="formErrors.customer" class="error-text">
+                                    <div v-else>
+                                        <label class="form-label small">Customer</label>
+                                        <input v-model="customer" class="form-control form-control-sm"
+                                            placeholder="Walk In" :class="{ 'is-invalid': formErrors.customer }" />
+
+                                        <div v-if="formErrors.customer" class="invalid-feedback d-block">
                                             {{ formErrors.customer[0] }}
                                         </div>
                                     </div>
 
-                                    <!-- Delivery: Compact Grid -->
-                                    <div v-else class="delivery-grid">
-                                        <input v-model="customer" class="form-control-compact"
-                                            placeholder="Customer Name"
-                                            :class="{ 'is-invalid': formErrors.customer }" />
-
-                                        <input v-model="phoneNumber" class="form-control-compact"
-                                            placeholder="Phone Number" />
-                                        <div v-if="formErrors.phone_number" class="error-text">
-                                            {{ formErrors.phone_number[0] }}
-                                        </div>
-
-                                        <input v-model="deliveryLocation" class="form-control-compact"
-                                            placeholder="Delivery Address" />
-                                        <div v-if="formErrors.delivery_location" class="error-text">
+                                    <!-- if delivery then show location and phone no  -->
+                                    <div v-if="orderType === 'Delivery'" class="mt-2">
+                                        <label class="form-label small">Delivery Location</label>
+                                        <input v-model="deliveryLocation" class="form-control form-control-sm"
+                                            placeholder="Enter delivery location" />
+                                        <div v-if="formErrors.delivery_location" class="invalid-feedback d-block">
                                             {{ formErrors.delivery_location[0] }}
+                                        </div>
+                                        <label class="form-label small mt-2">Phone Number</label>
+                                        <input v-model="phoneNumber" class="form-control form-control-sm"
+                                            placeholder="Enter phone number" />
+                                        <div v-if="formErrors.phone_number" class="invalid-feedback d-block">
+                                            {{ formErrors.phone_number[0] }}
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Cart Items - Optimized Layout -->
-                                <div class="cart-items-compact">
-                                    <div v-if="orderItems.length === 0" class="empty-cart">
-                                        <i class="bi bi-cart3"></i>
-                                        <p>Tap items to add</p>
+                                <div class="cart-lines">
+                                    <div v-if="orderItems.length === 0" class="empty">
+                                        Add items from the left
                                     </div>
 
-                                    <div v-for="(it, i) in orderItems" :key="'item-' + i" class="cart-item">
-
-                                        <!-- Item Info -->
-                                        <div class="item-info">
-                                            <img :src="it.img" alt="" class="item-thumb" />
-                                            <div class="item-details">
-                                                <div class="item-name" :title="it.title">{{ it.title }}</div>
-
-                                                <!-- Badges Row -->
-                                                <div class="item-badges">
-                                                    <span v-if="it.resale_discount_per_item > 0" class="badge-sale">
-                                                        Save {{ formatCurrencySymbol(it.resale_discount_per_item) }}
-                                                    </span>
-
-                                                    <span v-if="it.variant_name" class="badge-variant">
-                                                        {{ it.variant_name }}
-                                                    </span>
-
-                                                    <span v-if="isItemEligibleForPromo(it)" class="badge-promo">
+                                    <div v-for="(it, i) in orderItems" :key="it.title" class="line">
+                                        <!-- Left: Image + Meta -->
+                                        <!-- {{ it.title.length > 4 ? it.title.slice(0, 10) + '...' : it.title }} -->
+                                        <div class="line-left">
+                                            <img :src="it.img" alt="" />
+                                            <div class="meta">
+                                                <div class="name" :title="it.title">
+                                                    {{ it.title }}
+                                                </div>
+                                                <div v-if="it.resale_discount_per_item > 0">
+                                                    <span class="badge bg-success" style="font-size: 0.65rem;">
                                                         <i class="bi bi-tag-fill"></i>
-                                                    </span>
+                                                        Save {{ formatCurrencySymbol(it.resale_discount_per_item) }}
 
-                                                    <button v-if="it.addons && it.addons.length > 0" class="badge-addon"
-                                                        @click="openAddonModal(it, i)">
-                                                        <i class="bi bi-plus-circle-fill"></i> {{ it.addons.length }}
+                                                    </span>
+                                                </div>
+                                                <!-- Addon Icons (clickable) -->
+
+
+                                                <div v-if="it.addons && it.addons.length > 0" class="addon-icons mt-1">
+                                                    <button class="btn-link p-0 py-0 text-decoration-none"
+                                                        @click="openAddonModal(it, i)" :title="getAddonTooltip(it)">
+                                                        <i class="bi bi-plus-circle-fill text-primary me-1"
+                                                            style="font-size: 0.9rem;"></i>
+                                                        <span class="text-muted small">{{ it.addons.length }}
+                                                            addon(s)</span>
                                                     </button>
                                                 </div>
 
-                                                <div v-if="it.note" class="item-note">{{ it.note }}</div>
+                                                <span v-if="isItemEligibleForPromo(it)"
+                                                    class="badge bg-success mt-1 ms-1" style="font-size: 0.65rem;">
+                                                    <i class="bi bi-tag-fill"></i>
+                                                </span>
+
+                                                <!-- Show variant name badge (always show if exists) -->
+                                                <div v-if="it.variant_name" class="mt-1">
+                                                    <span class="badge"
+                                                        style="font-size: 0.65rem; background: #1B1670; color: white;">
+                                                        {{ it.variant_name }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="note" v-if="it.note">
+                                                    {{ it.note }}
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <!-- Quantity & Price Controls -->
-                                        <div class="item-controls">
-                                            <div class="qty-row">
+                                        <!-- Right: Controls + Price (Stacked Vertically) -->
+                                        <div class="line-right">
+                                            <!-- Quantity Controls on Top -->
+                                            <div class="qty-controls">
                                                 <button class="qty-btn" @click="decCart(i)">−</button>
-                                                <span class="qty-display">{{ it.qty }}</span>
+                                                <div class="qty">{{ it.qty }}</div>
                                                 <button class="qty-btn" @click="incCart(i)">+</button>
                                             </div>
-                                            <div class="price-row">
-                                                <span class="item-price">{{ formatCurrencySymbol(it.price) }}</span>
-                                                <button class="btn-delete" @click="removeCart(i)">
-                                                    <i class="bi bi-trash3"></i>
+
+                                            <!-- Price and Delete Below -->
+                                            <div class="price-delete">
+                                                <div class="price">
+                                                    {{ formatCurrencySymbol(it.price) }}
+                                                </div>
+                                                <button class="del" @click="removeCart(i)">
+                                                    <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Totals Section - Compact -->
-                                <div class="totals-compact">
-
+                                <!-- Totals -->
+                                <div class="totals">
                                     <!-- Sub Total -->
-                                    <div class="total-row">
-                                        <span>Subtotal</span>
-                                        <strong>{{ formatCurrencySymbol(subTotal) }}</strong>
+                                    <div class="trow">
+                                        <span>Sub Total</span>
+                                        <b class="sub-total">{{ formatCurrencySymbol(subTotal) }}</b>
                                     </div>
 
-                                    <!-- Add-ons -->
-                                    <div v-if="totalAddons > 0" class="total-row text-success">
-                                        <span>Add-ons</span>
-                                        <span>+{{ formatCurrencySymbol(totalAddons) }}</span>
+                                    <!-- Add-ons Total (Optional - for clarity) -->
+                                    <div v-if="totalAddons > 0" class="trow">
+                                        <span class="text-muted">
+                                            <!-- <i class="bi bi-plus-circle text-success"></i> -->
+                                            Add-ons Total:
+                                        </span>
+                                        <span class="text-success fw-semibold">{{ formatCurrencySymbol(totalAddons)
+                                        }}</span>
                                     </div>
 
-                                    <!-- Tax -->
-                                    <div v-if="totalTax > 0" class="total-row">
-                                        <span>Tax</span>
-                                        <span>{{ formatCurrencySymbol(totalTax) }}</span>
+                                    <!-- Tax Row -->
+                                    <div class="trow" v-if="totalTax > 0">
+                                        <span class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-receipt text-info"></i>
+                                            Tax
+                                        </span>
+                                        <b class="text-info">{{ formatCurrencySymbol(totalTax) }}</b>
                                     </div>
 
                                     <!-- Service Charges -->
-                                    <div v-if="serviceCharges > 0" class="total-row">
-                                        <span>Service</span>
-                                        <span>{{ formatCurrencySymbol(serviceCharges) }}</span>
+                                    <div v-if="serviceCharges > 0" class="trow">
+                                        <span class="text-muted">Service Charges:</span>
+                                        <span class="fw-semibold">{{ formatCurrencySymbol(serviceCharges) }}</span>
                                     </div>
 
                                     <!-- Delivery Charges -->
-                                    <div v-if="deliveryCharges > 0" class="total-row">
-                                        <span>Delivery</span>
-                                        <span>{{ formatCurrencySymbol(deliveryCharges) }}</span>
+                                    <div v-if="deliveryCharges > 0" class="trow">
+                                        <span class="text-muted">Delivery Charges:</span>
+                                        <span class="fw-semibold">{{ formatCurrencySymbol(deliveryCharges) }}</span>
                                     </div>
 
                                     <!-- Sale Discount -->
-                                    <div v-if="totalResaleSavings > 0" class="total-row text-danger">
-                                        <span>Sale Discount</span>
-                                        <strong>-{{ formatCurrencySymbol(totalResaleSavings) }}</strong>
+                                    <div v-if="totalResaleSavings > 0" class="trow">
+                                        <span class="d-flex align-items-center gap-2">
+                                            <!-- <i class="bi bi-tag text-danger"></i> -->
+                                            <span class="text-danger">Sale Discount:</span>
+                                        </span>
+                                        <b class="text-danger">-{{ formatCurrencySymbol(totalResaleSavings) }}</b>
                                     </div>
 
                                     <!-- Promo Discount -->
-                                    <div v-if="selectedPromos && selectedPromos.length > 0"
-                                        class="total-row discount-row">
-                                        <span class="text-success">
-                                            <i class="bi bi-gift me-1"></i>Promo
-                                        </span>
-                                        <strong class="text-success">-{{ formatCurrencySymbol(promoDiscount) }}</strong>
+                                    <div v-if="selectedPromos && selectedPromos.length > 0" class="promos-section mb-3">
+                                        <div class="promo-total mt-2 rounded-3 bg-success-subtle">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="text-success">Promo Discount:</span>
+                                                <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
+                                                    }}</b>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <!-- Pending Discounts -->
-                                    <div v-if="pendingDiscountApprovals.length > 0" class="pending-section">
-                                        <div class="pending-header">
-                                            <i class="bi bi-clock-history"></i>
-                                            <small>Pending Approval</small>
+                                    <!--  Pending Percentage Discounts (NOT deducted yet) -->
+                                    <div v-if="pendingDiscountApprovals.length > 0"
+                                        class="pending-discounts-section mb-3">
+                                        <div class="alert alert-warning py-2 px-3 mb-2">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="bi bi-clock-history"></i>
+                                                <small class="fw-semibold">Pending Approval</small>
+                                            </div>
                                         </div>
                                         <div v-for="approval in pendingDiscountApprovals" :key="approval.id"
-                                            class="total-row text-warning">
-                                            <span>{{ approval.discountData?.name || 'Discount' }} ({{
-                                                approval.percentage }}%)</span>
-                                            <span>-{{ formatCurrencySymbol(getDiscountAmount(approval.percentage))
-                                                }}</span>
+                                            class="trow">
+                                            <span class="d-flex align-items-center gap-2 text-warning">
+                                                <i class="bi bi-hourglass-split"></i>
+                                                <span>{{ approval.discountData?.name || 'Discount' }} ({{
+                                                    approval.percentage }}%)</span>
+                                            </span>
+                                            <span class="text-warning">
+                                                -{{ formatCurrencySymbol(getDiscountAmount(approval.percentage)) }}
+                                            </span>
+                                        </div>
+                                        <small class="text-muted d-block mt-1 ms-4">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Will apply after Super Admin approval
+                                        </small>
+                                    </div>
+                                    <!--  Approved Percentage Discounts (Dynamically calculated) -->
+                                    <div v-if="selectedDiscounts.length > 0" class="approved-discounts-section mb-3">
+                                        <!-- Total Approved Discount -->
+                                        <div class="trow border-top pt-2 mt-2">
+                                            <div class="d-flex align-items-center text-success gap-2">
+                                                <i class="bi bi-check-circle"></i>
+                                                <small class="fw-semibold">Approved Discounts</small>
+
+                                                <!-- NEW: Info Icon with Popover -->
+                                                <i class="bi bi-info-circle text-muted" tabindex="0" role="button"
+                                                    data-bs-toggle="popover" data-bs-trigger="click" data-bs-html="true"
+                                                    data-bs-placement="top" data-bs-container="body"
+                                                    data-bs-content="Auto-updates with cart changes<br>Approved Discounts">
+                                                </i>
+                                            </div>
+                                            <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
+                                                }}</b>
                                         </div>
                                     </div>
-
-                                    <!-- Approved Discounts -->
-                                    <div v-if="selectedDiscounts.length > 0" class="total-row discount-row">
-                                        <span class="text-success">
-                                            <i class="bi bi-check-circle me-1"></i>Discounts
-                                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip"
-                                                title="Auto-updates with cart"></i>
-                                        </span>
-                                        <strong class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                            }}</strong>
-                                    </div>
-
-                                    <!-- Grand Total -->
-                                    <div class="total-row grand-total">
-                                        <span>TOTAL</span>
-                                        <strong>{{ formatCurrencySymbol(grandTotal) }}</strong>
+                                    <!-- Total After All Discounts -->
+                                    <div class="trow total">
+                                        <span>Total</span>
+                                        <b>{{ formatCurrencySymbol(grandTotal) }}</b>
                                     </div>
                                 </div>
 
-                                <!-- Notes Section - Collapsible -->
-                                <div class="notes-section">
-                                    <details class="note-details">
-                                        <summary>
-                                            <i class="bi bi-chat-left-text me-2"></i>Front Note
-                                            <i class="bi bi-chevron-down ms-auto"></i>
-                                        </summary>
-                                        <textarea v-model="note" rows="2" class="form-control-compact"
-                                            placeholder="Add front note..."></textarea>
-                                    </details>
+                                <div class="">
+                                    <Accordion>
+                                        <AccordionPanel value="0">
+                                            <AccordionHeader>Front Note</AccordionHeader>
+                                            <AccordionContent>
+                                                <div class="mb-3">
+                                                    <textarea id="frontNote" v-model="note" rows="3"
+                                                        class="form-control form-control-sm rounded-3"
+                                                        placeholder="Enter front note..."></textarea>
+                                                </div>
 
-                                    <details class="note-details">
-                                        <summary>
-                                            <i class="bi bi-egg-fried me-2"></i>Kitchen Note
-                                            <i class="bi bi-chevron-down ms-auto"></i>
-                                        </summary>
-                                        <textarea v-model="kitchenNote" rows="2" class="form-control-compact"
-                                            placeholder="Add kitchen note..."></textarea>
-                                    </details>
+                                            </AccordionContent>
+                                        </AccordionPanel>
+                                        <AccordionPanel value="1">
+                                            <AccordionHeader>Kitchen Note</AccordionHeader>
+                                            <AccordionContent>
+                                                <div class="mb-3">
+                                                    <textarea id="kitchenNote" v-model="kitchenNote" rows="3"
+                                                        class="form-control form-control-sm rounded-3"
+                                                        placeholder="Enter kitchen note..."></textarea>
+                                                </div>
+                                            </AccordionContent>
+                                        </AccordionPanel>
+                                    </Accordion>
                                 </div>
                             </div>
-
-                            <!-- Action Buttons - Fixed Bottom -->
-                            <div class="cart-footer-compact">
-                                <button class="btn-action btn-clear" @click="resetCart()">
-                                    <i class="bi bi-x-circle"></i>
-                                    <span>Clear</span>
+                            <div class="cart-footer">
+                                <button class="btn btn-secondary btn-clear" @click="resetCart()">
+                                    Clear
                                 </button>
-
-                                <button class="btn-action btn-hold" @click="holdOrderAsPending">
-                                    <i class="bi bi-pause-circle"></i>
-                                    <span>Hold</span>
+                                <button class="btn btn-warning" @click="holdOrderAsPending">
+                                    Pending
                                 </button>
-
-                                <button class="btn-action btn-later" @click="placeOrderWithoutPayment">
-                                    <i class="bi bi-clock"></i>
-                                    <span>Pay Later</span>
+                                <button class="btn btn-primary btn-place" @click="openConfirmModal">
+                                    Place Order
                                 </button>
-
-                                <button class="btn-action btn-place" @click="openConfirmModal">
-                                    <i class="bi bi-check-circle"></i>
-                                    <span>Place Order</span>
+                                <button class="btn btn-info" @click="placeOrderWithoutPayment">
+                                    <i class="bi bi-clock me-1"></i>
+                                    Pay Later
                                 </button>
                             </div>
                         </div>
@@ -8838,733 +8892,5 @@ const handlePayItem = async (item) => {
         flex-direction: column;
     }
 
-}
-
-
-
-/* NEW STYLE */
-/* ===== COMPACT ACTION BUTTONS ===== */
-/* ===== COMPACT ACTION BUTTONS ===== */
-.action-buttons-compact {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.4rem;
-    margin-bottom: 0.5rem;
-}
-
-.btn-compact {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 0.3rem;
-    border: none;
-    border-radius: 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    position: relative;
-    transition: all 0.2s;
-    background: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.btn-compact i {
-    font-size: 1.1rem;
-    margin-bottom: 0.2rem;
-}
-
-.btn-compact .btn-label {
-    font-size: 0.7rem;
-}
-
-.btn-compact .badge-count {
-    position: absolute;
-    top: -0.25rem;
-    right: -0.25rem;
-    background: #dc3545;
-    color: white;
-    border-radius: 10px;
-    padding: 0.1rem 0.4rem;
-    font-size: 0.65rem;
-    font-weight: 600;
-}
-
-.btn-pending {
-    color: #0dcaf0;
-}
-
-.btn-pending:active {
-    background: #e7f6f9;
-}
-
-.btn-unpaid {
-    color: #ffc107;
-}
-
-.btn-unpaid:active {
-    background: #fff9e6;
-}
-
-.btn-promo {
-    color: #198754;
-}
-
-.btn-promo:active {
-    background: #e8f5e9;
-}
-
-.btn-discount {
-    color: #fd7e14;
-}
-
-.btn-discount:active {
-    background: #fff4e6;
-}
-
-/* ===== CART HEADER - Keep Original Design ===== */
-.cart-header-compact {
-    background: #1b1670;
-    color: #fff;
-    padding: 0.75rem 1rem;
-    border-top-left-radius: 1rem;
-    border-top-right-radius: 1rem;
-}
-
-.order-type-pills {
-    display: flex;
-    gap: 0.4rem;
-}
-
-.type-pill {
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
-    border: 0;
-    border-radius: 999px;
-    padding: 0.4rem 0.75rem;
-    font-size: 0.8rem;
-    font-weight: 500;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-.type-pill.active {
-    background: #fff;
-    color: #1b1670;
-    font-weight: 700;
-}
-
-/* Dark Mode */
-.dark .type-pill {
-    background: rgba(255, 255, 255, 0.18);
-}
-
-.dark .type-pill.active {
-    background-color: #181818;
-    color: #fff;
-}
-
-/* ===== CART BODY ===== */
-.cart-body-compact {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
-    background: #fff;
-}
-
-.dark .cart-body-compact {
-    background-color: #181818;
-}
-
-/* Customer Section */
-.customer-section {
-    margin-bottom: 0.75rem;
-}
-
-.form-select-compact,
-.form-control-compact {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.85rem;
-    border-radius: 0.5rem;
-    border: 1px solid #dee2e6;
-    width: 100%;
-}
-
-.dark .form-select-compact,
-.dark .form-control-compact {
-    background-color: #212121;
-    color: #fff;
-    border-color: #4b5563;
-}
-
-.form-select-compact:focus,
-.form-control-compact:focus {
-    border-color: #1b1670;
-    box-shadow: 0 0 0 0.2rem rgba(27, 22, 112, 0.15);
-}
-
-.dark .form-control:focus {
-    border-color: #fff !important;
-}
-
-.delivery-grid {
-    display: grid;
-    gap: 0.5rem;
-}
-
-.error-text {
-    color: #dc3545;
-    font-size: 0.7rem;
-    margin-top: 0.2rem;
-}
-
-/* ===== CART ITEMS - Keep Original Card Design ===== */
-.cart-items-compact {
-    background: #fff;
-    border: 1px dashed #e8e9ef;
-    border-radius: 12px;
-    padding: 0.5rem;
-    margin-bottom: 0.75rem;
-    max-height: 360px;
-    overflow-y: auto;
-}
-
-.dark .cart-items-compact {
-    background-color: #181818;
-    border-color: #4b5563;
-}
-
-.empty-cart {
-    text-align: center;
-    padding: 1.5rem 1rem;
-    color: #9aa0b6;
-}
-
-.empty-cart i {
-    font-size: 3rem;
-    margin-bottom: 0.5rem;
-    display: block;
-}
-
-.cart-item {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: flex-start;
-    gap: 0.8rem;
-    padding: 0.6rem 0.35rem;
-    border-bottom: 1px solid #f1f2f6;
-}
-
-.cart-item:last-child {
-    border-bottom: none;
-}
-
-/* Item Info */
-.item-info {
-    display: flex;
-    gap: 0.6rem;
-    align-items: flex-start;
-    min-width: 0;
-}
-
-.item-thumb {
-    width: 42px;
-    height: 42px;
-    object-fit: cover;
-    border-radius: 8px;
-    flex-shrink: 0;
-}
-
-.item-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    min-width: 0;
-}
-
-.item-name {
-    font-weight: 700;
-    font-size: 0.92rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: #141414;
-}
-
-.dark .item-name {
-    color: #fff;
-}
-
-.item-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-}
-
-.item-badges > * {
-    font-size: 0.65rem;
-    padding: 0.1rem 0.4rem;
-    border-radius: 0.25rem;
-    font-weight: 500;
-    border: none;
-}
-
-.badge-sale {
-    background: #d4edda;
-    color: #155724;
-}
-
-.badge-variant {
-    background: #1B1670;
-    color: white;
-}
-
-.badge-promo {
-    background: #d1ecf1;
-    color: #0c5460;
-}
-
-.badge-addon {
-    background: #cfe2ff;
-    color: #084298;
-    cursor: pointer;
-}
-
-.badge-addon:active {
-    background: #b6d4fe;
-}
-
-.item-note {
-    font-size: 0.75rem;
-    color: #8a8fa7;
-    font-style: italic;
-}
-
-/* Item Controls - Keep Original Design */
-.item-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-end;
-}
-
-.qty-row {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    background: #f1f2f6;
-    border-radius: 8px;
-    padding: 0.2rem;
-}
-
-.dark .qty-row {
-    background: #212121;
-}
-
-.qty-btn {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    border: 0;
-    background: #1b1670;
-    color: #fff;
-    font-weight: 800;
-    line-height: 1.5;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.qty-btn:hover {
-    background: #0f0d4d;
-}
-
-.qty-btn:disabled {
-    background: #b9bdd4;
-    cursor: not-allowed;
-}
-
-.qty-display {
-    min-width: 28px;
-    text-align: center;
-    font-weight: 700;
-    font-size: 0.9rem;
-}
-
-.dark .qty-display {
-    color: #fff;
-}
-
-.price-row {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-.item-price {
-    font-weight: 700;
-    font-size: 0.95rem;
-    min-width: 64px;
-    text-align: right;
-}
-
-.dark .item-price {
-    color: #fff;
-}
-
-.btn-delete {
-    border: 0;
-    background: #ffeded;
-    color: #c0392b;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-delete:hover {
-    background: #ff6b6b;
-    color: #fff;
-}
-
-.dark .btn-delete {
-    background: #3a3a3a;
-    color: #ff6b6b;
-}
-
-.dark .btn-delete:hover {
-    background: #c0392b;
-    color: #fff;
-}
-
-/* ===== TOTALS ===== */
-.totals-compact {
-    padding: 0.75rem 0 0.25rem;
-}
-
-.total-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.25rem 0;
-    font-size: 0.85rem;
-    color: #4b5563;
-}
-
-.dark .total-row {
-    color: #fff;
-}
-
-.total-row:last-child {
-    border-bottom: none;
-}
-
-.total-row.discount-row {
-    background: #e8f5e9;
-    margin: 0.25rem 0;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.4rem;
-}
-
-.grand-total {
-    border-top: 1px solid #eef0f6;
-    margin-top: 0.25rem;
-    padding-top: 0.6rem;
-    color: #181818;
-    font-size: 1rem;
-    font-weight: 800;
-}
-
-.dark .grand-total {
-    color: #fff;
-    border-color: #4b5563;
-}
-
-.pending-section {
-    background: #fff3cd;
-    padding: 0.5rem;
-    border-radius: 0.4rem;
-    margin: 0.5rem 0;
-}
-
-.dark .pending-section {
-    background: #3a3a3a;
-}
-
-.pending-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #856404;
-    margin-bottom: 0.25rem;
-}
-
-/* ===== NOTES ===== */
-.notes-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-}
-
-.note-details {
-    background: white;
-    border-radius: 0.5rem;
-    overflow: hidden;
-}
-
-.dark .note-details {
-    background: #212121;
-}
-
-.note-details summary {
-    padding: 0.6rem 0.75rem;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    background: #f8f9fa;
-    user-select: none;
-    list-style: none;
-}
-
-.dark .note-details summary {
-    background: #181818;
-    color: #fff;
-}
-
-.note-details summary::-webkit-details-marker {
-    display: none;
-}
-
-.note-details[open] summary {
-    border-bottom: 1px solid #e9ecef;
-}
-
-.dark .note-details[open] summary {
-    border-color: #4b5563;
-}
-
-.note-details summary i.bi-chevron-down {
-    margin-left: auto;
-    transition: transform 0.2s;
-}
-
-.note-details[open] summary i.bi-chevron-down {
-    transform: rotate(180deg);
-}
-
-.note-details textarea {
-    margin: 0.5rem;
-    width: calc(100% - 1rem);
-    border: 1px solid #dee2e6;
-    border-radius: 0.4rem;
-    padding: 0.5rem;
-    font-size: 0.85rem;
-}
-
-.dark .note-details textarea {
-    background-color: #181818;
-    color: white;
-    border-color: #4b5563;
-}
-
-/* ===== FOOTER - Keep Original Design ===== */
-.cart-footer-compact {
-    background: #f7f8ff;
-    padding: 0.75rem;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.6rem;
-    border-bottom-left-radius: 1rem;
-    border-bottom-right-radius: 1rem;
-}
-
-.dark .cart-footer-compact {
-    background-color: #181818;
-}
-
-.btn-action {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 0.6rem 0.5rem;
-    border: none;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    transition: all 0.2s;
-    gap: 0.25rem;
-    cursor: pointer;
-}
-
-.btn-action i {
-    font-size: 1.2rem;
-}
-
-.btn-clear {
-    background: #eef1ff;
-    color: #1b1670;
-}
-
-.dark .btn-clear {
-    background-color: #4b5563;
-    color: #fff;
-}
-
-.btn-hold {
-    background: #fff3cd;
-    color: #856404;
-}
-
-.btn-hold:active {
-    background: #ffe8a1;
-}
-
-.btn-later {
-    background: #cfe2ff;
-    color: #084298;
-}
-
-.btn-later:active {
-    background: #b6d4fe;
-}
-
-.btn-place {
-    background: #1b1670;
-    color: white;
-}
-
-.btn-place:active {
-    background: #0b5ed7;
-}
-
-/* ===== SCROLLBAR STYLING ===== */
-.cart-items-compact::-webkit-scrollbar,
-.cart-body-compact::-webkit-scrollbar {
-    width: 6px;
-}
-
-.cart-items-compact::-webkit-scrollbar-track,
-.cart-body-compact::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
-}
-
-.cart-items-compact::-webkit-scrollbar-thumb,
-.cart-body-compact::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 10px;
-}
-
-.cart-items-compact::-webkit-scrollbar-thumb:hover,
-.cart-body-compact::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
-/* ===== CART CONTAINER ===== */
-.cart {
-    border-radius: 1rem;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    max-height: calc(85vh);
-    background: #f8f9fa;
-}
-
-/* ===== RESPONSIVE TWEAKS ===== */
-@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) {
-    .cart-header-compact {
-        padding: 0.7rem;
-    }
-
-    .type-pill {
-        font-size: 0.72rem;
-        padding: 0.35rem 0.65rem;
-    }
-
-    .cart {
-        max-height: calc(70vh);
-    }
-
-    .cart-item {
-        gap: 0.6rem;
-        padding: 0.5rem 0.3rem;
-    }
-
-    .item-thumb {
-        width: 40px;
-        height: 40px;
-    }
-
-    .item-name {
-        font-size: 0.88rem;
-    }
-
-    .qty-btn {
-        width: 24px;
-        height: 24px;
-        font-size: 0.85rem;
-    }
-
-    .qty-display {
-        min-width: 26px;
-        font-size: 0.85rem;
-    }
-
-    .item-price {
-        font-size: 0.9rem;
-    }
-
-    .btn-delete {
-        width: 26px;
-        height: 26px;
-    }
-}
-
-@media (max-width: 768px) {
-    .cart {
-        max-height: calc(100vh - 120px);
-    }
-
-    .cart-items-compact {
-        max-height: 30vh;
-    }
-
-    .cart-item {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-    }
-
-    .item-controls {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-    }
-}
-
-/* Tablet landscape optimization */
-@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
-    .cart {
-        max-height: calc(100vh - 100px);
-    }
-
-    .cart-items-compact {
-        max-height: 25vh;
-    }
-
-    .cart-footer-compact {
-        grid-template-columns: repeat(2, 1fr);
-    }
 }
 </style>
