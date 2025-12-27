@@ -2800,7 +2800,7 @@ const onStripeSuccess = async (data) => {
 
         if (print_payload) {
             printReceipt(JSON.parse(JSON.stringify(print_payload)), true);
-            
+
         }
 
         // ✅ REFRESH PAGE AFTER 1 SECOND TO START FRESH
@@ -3958,7 +3958,7 @@ async function pushDataToCustomerView(cartData) {
         const res = await axios.post(
             customer_view_url.value,
             { cartData },
-            {   
+            {
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -5368,7 +5368,7 @@ const placeOrderWithoutPayment = async () => {
 
         if (response.data.success) {
             toast.success('Order placed successfully! Payment pending.');
-
+            printKot(JSON.parse(JSON.stringify(response.data.order)));
             // // Print KOT
             // if (response.data.kot) {
             //     printKot(JSON.parse(JSON.stringify(response.data.order)));
@@ -5786,7 +5786,7 @@ const handlePayItem = async (item) => {
                                             </div>
 
                                             <!--  Dynamic Price Badge with Resale -->
-                                            
+
 
                                             <!-- OUT OF STOCK Badge -->
                                             <span v-if="getProductStock(p) <= 0"
@@ -5814,8 +5814,7 @@ const handlePayItem = async (item) => {
                                                     : getResaleBadgeInfo(p, false).display }}
                                             </span>
 
-                                            <span
-                                                class=" m-1 px-2 py-1 rounded-pill text-white fw-semibold"
+                                            <span class=" m-1 px-2 py-1 rounded-pill text-white fw-semibold"
                                                 :style="{ background: p.label_color || '#1B1670', fontSize: '0.58rem', letterSpacing: '0.3px' }">
                                                 <template
                                                     v-if="getResaleBadgeInfo(getSelectedVariant(p) || p, !!p.variants?.length)">
@@ -5965,6 +5964,10 @@ const handlePayItem = async (item) => {
                                     {{pendingOrders.filter(o => o.type === 'unpaid').length}}
                                 </span>
                             </button>
+
+                        </div>
+
+                        <div class="col-12 d-flex align-items-center justify-content-end gap-2 mb-2">
                             <button class="btn btn-warning px-3 py-2 promos-btn" @click="openPromoModal">
                                 Promos
                             </button>
