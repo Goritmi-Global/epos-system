@@ -2199,7 +2199,7 @@ const incCartWithWarning = async (i) => {
 
 async function printReceipt(order, shouldPrint) {
 
-    printKot(order);
+    // printKot(order);
 
     const printValue = shouldPrint ? 'yes' : 'no';
     console.log("🖨️ printReceiptN called");
@@ -2733,7 +2733,7 @@ const confirmOrder = async ({
                 card_amount: paymentMethod === 'Split' ? cardAmount : null,
             };
 
-            printReceipt(JSON.parse(JSON.stringify(lastOrder.value)), autoPrintKot === true);
+            printReceipt(JSON.parse(JSON.stringify(paymentRes.data.order)), autoPrintKot === true);
             kotData.value = await openPosOrdersModal();
             printKot(JSON.parse(JSON.stringify(paymentRes.data.order)));
 
