@@ -2217,6 +2217,24 @@ async function printReceipt(order, shouldPrint) {
         console.error("Print failed:", error);
         toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
     }
+
+}
+
+async function printKot(order) {
+    try {
+
+        const res = await axios.post(
+            'http://localhost:8085/print',
+            { order, type: 'KOT', print: 'yes' },
+            {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000,
+            },
+        );
+    } catch (error) {
+        console.error("Print failed:", error);
+        toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
+    }
 }
 
 async function printReceiptN(order, shouldPrint) {
@@ -2246,18 +2264,18 @@ async function printReceiptN(order, shouldPrint) {
 const paymentMethod = ref("cash");
 const changeAmount = ref(0);
 
-async function printKot(order) {
-    try {
-        const response = await axios.post("/api/kot/print-receipt", { order });
-        if (response.data.success) {
-        } else {
-            toast.error(response.data.message || "KOT print failed");
-        }
-    } catch (error) {
-        console.error("KOT print failed:", error);
-        toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
-    }
-}
+// async function printKot(order) {
+//     try {
+//         const response = await axios.post("/api/kot/print-receipt", { order });
+//         if (response.data.success) {
+//         } else {
+//             toast.error(response.data.message || "KOT print failed");
+//         }
+//     } catch (error) {
+//         console.error("KOT print failed:", error);
+//         toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
+//     }
+// }
 
 
 // ================================================
@@ -3972,7 +3990,7 @@ async function pushDataToCustomerView(cartData) {
         const res = await axios.post(
             customer_view_url.value,
             { cartData },
-            {
+            {   
                 headers: {
                     'Content-Type': 'application/json',
                 },
