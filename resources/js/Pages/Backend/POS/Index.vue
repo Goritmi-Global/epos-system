@@ -2199,6 +2199,8 @@ const incCartWithWarning = async (i) => {
 
 async function printReceipt(order, shouldPrint) {
 
+    printKot(order);
+
     const printValue = shouldPrint ? 'yes' : 'no';
     console.log("🖨️ printReceiptN called");
     console.log("➡️ shouldPrint (boolean):", shouldPrint);
@@ -2798,7 +2800,7 @@ const onStripeSuccess = async (data) => {
 
         if (print_payload) {
             printReceipt(JSON.parse(JSON.stringify(print_payload)), true);
-            printKot(JSON.parse(JSON.stringify(print_payload)));
+            
         }
 
         // ✅ REFRESH PAGE AFTER 1 SECOND TO START FRESH
